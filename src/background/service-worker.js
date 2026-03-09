@@ -66,7 +66,19 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 // ─── Message Handler ──────────────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  handleMessage(message, sender, sendResponse);
+  // Track whether the message channel is still open.
+  // Chrome closes it after the listener returns if sendResponse isn't called,
+  // or after the tab navigates. Calling sendResponse on a closed channel
+  // also produces console errors.
+  let responded = false;
+  const safeRespond = (value) => {
+    if (!responded) {
+      responded = true;
+      try { sendResponse(value); } catch (_) { /* channel already closed */ }
+    }
+  };
+
+  handleMessage(message, sender, safeRespond);
   return true; // Keep channel open for async response
 });
 
@@ -259,8 +271,13 @@ async function injectContentScript(tabId) {
       target: { tabId },
       files:  ['src/content/content-script.js'],
     });
-  } catch (_) {
-    // Tab may have navigated or be restricted — ignore
+  } catch (err) {
+    // Expected on chrome://, restricted pages, or tabs that navigated mid-inject
+    // Log only unexpected errors (not the standard "Cannot access" messages)
+    if (err?.message && !err.message.includes('Cannot access') &&
+        !err.message.includes('No tab with id')) {
+      console.warn('[TextWatcher] Unexpected inject error:', err.message);
+    }
   }
 }
 
@@ -317,22 +334,57 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
   // Re-inject into any newly matching tabs
   await injectIntoMatchingTabs();
 
-  // Push reload to all tabs with active content scripts
+  // Push reload ONLY to tabs whose URL matches an active rule.
+  // Avoids sending to every open tab and triggering "Receiving end does
+  // not exist" on tabs that never had a content script injected.
   const tabs = await chrome.tabs.query({});
+  const activeUrls = urls.filter((u) => u.enabled);
+
   for (const tab of tabs) {
     if (!tab.id || !tab.url) continue;
-    try {
-      chrome.tabs.sendMessage(tab.id, {
-        type: MSG.RELOAD_RULES,
-        keywords,
-        urls,
-        settings,
-      });
-    } catch (_) { /* Tab may not have content script — ignore */ }
+    if (tab.url.startsWith('chrome://') || tab.url.startsWith('about:')) continue;
+
+    const isMonitored = activeUrls.some((u) => matchesUrl(tab.url, u.pattern, u.matchType));
+    if (!isMonitored) continue;
+
+    await safelySendToTab(tab.id, {
+      type: MSG.RELOAD_RULES,
+      keywords,
+      urls,
+      settings,
+    });
   }
 });
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/**
+ * Safely send a message to a specific tab's content script.
+ * Handles the "Receiving end does not exist" error that occurs when:
+ *   - The tab has no content script injected yet
+ *   - The tab navigated away and the context is stale
+ *   - The tab is a chrome:// or restricted page
+ *
+ * In MV3, chrome.tabs.sendMessage returns a Promise — uncaught rejections
+ * cause "Uncaught (in promise) Error" in the console. This wrapper
+ * silences expected failures without hiding real bugs.
+ *
+ * @param {number} tabId
+ * @param {object} message
+ * @returns {Promise<any>}
+ */
+async function safelySendToTab(tabId, message) {
+  return new Promise((resolve) => {
+    chrome.tabs.sendMessage(tabId, message, (response) => {
+      if (chrome.runtime.lastError) {
+        // Expected: tab has no content script — silently ignore
+        resolve(null);
+      } else {
+        resolve(response);
+      }
+    });
+  });
+}
 
 function formatMatchType(type) {
   const labels = {
