@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TextWatcher — Settings</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+
+  <div class="layout">
+
+    <!-- ── Sidebar Nav ───────────────────────────────────── -->
+    <nav class="sidebar">
+      <div class="sidebar__brand">
+        <img src="../icons/icon48.png" alt="TextWatcher" />
+        <span>TextWatcher</span>
+      </div>
+      <ul class="nav-list">
+        <li><a href="#keywords"      class="nav-link active" data-section="keywords">🔤 Keywords</a></li>
+        <li><a href="#urls"          class="nav-link"        data-section="urls">🌐 URLs</a></li>
+        <li><a href="#notifications" class="nav-link"        data-section="notifications">🔔 Notifications</a></li>
+        <li><a href="#badge"         class="nav-link"        data-section="badge">🏷 Badge & Icon</a></li>
+        <li><a href="#history"       class="nav-link"        data-section="history">🕘 History</a></li>
+      </ul>
+      <div class="sidebar__status" id="sidebarStatus">
+        <span class="status-dot" id="sidebarDot"></span>
+        <span id="sidebarStatusText">Loading…</span>
+      </div>
+    </nav>
+
+    <!-- ── Main Content ──────────────────────────────────── -->
+    <main class="main">
+
+      <div class="toast hidden" id="toast"></div>
+
+      <!-- ════ Keywords ════════════════════════════════════ -->
+      <section class="panel" id="section-keywords">
+        <div class="panel__header">
+          <h1 class="panel__title">🔤 Keywords</h1>
+          <p class="panel__desc">Define what text to watch for. Each keyword is monitored independently with its own match type and alert settings.</p>
+        </div>
+
+        <!-- Add form -->
+        <div class="card">
+          <h2 class="card__title">Add Keyword</h2>
+          <div class="form-grid">
+            <div class="form-field form-field--wide">
+              <label class="label">Keyword / Phrase</label>
+              <input type="text" id="kwText" class="input" placeholder="Text to watch for…" maxlength="500" />
+            </div>
+            <div class="form-field">
+              <label class="label">Match Type</label>
+              <select id="kwMatchType" class="select">
+                <option value="contains">Contains</option>
+                <option value="exact_nocase">Exact (case-insensitive)</option>
+                <option value="exact_case">Exact (case-sensitive)</option>
+                <option value="starts_with">Starts with</option>
+                <option value="ends_with">Ends with</option>
+                <option value="regex">Regex</option>
+              </select>
+            </div>
+          </div>
+          <div class="toggle-row">
+            <label class="toggle-field">
+              <input type="checkbox" id="kwAlertAppear" checked />
+              <span class="toggle-field__track"></span>
+              <span class="toggle-field__label">Alert when text <strong>appears</strong></span>
+            </label>
+            <label class="toggle-field">
+              <input type="checkbox" id="kwAlertDisappear" checked />
+              <span class="toggle-field__track"></span>
+              <span class="toggle-field__label">Alert when text <strong>disappears</strong></span>
+            </label>
+            <label class="toggle-field">
+              <input type="checkbox" id="kwEnabled" checked />
+              <span class="toggle-field__track"></span>
+              <span class="toggle-field__label">Enabled</span>
+            </label>
+          </div>
+          <p class="hint" id="kwRegexHint" style="display:none;">ℹ Regex patterns are tested case-insensitively by default. Example: <code>\bprice\b</code></p>
+          <p class="error-msg hidden" id="kwError"></p>
+          <button class="btn btn--primary" id="addKwBtn">Add Keyword</button>
+        </div>
+
+        <!-- List -->
+        <div class="card">
+          <h2 class="card__title">Keyword Rules <span class="badge" id="kwBadge">0</span></h2>
+          <div class="search-row">
+            <input type="text" id="kwSearch" class="input" placeholder="Filter keywords…" />
+          </div>
+          <ul class="rule-list" id="kwList">
+            <li class="rule-list__empty">No keywords yet. Add one above.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ════ URLs ══════════════════════════════════════════ -->
+      <section class="panel hidden" id="section-urls">
+        <div class="panel__header">
+          <h1 class="panel__title">🌐 URLs</h1>
+          <p class="panel__desc">Specify which websites to monitor. The extension only runs on pages matching these rules.</p>
+        </div>
+
+        <!-- Add form -->
+        <div class="card">
+          <h2 class="card__title">Add URL Rule</h2>
+          <div class="form-grid">
+            <div class="form-field form-field--wide">
+              <label class="label">URL / Pattern</label>
+              <input type="text" id="urlPattern" class="input" placeholder="https://example.com/*" maxlength="500" />
+            </div>
+            <div class="form-field">
+              <label class="label">Match Type</label>
+              <select id="urlMatchType" class="select">
+                <option value="wildcard">Wildcard (https://example.com/*)</option>
+                <option value="exact">Exact URL</option>
+                <option value="domain">Domain-wide (*.example.com)</option>
+              </select>
+            </div>
+            <div class="form-field form-field--wide">
+              <label class="label">Label (optional)</label>
+              <input type="text" id="urlLabel" class="input" placeholder="My site" maxlength="100" />
+            </div>
+          </div>
+          <div class="url-hint hint" id="urlHint">
+            <strong>Wildcard:</strong> Use * as a wildcard. Example: <code>https://example.com/*</code> matches all pages on example.com.
+          </div>
+          <div class="toggle-row">
+            <label class="toggle-field">
+              <input type="checkbox" id="urlEnabled" checked />
+              <span class="toggle-field__track"></span>
+              <span class="toggle-field__label">Enabled</span>
+            </label>
+          </div>
+          <p class="error-msg hidden" id="urlError"></p>
+          <div style="display:flex; gap:10px; margin-top:12px;">
+            <button class="btn btn--primary" id="addUrlBtn">Add URL Rule</button>
+            <button class="btn btn--ghost" id="addCurrentUrlBtn">+ Use Current Tab's URL</button>
+          </div>
+        </div>
+
+        <!-- Status checker -->
+        <div class="card">
+          <h2 class="card__title">Connection Status</h2>
+          <p class="hint">Check whether the extension is actively monitoring a URL right now.</p>
+          <div class="input-row" style="margin-top:10px;">
+            <input type="text" id="checkUrl" class="input" placeholder="https://example.com/page" />
+            <button class="btn btn--ghost" id="checkUrlBtn">Check</button>
+          </div>
+          <div class="status-result hidden" id="checkResult"></div>
+        </div>
+
+        <!-- List -->
+        <div class="card">
+          <h2 class="card__title">URL Rules <span class="badge" id="urlBadge">0</span></h2>
+          <ul class="rule-list" id="urlList">
+            <li class="rule-list__empty">No URLs yet. Add one above.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ════ Notifications ════════════════════════════════ -->
+      <section class="panel hidden" id="section-notifications">
+        <div class="panel__header">
+          <h1 class="panel__title">🔔 Notifications</h1>
+          <p class="panel__desc">Control exactly when and how you get alerted.</p>
+        </div>
+
+        <div class="card">
+          <h2 class="card__title">Alert Events</h2>
+          <div class="settings-list">
+            <div class="setting-row">
+              <div class="setting-row__info">
+                <span class="setting-row__name">Alert when text <strong>appears</strong></span>
+                <span class="setting-row__desc">Notify when monitored text is found on the page</span>
+              </div>
+              <label class="toggle"><input type="checkbox" id="alertOnAppear" /><span class="toggle__track"></span></label>
+            </div>
+            <div class="setting-row">
+              <div class="setting-row__info">
+                <span class="setting-row__name">Alert when text <strong>disappears</strong></span>
+                <span class="setting-row__desc">Notify when monitored text is removed from the page</span>
+              </div>
+              <label class="toggle"><input type="checkbox" id="alertOnDisappear" /><span class="toggle__track"></span></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 class="card__title">Frequency</h2>
+          <div class="radio-group" id="notifFreqGroup">
+            <label class="radio-label">
+              <input type="radio" name="notifFreq" value="once_per_page" />
+              <div>
+                <strong>Once per page load</strong>
+                <p class="hint">Alert once per keyword, resets when page reloads</p>
+              </div>
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="notifFreq" value="every_occurrence" />
+              <div>
+                <strong>Every occurrence</strong>
+                <p class="hint">Alert every time text appears or disappears</p>
+              </div>
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="notifFreq" value="cooldown" />
+              <div>
+                <strong>Cooldown</strong>
+                <p class="hint">Max one alert per keyword per interval</p>
+              </div>
+            </label>
+          </div>
+          <div class="cooldown-row" id="cooldownRow">
+            <label class="label">Cooldown period (seconds)</label>
+            <input type="number" id="cooldownSeconds" class="input input--narrow" min="1" max="3600" value="5" />
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 class="card__title">Notification Content</h2>
+          <div class="settings-list">
+            <div class="setting-row">
+              <div class="setting-row__info">
+                <span class="setting-row__name">Show URL in notification</span>
+                <span class="setting-row__desc">Include the page URL where the match was found</span>
+              </div>
+              <label class="toggle"><input type="checkbox" id="showUrl" /><span class="toggle__track"></span></label>
+            </div>
+            <div class="setting-row">
+              <div class="setting-row__info">
+                <span class="setting-row__name">Show match type</span>
+                <span class="setting-row__desc">Include the type of match (Contains, Regex, etc.)</span>
+              </div>
+              <label class="toggle"><input type="checkbox" id="showMatchType" /><span class="toggle__track"></span></label>
+            </div>
+            <div class="setting-row">
+              <div class="setting-row__info">
+                <span class="setting-row__name">Show text snippet</span>
+                <span class="setting-row__desc">Include surrounding context around the matched text</span>
+              </div>
+              <label class="toggle"><input type="checkbox" id="showSnippet" /><span class="toggle__track"></span></label>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn btn--primary" id="saveNotifBtn" style="max-width:200px;">Save Settings</button>
+      </section>
+
+      <!-- ════ Badge & Icon ══════════════════════════════════ -->
+      <section class="panel hidden" id="section-badge">
+        <div class="panel__header">
+          <h1 class="panel__title">🏷 Badge & Icon</h1>
+          <p class="panel__desc">Control the visual status indicator on the extension icon.</p>
+        </div>
+
+        <div class="card">
+          <h2 class="card__title">Badge</h2>
+          <div class="settings-list">
+            <div class="setting-row">
+              <div class="setting-row__info">
+                <span class="setting-row__name">Show badge</span>
+                <span class="setting-row__desc">Display badge on extension icon</span>
+              </div>
+              <label class="toggle"><input type="checkbox" id="badgeEnabled" /><span class="toggle__track"></span></label>
+            </div>
+            <div class="setting-row">
+              <div class="setting-row__info">
+                <span class="setting-row__name">Show match count</span>
+                <span class="setting-row__desc">Display number of active matches on badge</span>
+              </div>
+              <label class="toggle"><input type="checkbox" id="badgeShowCount" /><span class="toggle__track"></span></label>
+            </div>
+          </div>
+          <div class="color-preview" id="badgePreview">
+            <div class="color-swatch" id="activeColor" title="Active (monitoring, no match)"></div>
+            <span>Active</span>
+            <div class="color-swatch match" id="matchColor" title="Match found"></div>
+            <span>Match found</span>
+            <div class="color-swatch inactive" id="inactiveColor" title="Paused"></div>
+            <span>Paused</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 class="card__title">Icon</h2>
+          <div class="settings-list">
+            <div class="setting-row">
+              <div class="setting-row__info">
+                <span class="setting-row__name">Change icon on match</span>
+                <span class="setting-row__desc">Visually change extension icon when a match is found</span>
+              </div>
+              <label class="toggle"><input type="checkbox" id="iconChangeOnMatch" /><span class="toggle__track"></span></label>
+            </div>
+            <div class="setting-row">
+              <div class="setting-row__info">
+                <span class="setting-row__name">Show status in popup</span>
+                <span class="setting-row__desc">Display monitoring status text in popup</span>
+              </div>
+              <label class="toggle"><input type="checkbox" id="popupStatusEnabled" /><span class="toggle__track"></span></label>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn btn--primary" id="saveBadgeBtn" style="max-width:200px;">Save Settings</button>
+      </section>
+
+      <!-- ════ History ══════════════════════════════════════ -->
+      <section class="panel hidden" id="section-history">
+        <div class="panel__header">
+          <h1 class="panel__title">🕘 History</h1>
+          <p class="panel__desc">Your last 10 saved setups. Restore any previous keyword + URL configuration instantly.</p>
+        </div>
+
+        <div class="card">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+            <h2 class="card__title" style="margin:0;">Saved Setups <span class="badge" id="histBadge">0</span></h2>
+            <button class="btn btn--ghost" id="saveNowBtn">💾 Save Current Setup</button>
+          </div>
+          <div class="save-label-row">
+            <input type="text" id="saveLabel" class="input" placeholder="Label (optional)" maxlength="60" />
+          </div>
+          <ul class="history-list" id="histList">
+            <li class="history-list__empty">No saved setups yet.</li>
+          </ul>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>

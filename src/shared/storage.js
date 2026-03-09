@@ -1,0 +1,258 @@
+/**
+ * storage.js
+ * Unified wrapper around chrome.storage.local.
+ * All reads/writes go through here — no direct storage calls elsewhere.
+ * 100% local, zero external calls.
+ */
+
+import { STORAGE_KEY, DEFAULT_SETTINGS, LIMITS } from './constants.js';
+
+// ─── Generic Helpers ─────────────────────────────────────────────────────────
+
+/**
+ * Get one or more keys from local storage.
+ * @param {string|string[]} keys
+ * @returns {Promise<object>}
+ */
+export async function storageGet(keys) {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.get(keys, (result) => {
+      if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+      else resolve(result);
+    });
+  });
+}
+
+/**
+ * Set key/value pairs in local storage.
+ * @param {object} data
+ * @returns {Promise<void>}
+ */
+export async function storageSet(data) {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.set(data, () => {
+      if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+      else resolve();
+    });
+  });
+}
+
+// ─── Master Toggle ───────────────────────────────────────────────────────────
+
+export async function getEnabled() {
+  const { [STORAGE_KEY.ENABLED]: val } = await storageGet(STORAGE_KEY.ENABLED);
+  return val !== false; // default true
+}
+
+export async function setEnabled(bool) {
+  await storageSet({ [STORAGE_KEY.ENABLED]: bool });
+}
+
+// ─── Settings ────────────────────────────────────────────────────────────────
+
+export async function getSettings() {
+  const { [STORAGE_KEY.SETTINGS]: saved } = await storageGet(STORAGE_KEY.SETTINGS);
+  return { ...DEFAULT_SETTINGS, ...(saved || {}) };
+}
+
+export async function saveSettings(partial) {
+  const current = await getSettings();
+  await storageSet({ [STORAGE_KEY.SETTINGS]: { ...current, ...partial } });
+}
+
+// ─── Keywords ────────────────────────────────────────────────────────────────
+
+/**
+ * @returns {Promise<KeywordRule[]>}
+ */
+export async function getKeywords() {
+  const { [STORAGE_KEY.KEYWORDS]: list } = await storageGet(STORAGE_KEY.KEYWORDS);
+  return list || [];
+}
+
+/**
+ * Save the full keywords array.
+ * @param {KeywordRule[]} keywords
+ */
+export async function saveKeywords(keywords) {
+  const trimmed = keywords.slice(0, LIMITS.MAX_KEYWORDS);
+  await storageSet({ [STORAGE_KEY.KEYWORDS]: trimmed });
+}
+
+/**
+ * Add a single keyword rule.
+ * @param {KeywordRule} rule
+ */
+export async function addKeyword(rule) {
+  const list = await getKeywords();
+  list.push({ ...rule, id: generateId() });
+  await saveKeywords(list);
+}
+
+/**
+ * Update a keyword rule by id.
+ * @param {string} id
+ * @param {Partial<KeywordRule>} patch
+ */
+export async function updateKeyword(id, patch) {
+  const list = await getKeywords();
+  const idx = list.findIndex((k) => k.id === id);
+  if (idx !== -1) list[idx] = { ...list[idx], ...patch };
+  await saveKeywords(list);
+}
+
+/**
+ * Remove a keyword rule by id.
+ * @param {string} id
+ */
+export async function removeKeyword(id) {
+  const list = await getKeywords();
+  await saveKeywords(list.filter((k) => k.id !== id));
+}
+
+// ─── URL Rules ───────────────────────────────────────────────────────────────
+
+/**
+ * @returns {Promise<UrlRule[]>}
+ */
+export async function getUrls() {
+  const { [STORAGE_KEY.URLS]: list } = await storageGet(STORAGE_KEY.URLS);
+  return list || [];
+}
+
+/**
+ * Save the full URL rules array.
+ * @param {UrlRule[]} urls
+ */
+export async function saveUrls(urls) {
+  const trimmed = urls.slice(0, LIMITS.MAX_URLS);
+  await storageSet({ [STORAGE_KEY.URLS]: trimmed });
+}
+
+/**
+ * Add a single URL rule.
+ * @param {UrlRule} rule
+ */
+export async function addUrl(rule) {
+  const list = await getUrls();
+  list.push({ ...rule, id: generateId() });
+  await saveUrls(list);
+}
+
+/**
+ * Update a URL rule by id.
+ * @param {string} id
+ * @param {Partial<UrlRule>} patch
+ */
+export async function updateUrl(id, patch) {
+  const list = await getUrls();
+  const idx = list.findIndex((u) => u.id === id);
+  if (idx !== -1) list[idx] = { ...list[idx], ...patch };
+  await saveUrls(list);
+}
+
+/**
+ * Remove a URL rule by id.
+ * @param {string} id
+ */
+export async function removeUrl(id) {
+  const list = await getUrls();
+  await saveUrls(list.filter((u) => u.id !== id));
+}
+
+// ─── History (last 10 setups) ─────────────────────────────────────────────────
+
+/**
+ * @returns {Promise<HistoryEntry[]>}
+ */
+export async function getHistory() {
+  const { [STORAGE_KEY.HISTORY]: list } = await storageGet(STORAGE_KEY.HISTORY);
+  return list || [];
+}
+
+/**
+ * Save current keywords+urls as a new history entry.
+ * Keeps only the last LIMITS.MAX_HISTORY entries.
+ */
+export async function saveHistorySnapshot(label = '') {
+  const [keywords, urls, history] = await Promise.all([
+    getKeywords(),
+    getUrls(),
+    getHistory(),
+  ]);
+
+  const entry = {
+    id:        generateId(),
+    label:     label || `Setup ${new Date().toLocaleString()}`,
+    timestamp: Date.now(),
+    keywords:  JSON.parse(JSON.stringify(keywords)),
+    urls:      JSON.parse(JSON.stringify(urls)),
+  };
+
+  const updated = [entry, ...history].slice(0, LIMITS.MAX_HISTORY);
+  await storageSet({ [STORAGE_KEY.HISTORY]: updated });
+  return entry;
+}
+
+/**
+ * Restore a history entry — overwrites current keywords and urls.
+ * @param {string} id
+ */
+export async function restoreHistoryEntry(id) {
+  const history = await getHistory();
+  const entry = history.find((h) => h.id === id);
+  if (!entry) throw new Error(`History entry ${id} not found`);
+  await Promise.all([
+    saveKeywords(entry.keywords),
+    saveUrls(entry.urls),
+  ]);
+}
+
+/**
+ * Delete a single history entry by id.
+ * @param {string} id
+ */
+export async function removeHistoryEntry(id) {
+  const history = await getHistory();
+  await storageSet({
+    [STORAGE_KEY.HISTORY]: history.filter((h) => h.id !== id),
+  });
+}
+
+// ─── Utility ─────────────────────────────────────────────────────────────────
+
+/**
+ * Generate a short unique ID (no crypto dependency).
+ * @returns {string}
+ */
+export function generateId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+/**
+ * @typedef {Object} KeywordRule
+ * @property {string}  id
+ * @property {string}  text           - The keyword/phrase to match
+ * @property {string}  matchType      - One of MATCH_TYPE values
+ * @property {boolean} enabled        - Whether this rule is active
+ * @property {boolean} alertAppear    - Alert when text appears
+ * @property {boolean} alertDisappear - Alert when text disappears
+ */
+
+/**
+ * @typedef {Object} UrlRule
+ * @property {string}  id
+ * @property {string}  pattern        - The URL or pattern
+ * @property {string}  matchType      - One of URL_MATCH_TYPE values
+ * @property {boolean} enabled        - Whether this rule is active
+ * @property {string}  label          - Optional human-readable name
+ */
+
+/**
+ * @typedef {Object} HistoryEntry
+ * @property {string}        id
+ * @property {string}        label
+ * @property {number}        timestamp
+ * @property {KeywordRule[]} keywords
+ * @property {UrlRule[]}     urls
+ */

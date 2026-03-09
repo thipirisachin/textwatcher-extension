@@ -1,0 +1,33 @@
+# ── Build outputs ─────────────────────────────
+dist/
+build/
+*.zip
+
+# ── Node (if tooling added later) ─────────────
+node_modules/
+npm-debug.log*
+yarn-error.log
+
+# ── OS files ──────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Editor ────────────────────────────────────
+.idea/
+*.swp
+*.swo
+
+# ── Python (icon generation script) ───────────
+__pycache__/
+*.pyc
+*.pyo
+
+# ── Secrets / env ─────────────────────────────
+.env
+.env.*
+
+# ── Extension packaging ───────────────────────
+*.crx
+*.xpi
+key.pem

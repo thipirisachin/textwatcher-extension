@@ -1,0 +1,58 @@
+{
+  "manifest_version": 3,
+  "name": "TextWatcher",
+  "version": "1.0.0",
+  "description": "Monitor websites for specific text. Get notified when text appears or disappears. 100% local, no data collection.",
+  "author": "TextWatcher",
+
+  "icons": {
+    "16":  "src/icons/icon16.png",
+    "48":  "src/icons/icon48.png",
+    "128": "src/icons/icon128.png"
+  },
+
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16":  "src/icons/icon16.png",
+      "48":  "src/icons/icon48.png",
+      "128": "src/icons/icon128.png"
+    },
+    "default_title": "TextWatcher"
+  },
+
+  "options_ui": {
+    "page": "src/options/options.html",
+    "open_in_tab": true
+  },
+
+  "background": {
+    "service_worker": "src/background/service-worker.js",
+    "type": "module"
+  },
+
+  "content_scripts": [],
+
+  "permissions": [
+    "storage",
+    "notifications",
+    "scripting",
+    "tabs",
+    "alarms"
+  ],
+
+  "host_permissions": [
+    "<all_urls>"
+  ],
+
+  "content_security_policy": {
+    "extension_pages": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none';"
+  },
+
+  "web_accessible_resources": [
+    {
+      "resources": ["src/content/content-script.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

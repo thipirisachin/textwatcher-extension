@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TextWatcher</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+
+  <!-- ── Header ─────────────────────────────────────────────── -->
+  <header class="header">
+    <div class="header__brand">
+      <img src="../icons/icon48.png" alt="TextWatcher" class="header__logo" />
+      <span class="header__title">TextWatcher</span>
+    </div>
+    <label class="toggle" title="Enable / Disable monitoring">
+      <input type="checkbox" id="masterToggle" />
+      <span class="toggle__track"></span>
+    </label>
+  </header>
+
+  <!-- ── Status Bar ─────────────────────────────────────────── -->
+  <div class="status-bar" id="statusBar">
+    <span class="status-dot" id="statusDot"></span>
+    <span class="status-text" id="statusText">Loading…</span>
+  </div>
+
+  <!-- ── Quick Add Keyword ──────────────────────────────────── -->
+  <section class="section">
+    <h2 class="section__title">Quick Add Keyword</h2>
+    <div class="input-row">
+      <input
+        type="text"
+        id="quickKeyword"
+        class="input"
+        placeholder="Keyword or phrase…"
+        maxlength="500"
+      />
+      <select id="quickMatchType" class="select select--compact">
+        <option value="contains">Contains</option>
+        <option value="exact_nocase">Exact (any case)</option>
+        <option value="exact_case">Exact (case-sensitive)</option>
+        <option value="starts_with">Starts with</option>
+        <option value="ends_with">Ends with</option>
+        <option value="regex">Regex</option>
+      </select>
+    </div>
+    <div class="checkbox-row">
+      <label class="checkbox-label">
+        <input type="checkbox" id="quickAlertAppear" checked />
+        Alert when appears
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="quickAlertDisappear" checked />
+        Alert when disappears
+      </label>
+    </div>
+    <button class="btn btn--primary" id="addKeywordBtn">Add Keyword</button>
+    <p class="error-msg hidden" id="keywordError"></p>
+  </section>
+
+  <!-- ── Quick Add URL ──────────────────────────────────────── -->
+  <section class="section">
+    <h2 class="section__title">Quick Add URL</h2>
+    <div class="input-row">
+      <input
+        type="text"
+        id="quickUrl"
+        class="input"
+        placeholder="https://example.com/*"
+        maxlength="500"
+      />
+      <select id="quickUrlMatchType" class="select select--compact">
+        <option value="wildcard">Wildcard</option>
+        <option value="exact">Exact URL</option>
+        <option value="domain">Domain-wide</option>
+      </select>
+    </div>
+    <input
+      type="text"
+      id="quickUrlLabel"
+      class="input"
+      placeholder="Label (optional)"
+      maxlength="100"
+      style="margin-top: 6px;"
+    />
+    <button class="btn btn--primary" id="addUrlBtn" style="margin-top: 8px;">Add URL</button>
+    <p class="error-msg hidden" id="urlError"></p>
+  </section>
+
+  <!-- ── Active Rules Summary ───────────────────────────────── -->
+  <section class="section">
+    <h2 class="section__title">Active Rules</h2>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <span class="summary-card__count" id="keywordCount">0</span>
+        <span class="summary-card__label">Keywords</span>
+      </div>
+      <div class="summary-card">
+        <span class="summary-card__count" id="urlCount">0</span>
+        <span class="summary-card__label">URLs</span>
+      </div>
+      <div class="summary-card">
+        <span class="summary-card__count" id="historyCount">0</span>
+        <span class="summary-card__label">History</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Recent History ─────────────────────────────────────── -->
+  <section class="section" id="historySection">
+    <h2 class="section__title">
+      Recent Setups
+      <span class="section__badge" id="historyBadge">0</span>
+    </h2>
+    <ul class="history-list" id="historyList">
+      <li class="history-list__empty">No saved setups yet.</li>
+    </ul>
+  </section>
+
+  <!-- ── Footer ─────────────────────────────────────────────── -->
+  <footer class="footer">
+    <button class="btn btn--ghost" id="openOptionsBtn">⚙ Full Settings</button>
+    <button class="btn btn--ghost" id="saveSnapshotBtn">💾 Save Setup</button>
+  </footer>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
