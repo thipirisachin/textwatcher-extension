@@ -19,6 +19,15 @@
  *  - Zero external network calls, zero data collection
  */
 
+(function () {
+
+// Guard: if this script has already been injected into this page context,
+// bail out immediately. Chrome's executeScript may re-run this file when
+// settings change; without the IIFE the top-level const/let declarations
+// would throw SyntaxError: Identifier '...' has already been declared.
+if (window.__textWatcherActive) return;
+window.__textWatcherActive = true;
+
 // =============================================================================
 // Inlined constants (subset of shared/constants.js)
 // =============================================================================
@@ -206,32 +215,24 @@ const lastPresence = new Map();
 // Entry point
 // =============================================================================
 
-/**
- * Guard against double-injection. The service worker may re-inject on
- * RELOAD_RULES; the flag prevents a second observer being attached.
- */
-if (typeof window.__textWatcherActive === 'undefined') {
-  window.__textWatcherActive = true;
+(async function init() {
+  try {
+    const response = await sendMessage({ type: MSG.GET_STATE });
+    if (!response || !response.enabled) return;
 
-  (async function init() {
-    try {
-      const response = await sendMessage({ type: MSG.GET_STATE });
-      if (!response || !response.enabled) return;
+    activeKeywords = (response.keywords || []).filter((k) => k.enabled);
+    settings       = response.settings  || {};
 
-      activeKeywords = (response.keywords || []).filter((k) => k.enabled);
-      settings       = response.settings  || {};
+    if (activeKeywords.length === 0) return;
 
-      if (activeKeywords.length === 0) return;
+    runScan();       // Baseline pass -- records initial state, no alerts
+    startObserver(); // Continuous monitoring begins
 
-      runScan();       // Baseline pass -- records initial state, no alerts
-      startObserver(); // Continuous monitoring begins
-
-      chrome.runtime.onMessage.addListener(handleBackgroundMessage);
-    } catch (_) {
-      // Extension context invalid on restricted pages -- fail silently
-    }
-  })();
-}
+    chrome.runtime.onMessage.addListener(handleBackgroundMessage);
+  } catch (_) {
+    // Extension context invalid on restricted pages -- fail silently
+  }
+})();
 
 // =============================================================================
 // MutationObserver
@@ -299,8 +300,15 @@ function extractPageText() {
           return NodeFilter.FILTER_REJECT;
         }
 
-        const style = getComputedStyle(parent);
-        if (style.display === 'none' || style.visibility === 'hidden') {
+        // Avoid getComputedStyle — it forces a synchronous layout reflow on
+        // every text node visit and causes [Violation] warnings. Checking
+        // inline styles + HTML attributes is O(1) with zero reflow cost.
+        // The MutationObserver already watches style/class/hidden changes, so
+        // any CSS-class-driven visibility change triggers a fresh runScan().
+        if (parent.hidden ||
+            parent.getAttribute('aria-hidden') === 'true' ||
+            parent.style.display === 'none' ||
+            parent.style.visibility === 'hidden') {
           return NodeFilter.FILTER_REJECT;
         }
 
@@ -451,5 +459,7 @@ function sendMessage(message) {
     }
   });
 }
+
+}()); // end TextWatcher IIFE
 
 //# sourceURL=textwatcher-content.js
