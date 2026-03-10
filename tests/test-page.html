@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TextWatcher — Test Page</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0f172a; color: #e2e8f0;
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; padding: 40px 20px; gap: 32px;
+    }
+    h1 { font-size: 1.6rem; font-weight: 700; color: #f8fafc; }
+    h1 em { color: #6366f1; font-style: normal; }
+
+    /* ---- shared card ---- */
+    .card, .signal-zone, .log-card {
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 12px; padding: 24px 28px;
+      width: 100%; max-width: 640px;
+    }
+    .card h2, .signal-zone h2, .log-card h2 {
+      font-size: 0.8rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .09em; color: #94a3b8; margin-bottom: 14px;
+    }
+
+    /* ---- setup steps ---- */
+    .steps { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+    .steps li { display: flex; gap: 12px; align-items: flex-start; font-size: 0.9rem; color: #cbd5e1; line-height: 1.5; }
+    .num {
+      flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+      background: #6366f1; color: #fff; font-size: 0.75rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+    code {
+      font-family: monospace; background: #0f172a; border: 1px solid #334155;
+      border-radius: 4px; padding: 1px 6px; font-size: 0.85em; color: #a5f3fc;
+    }
+    a { color: #818cf8; }
+
+    /* ---- signal zone ---- */
+    .signal-zone { border-width: 2px; text-align: center; padding: 32px 28px; transition: border-color .3s, background .3s; }
+    .signal-zone.live { border-color: #22c55e; background: #052e16; }
+
+    #sigText { font-size: 1.6rem; font-weight: 800; color: #22c55e; min-height: 2.4rem; transition: opacity .25s; }
+    #sigText.off { opacity: 0; }
+
+    .badge {
+      display: inline-block; margin-top: 10px; font-size: 0.78rem; font-weight: 700;
+      padding: 3px 12px; border-radius: 999px;
+      background: #1c1917; color: #ef4444; border: 1px solid #dc2626;
+    }
+    .badge.on { background: #052e16; color: #22c55e; border-color: #16a34a; }
+
+    /* ---- controls ---- */
+    .controls { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 22px; }
+    button {
+      cursor: pointer; border: none; border-radius: 8px; font-size: 0.9rem;
+      font-weight: 600; padding: 10px 20px;
+      transition: opacity .15s, transform .1s;
+    }
+    button:active { transform: scale(.97); }
+    button:disabled { opacity: .35; cursor: default; }
+    .g { background: #22c55e; color: #052e16; }
+    .r { background: #ef4444; color: #fff; }
+    .b { background: #6366f1; color: #fff; }
+    .s { background: #475569; color: #fff; display: none; }
+    .s.vis { display: inline-block; }
+
+    #autoTick { margin-top: 8px; font-size: 0.8rem; color: #64748b; min-height: 1.2em; }
+
+    /* ---- log ---- */
+    #logList {
+      font-family: monospace; font-size: 0.82rem;
+      display: flex; flex-direction: column; gap: 5px;
+      max-height: 180px; overflow-y: auto;
+    }
+    .le { display: flex; gap: 10px; }
+    .le .t { color: #475569; flex-shrink: 0; }
+    .ap { color: #22c55e; font-weight: 700; }
+    .dp { color: #ef4444; font-weight: 700; }
+    .empty { color: #475569; font-style: italic; }
+
+    /* ---- notif check ---- */
+    #notifCheck {
+      font-size: 0.8rem; padding: 8px 14px; border-radius: 8px;
+      background: #0f172a; border: 1px solid #334155; color: #94a3b8;
+      margin-top: 10px; text-align: center;
+    }
+    #notifCheck.ok   { border-color: #22c55e; color: #22c55e; background: #052e16; }
+    #notifCheck.deny { border-color: #ef4444; color: #ef4444; background: #1c1917; }
+  </style>
+</head>
+<body>
+
+<h1><em>TextWatcher</em> Test Page</h1>
+
+<!-- =================== SETUP STEPS =================== -->
+<div class="card">
+  <h2>Extension setup (one-time)</h2>
+  <ol class="steps">
+    <li>
+      <span class="num">1</span>
+      <span>Open <code>chrome://extensions</code> &rarr; enable <b>Developer mode</b>
+      &rarr; click <b>Load unpacked</b> &rarr; select
+      <code>C:\Projects\textwatcher-extension</code></span>
+    </li>
+    <li>
+      <span class="num">2</span>
+      <span><b>Windows Settings &rarr; System &rarr; Notifications</b>
+      &rarr; make sure <b>Google Chrome</b> notifications are <b>On</b></span>
+    </li>
+    <li>
+      <span class="num">3</span>
+      <span>Click the TextWatcher toolbar icon &rarr; add URL rule
+      <code>http://localhost:8080/*</code> (type: <i>Wildcard</i>)</span>
+    </li>
+    <li>
+      <span class="num">4</span>
+      <span>Add keyword <code>TEXTWATCHER_SIGNAL</code>
+      (type: <i>Contains</i>, both alert toggles <b>ON</b>)</span>
+    </li>
+    <li>
+      <span class="num">5</span>
+      <span>Reload this tab (<b>Ctrl+R</b>) so the content script gets injected,
+      then click <b>Show Signal</b> below &rarr; you should get a desktop
+      notification within 1&ndash;2 seconds</span>
+    </li>
+  </ol>
+  <div id="notifCheck" style="margin-top:14px">
+    Checking notification permission&hellip;
+  </div>
+</div>
+
+<!-- =================== SIGNAL ZONE =================== -->
+<div class="signal-zone" id="zone">
+  <h2>Signal control</h2>
+  <div id="sigText" class="off">TEXTWATCHER_SIGNAL</div>
+  <div id="badge" class="badge">Signal absent &mdash; extension monitoring&hellip;</div>
+  <div class="controls">
+    <button class="g" onclick="showSig()">&#9654; Show Signal</button>
+    <button class="r" onclick="hideSig()">&#9632; Hide Signal</button>
+    <button class="b" id="autoBtn" onclick="startAuto()">&#10227; Auto-cycle (5 s)</button>
+    <button class="s" id="stopBtn" onclick="stopAuto()">&#10005; Stop</button>
+  </div>
+  <div id="autoTick"></div>
+</div>
+
+<!-- =================== LOG =================== -->
+<div class="log-card">
+  <h2>Page-side event log</h2>
+  <div id="logList"><span class="empty">Waiting for signal changes&hellip;</span></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var visible = false, timer = null, cdTimer = null, nextAt = 0, first = true;
+  var zone    = document.getElementById('zone');
+  var sigText = document.getElementById('sigText');
+  var badge   = document.getElementById('badge');
+  var autoBtn = document.getElementById('autoBtn');
+  var stopBtn = document.getElementById('stopBtn');
+  var logList = document.getElementById('logList');
+  var tick    = document.getElementById('autoTick');
+
+  // --- notification permission check ---
+  var nc = document.getElementById('notifCheck');
+  if (!('Notification' in window)) {
+    nc.textContent = 'This browser does not support notifications.';
+    nc.className = 'deny';
+  } else if (Notification.permission === 'granted') {
+    nc.textContent = 'Browser notification permission: granted. Ready.';
+    nc.className = 'ok';
+  } else if (Notification.permission === 'denied') {
+    nc.textContent = 'Notifications BLOCKED for this origin. Open site settings (lock icon in address bar) and allow notifications, then reload.';
+    nc.className = 'deny';
+  } else {
+    nc.textContent = 'Notification permission not yet requested (the extension will request it on first alert).';
+  }
+
+  // --- signal helpers ---
+  function showSig() {
+    if (visible) return;
+    visible = true;
+    sigText.classList.remove('off');
+    zone.classList.add('live');
+    badge.className = 'badge on';
+    badge.textContent = 'Signal PRESENT — extension should fire appear notification';
+    addLog('appear');
+  }
+
+  function hideSig() {
+    if (!visible) return;
+    visible = false;
+    sigText.classList.add('off');
+    zone.classList.remove('live');
+    badge.className = 'badge';
+    badge.textContent = 'Signal absent — extension monitoring…';
+    addLog('disappear');
+  }
+
+  function startAuto() {
+    stopAuto();
+    autoBtn.disabled = true;
+    stopBtn.classList.add('vis');
+    var INTERVAL = 5000;
+    visible ? hideSig() : showSig();
+    nextAt = Date.now() + INTERVAL;
+    timer = setInterval(function () {
+      visible ? hideSig() : showSig();
+      nextAt = Date.now() + INTERVAL;
+    }, INTERVAL);
+    cdTimer = setInterval(function () {
+      var rem = Math.max(0, Math.ceil((nextAt - Date.now()) / 1000));
+      tick.textContent = 'Auto-cycling — next toggle in ' + rem + 's';
+    }, 250);
+  }
+
+  function stopAuto() {
+    clearInterval(timer); clearInterval(cdTimer);
+    timer = cdTimer = null;
+    autoBtn.disabled = false;
+    stopBtn.classList.remove('vis');
+    tick.textContent = '';
+  }
+
+  function addLog(type) {
+    if (first) { logList.innerHTML = ''; first = false; }
+    var now   = new Date().toLocaleTimeString();
+    var entry = document.createElement('div');
+    entry.className = 'le';
+    if (type === 'appear') {
+      entry.innerHTML =
+        '<span class="t">' + now + '</span>' +
+        '<span class="ap">▲ APPEARED</span>' +
+        '<span>— extension should send notification</span>';
+    } else {
+      entry.innerHTML =
+        '<span class="t">' + now + '</span>' +
+        '<span class="dp">▼ DISAPPEARED</span>' +
+        '<span>— extension should send notification</span>';
+    }
+    logList.prepend(entry);
+  }
+
+  // expose to inline onclick attrs
+  window.showSig   = showSig;
+  window.hideSig   = hideSig;
+  window.startAuto = startAuto;
+  window.stopAuto  = stopAuto;
+}());
+</script>
+
+</body>
+</html>
