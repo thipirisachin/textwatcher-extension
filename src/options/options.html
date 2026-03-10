@@ -24,8 +24,14 @@
         <li><a href="#history"       class="nav-link"        data-section="history">🕘 History</a></li>
       </ul>
       <div class="sidebar__status" id="sidebarStatus">
-        <span class="status-dot" id="sidebarDot"></span>
-        <span id="sidebarStatusText">Loading…</span>
+        <label class="toggle" title="Enable / Disable monitoring">
+          <input type="checkbox" id="globalToggle" />
+          <span class="toggle__track"></span>
+        </label>
+        <div class="sidebar__status-text">
+          <span class="status-dot" id="sidebarDot"></span>
+          <span id="sidebarStatusText">Loading…</span>
+        </div>
       </div>
     </nav>
 

@@ -91,6 +91,12 @@ html, body { height: 100%; background: var(--clr-bg); }
   color: var(--clr-muted);
 }
 
+.sidebar__status-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 /* ── Main ────────────────────────────────────────────────────────────── */
 .main {
   margin-left: var(--sidebar-w);
