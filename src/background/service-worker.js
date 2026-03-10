@@ -104,6 +104,9 @@ async function handleMessage(message, sender, sendResponse) {
       const tabId = sender.tab?.id;
       if (!tabId) break;
 
+      const enabled = await getEnabled();
+      if (!enabled) { sendResponse({ ok: false }); break; }
+
       const settings = await getSettings();
 
       if (shouldSendAlert(tabId, message.keyword, ALERT_EVENT.APPEARS, settings)) {
@@ -131,6 +134,9 @@ async function handleMessage(message, sender, sendResponse) {
     case MSG.TEXT_DISAPPEARED: {
       const tabId = sender.tab?.id;
       if (!tabId) break;
+
+      const enabled = await getEnabled();
+      if (!enabled) { sendResponse({ ok: false }); break; }
 
       const settings = await getSettings();
 
@@ -328,7 +334,18 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
     getSettings(),
   ]);
 
-  if (!enabled) return;
+  if (!enabled) {
+    // Extension was just disabled — tell every active content script to stop monitoring.
+    // We send to ALL tabs (not just currently-matched ones) because the URL rules may
+    // have just changed, making previously-matched tabs no longer matched.
+    const allTabs = await chrome.tabs.query({});
+    for (const tab of allTabs) {
+      if (!tab.id || !tab.url) continue;
+      if (tab.url.startsWith('chrome://') || tab.url.startsWith('about:')) continue;
+      await safelySendToTab(tab.id, { type: MSG.RELOAD_RULES, keywords: [], urls: [], settings });
+    }
+    return;
+  }
 
   // Re-inject into any newly matching tabs
   await injectIntoMatchingTabs();
