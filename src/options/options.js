@@ -470,6 +470,7 @@ function listenForChanges() {
     async (changes) => {
       if (STORAGE_KEY.KEYWORDS in changes) await renderKeywords();
       if (STORAGE_KEY.URLS     in changes) await renderUrls();
+      if (STORAGE_KEY.SETTINGS in changes) { await renderNotifSettings(); await renderBadgeSettings(); }
       if (STORAGE_KEY.HISTORY  in changes) await renderHistory();
       await renderSidebarStatus();
     }
