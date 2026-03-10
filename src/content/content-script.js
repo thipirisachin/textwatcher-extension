@@ -212,35 +212,25 @@ const lastPresence = new Map();
  */
 if (typeof window.__textWatcherActive === 'undefined') {
   window.__textWatcherActive = true;
-  console.log('[TW:content] Script injected on', window.location.href);
 
   (async function init() {
     try {
-      console.log('[TW:content] Sending GET_STATE to service worker...');
       const response = await sendMessage({ type: MSG.GET_STATE });
-      console.log('[TW:content] GET_STATE response:', JSON.stringify(response));
-
-      if (!response) { console.warn('[TW:content] No response -- service worker not ready or context invalid'); return; }
-      if (!response.enabled) { console.warn('[TW:content] Extension is disabled'); return; }
+      if (!response || !response.enabled) return;
 
       activeKeywords = (response.keywords || []).filter((k) => k.enabled);
       settings       = response.settings  || {};
-      console.log('[TW:content] Active keywords:', activeKeywords.length, activeKeywords.map(k => k.text));
-      console.log('[TW:content] URL rules:', (response.urls || []).length);
 
-      if (activeKeywords.length === 0) { console.warn('[TW:content] No enabled keywords -- monitoring not started'); return; }
+      if (activeKeywords.length === 0) return;
 
       runScan();       // Baseline pass -- records initial state, no alerts
       startObserver(); // Continuous monitoring begins
-      console.log('[TW:content] Observer started, monitoring active');
 
       chrome.runtime.onMessage.addListener(handleBackgroundMessage);
-    } catch (err) {
-      console.error('[TW:content] Init error:', err);
+    } catch (_) {
+      // Extension context invalid on restricted pages -- fail silently
     }
   })();
-} else {
-  console.log('[TW:content] Already active on this page, skipping re-init');
 }
 
 // =============================================================================
@@ -336,7 +326,6 @@ function runScan() {
   if (!activeKeywords.length) return;
 
   const pageText = extractPageText();
-  console.log('[TW:content] runScan — page text length:', pageText.length, '| first 120 chars:', pageText.slice(0, 120));
 
   for (const keyword of activeKeywords) {
     const isPresent = matchesKeyword(pageText, keyword.text, keyword.matchType);
@@ -344,10 +333,9 @@ function runScan() {
       ? lastPresence.get(keyword.id)
       : null;
 
-    console.log(`[TW:content] keyword="${keyword.text}" isPresent=${isPresent} wasBefore=${wasBefore}`);
     lastPresence.set(keyword.id, isPresent);
 
-    if (wasBefore === null) { console.log('[TW:content] Baseline pass -- no alert'); continue; }
+    if (wasBefore === null) continue; // Baseline pass -- no alerts
 
     if ( isPresent && !wasBefore) maybeAlert(keyword, ALERT_EVENT.APPEARS,    pageText);
     if (!isPresent &&  wasBefore) maybeAlert(keyword, ALERT_EVENT.DISAPPEARS, pageText);
@@ -369,22 +357,19 @@ function runScan() {
  * @param {string} pageText
  */
 function maybeAlert(keyword, event, pageText) {
-  console.log(`[TW:content] maybeAlert — keyword="${keyword.text}" event=${event}`);
-
   // Per-keyword toggles
-  if (event === ALERT_EVENT.APPEARS    && !keyword.alertAppear)    { console.warn('[TW:content] BLOCKED: alertAppear=false');    return; }
-  if (event === ALERT_EVENT.DISAPPEARS && !keyword.alertDisappear) { console.warn('[TW:content] BLOCKED: alertDisappear=false'); return; }
+  if (event === ALERT_EVENT.APPEARS    && !keyword.alertAppear)    return;
+  if (event === ALERT_EVENT.DISAPPEARS && !keyword.alertDisappear) return;
 
   // Global settings
-  if (event === ALERT_EVENT.APPEARS    && settings.alertOnAppear    === false) { console.warn('[TW:content] BLOCKED: settings.alertOnAppear=false');    return; }
-  if (event === ALERT_EVENT.DISAPPEARS && settings.alertOnDisappear === false) { console.warn('[TW:content] BLOCKED: settings.alertOnDisappear=false'); return; }
+  if (event === ALERT_EVENT.APPEARS    && settings.alertOnAppear    === false) return;
+  if (event === ALERT_EVENT.DISAPPEARS && settings.alertOnDisappear === false) return;
 
   // once_per_page frequency gate
   const alerted = alertedThisLoad.get(keyword.id) || { appeared: false, disappeared: false };
-  console.log('[TW:content] alerted state:', alerted, '| frequency:', settings.notifFrequency);
   if (settings.notifFrequency === 'once_per_page') {
-    if (event === ALERT_EVENT.APPEARS    && alerted.appeared)    { console.warn('[TW:content] BLOCKED: already alerted (appear) this page load');    return; }
-    if (event === ALERT_EVENT.DISAPPEARS && alerted.disappeared) { console.warn('[TW:content] BLOCKED: already alerted (disappear) this page load'); return; }
+    if (event === ALERT_EVENT.APPEARS    && alerted.appeared)    return;
+    if (event === ALERT_EVENT.DISAPPEARS && alerted.disappeared) return;
   }
 
   if (event === ALERT_EVENT.APPEARS)    alerted.appeared    = true;
@@ -405,16 +390,14 @@ function maybeAlert(keyword, event, pageText) {
     }
   }
 
-  const msg = {
+  sendMessage({
     type:      event === ALERT_EVENT.APPEARS ? MSG.TEXT_APPEARED : MSG.TEXT_DISAPPEARED,
     keyword:   keyword.text,
     matchType: keyword.matchType,
     url:       window.location.href,
     title:     document.title,
     snippet,
-  };
-  console.log('[TW:content] Sending message to service worker:', msg.type, msg.keyword);
-  sendMessage(msg).then(r => console.log('[TW:content] Service worker ack:', r));
+  });
 }
 
 // =============================================================================

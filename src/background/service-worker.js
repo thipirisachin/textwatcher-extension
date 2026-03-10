@@ -102,14 +102,11 @@ async function handleMessage(message, sender, sendResponse) {
     // Text appeared on a page
     case MSG.TEXT_APPEARED: {
       const tabId = sender.tab?.id;
-      console.log('[TW:sw] TEXT_APPEARED received — keyword:', message.keyword, '| tabId:', tabId);
-      if (!tabId) { console.warn('[TW:sw] No tabId in sender — cannot fire notification'); break; }
+      if (!tabId) break;
 
       const settings = await getSettings();
-      const canAlert = shouldSendAlert(tabId, message.keyword, ALERT_EVENT.APPEARS, settings);
-      console.log('[TW:sw] shouldSendAlert (appear):', canAlert, '| frequency:', settings.notifFrequency);
 
-      if (canAlert) {
+      if (shouldSendAlert(tabId, message.keyword, ALERT_EVENT.APPEARS, settings)) {
         await fireNotification({
           event:     ALERT_EVENT.APPEARS,
           keyword:   message.keyword,
@@ -133,14 +130,11 @@ async function handleMessage(message, sender, sendResponse) {
     // Text disappeared from a page
     case MSG.TEXT_DISAPPEARED: {
       const tabId = sender.tab?.id;
-      console.log('[TW:sw] TEXT_DISAPPEARED received — keyword:', message.keyword, '| tabId:', tabId);
-      if (!tabId) { console.warn('[TW:sw] No tabId in sender — cannot fire notification'); break; }
+      if (!tabId) break;
 
       const settings = await getSettings();
-      const canAlert2 = shouldSendAlert(tabId, message.keyword, ALERT_EVENT.DISAPPEARS, settings);
-      console.log('[TW:sw] shouldSendAlert (disappear):', canAlert2, '| frequency:', settings.notifFrequency);
 
-      if (canAlert2) {
+      if (shouldSendAlert(tabId, message.keyword, ALERT_EVENT.DISAPPEARS, settings)) {
         await fireNotification({
           event:     ALERT_EVENT.DISAPPEARS,
           keyword:   message.keyword,
@@ -173,7 +167,6 @@ async function handleMessage(message, sender, sendResponse) {
  * @param {object} opts
  */
 async function fireNotification({ event, keyword, matchType, url, title, snippet, settings }) {
-  console.log('[TW:sw] fireNotification — event:', event, '| keyword:', keyword);
   const isAppear = event === ALERT_EVENT.APPEARS;
 
   const notifTitle = isAppear
@@ -194,20 +187,12 @@ async function fireNotification({ event, keyword, matchType, url, title, snippet
 
   const message = lines.join('\n') || (isAppear ? 'Text detected on this page.' : 'Text is no longer present.');
 
-  const notifPayload = {
+  chrome.notifications.create({
     type:     'basic',
     iconUrl:  chrome.runtime.getURL('src/icons/icon48.png'),
     title:    notifTitle,
     message,
     priority: 1,
-  };
-  console.log('[TW:sw] chrome.notifications.create — title:', notifTitle, '| message:', message);
-  chrome.notifications.create(notifPayload, (notifId) => {
-    if (chrome.runtime.lastError) {
-      console.error('[TW:sw] Notification FAILED:', chrome.runtime.lastError.message);
-    } else {
-      console.log('[TW:sw] Notification created OK — id:', notifId);
-    }
   });
 }
 
