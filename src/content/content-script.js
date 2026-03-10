@@ -252,15 +252,18 @@ function startObserver() {
     const relevant = mutations.some(
       (m) =>
         m.type === 'childList' ||
+        m.type === 'attributes' ||
         (m.type === 'characterData' && m.target.nodeType === Node.TEXT_NODE)
     );
     if (relevant) debouncedScan();
   });
 
   observer.observe(document.body, {
-    childList:     true,   // Nodes added / removed
-    subtree:       true,   // Entire DOM tree
-    characterData: true,   // Inline text edits
+    childList:       true,   // Nodes added / removed
+    subtree:         true,   // Entire DOM tree
+    characterData:   true,   // Inline text edits
+    attributes:      true,   // CSS class / style / hidden attribute changes
+    attributeFilter: ['style', 'class', 'hidden', 'aria-hidden'],
   });
 }
 

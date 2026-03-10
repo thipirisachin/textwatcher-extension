@@ -154,7 +154,6 @@ async function handleMessage(message, sender, sendResponse) {
       sendResponse({ ok: true });
       break;
     }
-
     default:
       sendResponse(null);
   }
