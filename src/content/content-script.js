@@ -284,44 +284,46 @@ function stopObserver() {
  * Collect all visible text from the page as one string.
  * TreeWalker is browser-native and faster than querySelectorAll.
  * Skips script / style / noscript / template nodes and hidden elements.
+ * @param {Element[]} [roots] - Elements to scan. Defaults to [document.body].
  * @returns {string}
  */
-function extractPageText() {
-  const walker = document.createTreeWalker(
-    document.body,
-    NodeFilter.SHOW_TEXT,
-    {
-      acceptNode(node) {
-        const parent = node.parentElement;
-        if (!parent) return NodeFilter.FILTER_REJECT;
-
-        const tag = parent.tagName ? parent.tagName.toUpperCase() : '';
-        if (['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE'].includes(tag)) {
-          return NodeFilter.FILTER_REJECT;
-        }
-
-        // Avoid getComputedStyle — it forces a synchronous layout reflow on
-        // every text node visit and causes [Violation] warnings. Checking
-        // inline styles + HTML attributes is O(1) with zero reflow cost.
-        // The MutationObserver already watches style/class/hidden changes, so
-        // any CSS-class-driven visibility change triggers a fresh runScan().
-        if (parent.hidden ||
-            parent.getAttribute('aria-hidden') === 'true' ||
-            parent.style.display === 'none' ||
-            parent.style.visibility === 'hidden') {
-          return NodeFilter.FILTER_REJECT;
-        }
-
-        return NodeFilter.FILTER_ACCEPT;
-      },
-    }
-  );
-
+function extractPageText(roots) {
+  const scanRoots = (roots && roots.length) ? roots : [document.body];
   const parts = [];
-  let node;
-  while ((node = walker.nextNode())) {
-    const text = node.textContent.trim();
-    if (text) parts.push(text);
+
+  const filter = {
+    acceptNode(node) {
+      const parent = node.parentElement;
+      if (!parent) return NodeFilter.FILTER_REJECT;
+
+      const tag = parent.tagName ? parent.tagName.toUpperCase() : '';
+      if (['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE'].includes(tag)) {
+        return NodeFilter.FILTER_REJECT;
+      }
+
+      // Avoid getComputedStyle — it forces a synchronous layout reflow on
+      // every text node visit and causes [Violation] warnings. Checking
+      // inline styles + HTML attributes is O(1) with zero reflow cost.
+      // The MutationObserver already watches style/class/hidden changes, so
+      // any CSS-class-driven visibility change triggers a fresh runScan().
+      if (parent.hidden ||
+          parent.getAttribute('aria-hidden') === 'true' ||
+          parent.style.display === 'none' ||
+          parent.style.visibility === 'hidden') {
+        return NodeFilter.FILTER_REJECT;
+      }
+
+      return NodeFilter.FILTER_ACCEPT;
+    },
+  };
+
+  for (const root of scanRoots) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, filter);
+    let node;
+    while ((node = walker.nextNode())) {
+      const text = node.textContent.trim();
+      if (text) parts.push(text);
+    }
   }
   return parts.join(' ');
 }
@@ -333,9 +335,18 @@ function extractPageText() {
 function runScan() {
   if (!activeKeywords.length) return;
 
-  const pageText = extractPageText();
-
   for (const keyword of activeKeywords) {
+    // Resolve scope: if a CSS selector is set, find all matching elements.
+    // Fall back to full page if selector is empty or matches nothing.
+    let roots = null;
+    if (keyword.scopeSelector) {
+      try {
+        const els = Array.from(document.querySelectorAll(keyword.scopeSelector));
+        if (els.length) roots = els;
+      } catch (_) { /* invalid selector -- fall back to full page */ }
+    }
+
+    const pageText = extractPageText(roots);
     const isPresent = matchesKeyword(pageText, keyword.text, keyword.matchType);
     const wasBefore = lastPresence.has(keyword.id)
       ? lastPresence.get(keyword.id)

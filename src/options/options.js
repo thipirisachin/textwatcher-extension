@@ -114,6 +114,7 @@ async function renderKeywords(filter = '') {
         <div class="rule-item__text">${escapeHtml(kw.text)}</div>
         <div class="rule-item__meta">
           <span class="rule-item__tag rule-item__tag--match">${escapeHtml(matchLabel)}</span>
+          ${kw.scopeSelector ? `<span class="rule-item__tag rule-item__tag--scope" title="Scope: ${escapeHtml(kw.scopeSelector)}">&#x1F50D; ${escapeHtml(truncate(kw.scopeSelector, 30))}</span>` : ''}
           ${kw.alertAppear    ? '<span class="rule-item__tag rule-item__tag--appear">↑ appears</span>' : ''}
           ${kw.alertDisappear ? '<span class="rule-item__tag rule-item__tag--disappear">↓ disappears</span>' : ''}
           ${!kw.enabled       ? '<span class="rule-item__tag">disabled</span>' : ''}
@@ -190,12 +191,14 @@ async function handleAddKeyword() {
   await addKeyword({
     text,
     matchType,
+    scopeSelector:  qs('#kwScope').value.trim(),
     enabled:        qs('#kwEnabled').checked,
     alertAppear:    qs('#kwAlertAppear').checked,
     alertDisappear: qs('#kwAlertDisappear').checked,
   });
 
-  qs('#kwText').value = '';
+  qs('#kwText').value  = '';
+  qs('#kwScope').value = '';
   await renderKeywords();
   await renderSidebarStatus();
   showToast('Keyword added!');

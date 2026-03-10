@@ -379,6 +379,13 @@ html, body { height: 100%; background: var(--clr-bg); }
 .rule-item__tag--appear    { color: var(--clr-green); }
 .rule-item__tag--disappear { color: var(--clr-yellow); }
 .rule-item__tag--match     { color: var(--clr-accent); }
+.rule-item__tag--scope     { color: #06b6d4; font-family: monospace; font-size: 11px; }
+
+.label__opt {
+  font-weight: 400;
+  color: var(--clr-muted);
+  font-size: 11px;
+}
 
 .rule-item__actions {
   display: flex;

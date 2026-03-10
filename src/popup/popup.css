@@ -201,6 +201,33 @@ body {
   height: 13px;
 }
 
+/* ── Advanced row (scope selector) ───────────────────────────────────── */
+.btn--link {
+  background: none;
+  border: none;
+  color: var(--clr-muted);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 0;
+  margin-top: 4px;
+  display: inline-block;
+  transition: color 0.15s;
+}
+.btn--link:hover { color: var(--clr-text); }
+
+.advanced-row {
+  margin-top: 6px;
+}
+.advanced-row.hidden { display: none; }
+
+.advanced-hint {
+  font-size: 11px;
+  color: var(--clr-muted);
+  margin-top: 4px;
+}
+  height: 13px;
+}
+
 /* ── Buttons ─────────────────────────────────────────────────────────── */
 .btn {
   display: inline-flex;

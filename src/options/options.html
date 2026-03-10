@@ -64,6 +64,11 @@
                 <option value="regex">Regex</option>
               </select>
             </div>
+            <div class="form-field form-field--wide">
+              <label class="label">Scope — CSS Selector <span class="label__opt">(optional)</span></label>
+              <input type="text" id="kwScope" class="input" placeholder="e.g. #results, .price-box, [data-section=\"live\"]" maxlength="500" />
+              <p class="hint" style="margin-top:5px;">Leave empty to scan the whole page. Tip: right-click an element in DevTools → Copy → Copy selector.</p>
+            </div>
           </div>
           <div class="toggle-row">
             <label class="toggle-field">

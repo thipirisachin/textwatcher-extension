@@ -149,6 +149,15 @@ function bindEvents() {
     await renderStatus();
   });
 
+  // Advanced toggle (scope selector)
+  qs('#advancedToggleBtn').addEventListener('click', () => {
+    const row = qs('#advancedRow');
+    const btn = qs('#advancedToggleBtn');
+    const open = !row.classList.contains('hidden');
+    row.classList.toggle('hidden', open);
+    btn.textContent = open ? '\u25B8 Advanced' : '\u25BE Advanced';
+  });
+
   // Add keyword
   addKeywordBtn.addEventListener('click', handleAddKeyword);
   quickKeyword.addEventListener('keydown', (e) => {
@@ -216,15 +225,19 @@ async function handleAddKeyword() {
     }
   }
 
+  const scopeSelector = qs('#quickScope').value.trim();
+
   await addKeyword({
     text,
     matchType,
+    scopeSelector,
     enabled:        true,
     alertAppear:    quickAlertAppear.checked,
     alertDisappear: quickAlertDisappear.checked,
   });
 
-  quickKeyword.value = '';
+  quickKeyword.value    = '';
+  qs('#quickScope').value = '';
   showToast('Keyword added!');
   await renderCounts();
   await renderStatus();

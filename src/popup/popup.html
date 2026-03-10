@@ -56,6 +56,17 @@
         Alert when disappears
       </label>
     </div>
+    <button class="btn btn--link" id="advancedToggleBtn" type="button">&#x25B8; Advanced</button>
+    <div id="advancedRow" class="advanced-row hidden">
+      <input
+        type="text"
+        id="quickScope"
+        class="input"
+        placeholder="Scope: CSS selector (e.g. #results)"
+        maxlength="500"
+      />
+      <p class="advanced-hint">Leave empty to scan the whole page.</p>
+    </div>
     <button class="btn btn--primary" id="addKeywordBtn">Add Keyword</button>
     <p class="error-msg hidden" id="keywordError"></p>
   </section>
