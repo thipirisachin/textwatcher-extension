@@ -51,6 +51,7 @@ async function init() {
   bindNotifEvents();
   bindBadgeEvents();
   bindHistoryEvents();
+  bindGlobalToggle();
   listenForChanges();
 }
 
@@ -60,15 +61,27 @@ async function renderSidebarStatus() {
   const [enabled, keywords, urls] = await Promise.all([
     getEnabled(), getKeywords(), getUrls(),
   ]);
-  const dot  = qs('#sidebarDot');
-  const text = qs('#sidebarStatusText');
+  const dot    = qs('#sidebarDot');
+  const text   = qs('#sidebarStatusText');
+  const toggle = qs('#globalToggle');
   const activeK = keywords.filter((k) => k.enabled).length;
   const activeU = urls.filter((u) => u.enabled).length;
 
+  if (toggle) toggle.checked = enabled;
   dot.className = `status-dot status-dot--${enabled ? 'active' : 'inactive'}`;
   text.textContent = enabled
     ? `${activeK} keywords, ${activeU} URLs`
     : 'Paused';
+}
+
+// ─── Global Toggle ────────────────────────────────────────────────────────────
+
+function bindGlobalToggle() {
+  qs('#globalToggle').addEventListener('change', async (e) => {
+    await setEnabled(e.target.checked);
+    await renderSidebarStatus();
+    showToast(e.target.checked ? 'Monitoring enabled' : 'Monitoring paused');
+  });
 }
 
 // ─── Keywords ─────────────────────────────────────────────────────────────────
@@ -472,7 +485,7 @@ function listenForChanges() {
       if (STORAGE_KEY.URLS     in changes) await renderUrls();
       if (STORAGE_KEY.SETTINGS in changes) { await renderNotifSettings(); await renderBadgeSettings(); }
       if (STORAGE_KEY.HISTORY  in changes) await renderHistory();
-      await renderSidebarStatus();
+      await renderSidebarStatus(); // also updates #globalToggle
     }
   );
 }
