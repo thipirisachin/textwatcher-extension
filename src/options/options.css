@@ -137,7 +137,12 @@ html, body { height: 100%; background: var(--clr-bg); }
   font-weight: 700;
   letter-spacing: -0.4px;
   margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
+
+.panel__title svg { flex-shrink: 0; color: var(--clr-muted); }
 
 .panel__desc {
   color: var(--clr-muted);
