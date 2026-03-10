@@ -52,6 +52,7 @@ html, body { height: 100%; background: var(--clr-bg); }
   border-bottom: 1px solid var(--clr-border);
   font-weight: 700;
   font-size: 15px;
+  justify-content: space-between;
 }
 
 .sidebar__brand img {
@@ -91,11 +92,6 @@ html, body { height: 100%; background: var(--clr-bg); }
   color: var(--clr-muted);
 }
 
-.sidebar__status-text {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
 
 /* ── Main ────────────────────────────────────────────────────────────── */
 .main {
