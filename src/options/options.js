@@ -413,10 +413,10 @@ function bindUrlEvents() {
     result.classList.remove('hidden', 'status-result--ok', 'status-result--err');
     if (match) {
       result.className = 'status-result status-result--ok';
-      result.textContent = `✅ Matched by rule: "${match.label || match.pattern}" (${match.matchType})`;
+      result.textContent = `Matched by rule: "${match.label || match.pattern}" (${match.matchType})`;
     } else {
       result.className = 'status-result status-result--err';
-      result.textContent = '❌ No active URL rule matches this URL.';
+      result.textContent = 'No active URL rule matches this URL.';
     }
   });
 
