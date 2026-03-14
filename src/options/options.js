@@ -175,6 +175,70 @@ function bindKeywordEvents() {
       await renderSidebarStatus();
     }
 
+    if (action === 'edit') {
+      const keywords = await getKeywords();
+      const kw = keywords.find((k) => k.id === id);
+      if (!kw) return;
+      const li = e.target.closest('li.rule-item');
+      if (!li) return;
+
+      // Toggle off if form already open
+      if (li.querySelector('form.rule-item__edit')) { await renderKeywords(qs('#kwSearch').value); return; }
+
+      const matchOptions = Object.entries(MATCH_TYPE_LABEL)
+        .map(([val, lbl]) => `<option value="${val}"${kw.matchType === val ? ' selected' : ''}>${escapeHtml(lbl)}</option>`)
+        .join('');
+
+      li.insertAdjacentHTML('beforeend', `
+        <form class="rule-item__edit" data-edit-id="${id}" novalidate>
+          <div class="rule-item__edit-row">
+            <input class="input" name="text" value="${escapeHtml(kw.text)}" maxlength="500" placeholder="Keyword…" />
+            <select class="select" name="matchType">${matchOptions}</select>
+          </div>
+          <input class="input" name="scope" value="${escapeHtml(kw.scopeSelector || '')}" placeholder="Scope: CSS selector (optional)" maxlength="500" />
+          <div class="rule-item__edit-checks">
+            <label><input type="checkbox" name="alertAppear"    ${kw.alertAppear    ? 'checked' : ''} /> Alert appears</label>
+            <label><input type="checkbox" name="alertDisappear" ${kw.alertDisappear ? 'checked' : ''} /> Alert disappears</label>
+          </div>
+          <p class="error-msg hidden" data-role="edit-error"></p>
+          <div class="rule-item__edit-actions">
+            <button type="button" class="btn btn--primary" data-action="save-edit" data-id="${id}">Save</button>
+            <button type="button" class="btn btn--ghost"   data-action="cancel-edit">Cancel</button>
+          </div>
+        </form>
+      `);
+      li.querySelector('input[name="text"]').select();
+    }
+
+    if (action === 'save-edit') {
+      const form      = e.target.closest('form.rule-item__edit');
+      const editId    = form?.dataset.editId;
+      const text      = form?.querySelector('[name="text"]')?.value.trim();
+      const matchType = form?.querySelector('[name="matchType"]')?.value;
+      const errEl     = form?.querySelector('[data-role="edit-error"]');
+
+      if (!text) { showError(errEl, 'Keyword cannot be empty.'); return; }
+      if (matchType === MATCH_TYPE.REGEX) {
+        const { valid, error } = validateRegex(text);
+        if (!valid) { showError(errEl, `Invalid regex: ${error}`); return; }
+      }
+
+      await updateKeyword(editId, {
+        text,
+        matchType,
+        scopeSelector:  form.querySelector('[name="scope"]')?.value.trim() || '',
+        alertAppear:    form.querySelector('[name="alertAppear"]')?.checked ?? true,
+        alertDisappear: form.querySelector('[name="alertDisappear"]')?.checked ?? true,
+      });
+      await renderKeywords(qs('#kwSearch').value);
+      await renderSidebarStatus();
+      showToast('Keyword updated!');
+    }
+
+    if (action === 'cancel-edit') {
+      await renderKeywords(qs('#kwSearch').value);
+    }
+
     if (action === 'delete') {
       await removeKeyword(id);
       await renderKeywords(qs('#kwSearch').value);
@@ -531,6 +595,7 @@ function bindActivityEvents() {
 }
 // ─── History ──────────────────────────────────────────────────────────────────
 
+async function renderHistory() {
   const history = await getHistory();
   const list    = qs('#histList');
   const badge   = qs('#histBadge');
