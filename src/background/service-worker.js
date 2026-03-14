@@ -20,6 +20,70 @@ import { truncate } from '../shared/utils.js';
 // Key: `${tabId}:${keywordId}:${event}`, Value: timestamp of last alert
 const cooldownMap = new Map();
 
+// ─── Notification Batcher ─────────────────────────────────────────────────────
+// Groups alerts that arrive within BATCH_WINDOW_MS into a single notification.
+// Key: tabId  Value: { timer, events: [...], url, tabId }
+const BATCH_WINDOW_MS = 1000;
+const pendingBatches  = new Map();
+
+/**
+ * Queue an alert event for batched notification.
+ * Resets the 1-second window on each new event for the same tab.
+ */
+function queueNotification(opts) {
+  const { tabId } = opts;
+  let batch = pendingBatches.get(tabId);
+
+  if (batch) {
+    clearTimeout(batch.timer);
+  } else {
+    batch = { events: [], tabId };
+    pendingBatches.set(tabId, batch);
+  }
+
+  batch.events.push(opts);
+  batch.timer = setTimeout(() => {
+    pendingBatches.delete(tabId);
+    flushBatch(batch);
+  }, BATCH_WINDOW_MS);
+}
+
+/**
+ * Fire the consolidated notification for a completed batch.
+ */
+async function flushBatch({ tabId, events }) {
+  const settings = await getSettings();
+  const count    = events.length;
+
+  if (count === 1) {
+    // Single event — original detailed format
+    await fireNotification({ ...events[0], settings });
+    return;
+  }
+
+  // Multiple events — summarise
+  const appears    = events.filter((e) => e.event === ALERT_EVENT.APPEARS).length;
+  const disappears = events.filter((e) => e.event === ALERT_EVENT.DISAPPEARS).length;
+
+  let host = events[0].url;
+  try { host = new URL(events[0].url).hostname; } catch (_) { /* keep raw */ }
+
+  const parts = [];
+  if (appears)    parts.push(`${appears} appeared`);
+  if (disappears) parts.push(`${disappears} gone`);
+
+  const notifId = `tw:${tabId}:${Date.now()}`;
+  const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  chrome.notifications.create(notifId, {
+    type:     'basic',
+    iconUrl:  chrome.runtime.getURL('src/icons/icon48.png'),
+    title:    `TextWatcher — ${count} alerts`,
+    message:  `${parts.join(', ')} · ${host}\n${now}`,
+    priority: 1,
+  });
+}
+
 // ─── Tab Match Count (session-persistent) ────────────────────────────────────
 // Stored in chrome.storage.session so counts survive MV3 service worker restarts
 // within a browser session. chrome.storage.session clears on browser close.
@@ -128,7 +192,7 @@ async function handleMessage(message, sender, sendResponse) {
       const settings = await getSettings();
 
       if (shouldSendAlert(tabId, message.keywordId, ALERT_EVENT.APPEARS, settings)) {
-        await fireNotification({
+        queueNotification({
           tabId,
           keywordId: message.keywordId,
           event:     ALERT_EVENT.APPEARS,
@@ -136,7 +200,6 @@ async function handleMessage(message, sender, sendResponse) {
           matchType: message.matchType,
           url:       message.url,
           snippet:   message.snippet,
-          settings,
         });
 
         await addAlertEvent({
@@ -171,7 +234,7 @@ async function handleMessage(message, sender, sendResponse) {
       const settings = await getSettings();
 
       if (shouldSendAlert(tabId, message.keywordId, ALERT_EVENT.DISAPPEARS, settings)) {
-        await fireNotification({
+        queueNotification({
           tabId,
           keywordId: message.keywordId,
           event:     ALERT_EVENT.DISAPPEARS,
@@ -179,7 +242,6 @@ async function handleMessage(message, sender, sendResponse) {
           matchType: message.matchType,
           url:       message.url,
           snippet:   null,
-          settings,
         });
 
         await addAlertEvent({
