@@ -39,7 +39,6 @@ const MSG = Object.freeze({
   STATE_UPDATE:     'state_update',
   RELOAD_RULES:     'reload_rules',
   TAB_MATCHED:      'tab_matched',
-  GET_MATCH_STATE:  'get_match_state',
 });
 
 const MATCH_TYPE = Object.freeze({
@@ -233,6 +232,11 @@ const lastPresence = new Map();
   }
 })();
 
+// Always register at module scope — outside init() — so RELOAD_RULES messages
+// arrive even when init() returned early (extension disabled or no keywords).
+// Without this, rules added after page load are silently lost on existing tabs.
+chrome.runtime.onMessage.addListener(handleBackgroundMessage);
+
 // =============================================================================
 // MutationObserver
 // =============================================================================
@@ -423,46 +427,24 @@ function maybeAlert(keyword, event, pageText) {
 // =============================================================================
 
 /**
- * Handle messages from the service worker and popup.
- *
- * RELOAD_RULES — push new rules from the background (settings changed).
- * GET_MATCH_STATE — popup querying live keyword presence on this tab.
- *
- * @param {object}   message
- * @param {object}   sender
- * @param {Function} sendResponse
- * @returns {boolean} false — responses are sent synchronously
+ * React to RELOAD_RULES pushed by the service worker when settings change.
+ * Resets all state and restarts monitoring with the new rule set.
+ * @param {object} message
  */
-function handleBackgroundMessage(message, sender, sendResponse) {
-  if (!message) return false;
+function handleBackgroundMessage(message) {
+  if (!message || message.type !== MSG.RELOAD_RULES) return;
 
-  if (message.type === MSG.RELOAD_RULES) {
-    stopObserver();
-    alertedThisLoad.clear();
-    lastPresence.clear();
+  stopObserver();
+  alertedThisLoad.clear();
+  lastPresence.clear();
 
-    activeKeywords = (message.keywords || []).filter((k) => k.enabled);
-    settings       = message.settings || {};
+  activeKeywords = (message.keywords || []).filter((k) => k.enabled);
+  settings       = message.settings || {};
 
-    if (activeKeywords.length > 0) {
-      runScan();
-      startObserver();
-    }
-    return false;
+  if (activeKeywords.length > 0) {
+    runScan();
+    startObserver();
   }
-
-  if (message.type === MSG.GET_MATCH_STATE) {
-    const matches = activeKeywords.map((kw) => ({
-      id:            kw.id,
-      text:          kw.text,
-      scopeSelector: kw.scopeSelector || '',
-      present:       lastPresence.has(kw.id) ? lastPresence.get(kw.id) : null,
-    }));
-    sendResponse({ matches });
-    return false;
-  }
-
-  return false;
 }
 
 // =============================================================================
@@ -491,10 +473,6 @@ function sendMessage(message) {
     }
   });
 }
-
-// Registered outside init() so GET_MATCH_STATE is answerable any time
-// (including when the page loaded but had no active keywords yet).
-chrome.runtime.onMessage.addListener(handleBackgroundMessage);
 
 }()); // end TextWatcher IIFE
 

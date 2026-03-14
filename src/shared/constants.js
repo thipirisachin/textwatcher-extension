@@ -58,7 +58,6 @@ export const MSG = Object.freeze({
   STATE_UPDATE:      'state_update',
   RELOAD_RULES:      'reload_rules',
   TAB_MATCHED:       'tab_matched',
-  GET_MATCH_STATE:   'get_match_state', // popup → content script: query live keyword presence
 });
 
 // ─── Limits ──────────────────────────────────────────────────────────────────

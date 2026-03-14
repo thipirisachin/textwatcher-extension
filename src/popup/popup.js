@@ -4,7 +4,7 @@
  * Communicates via chrome.storage and chrome.runtime messaging only.
  */
 
-import { STORAGE_KEY, MATCH_TYPE, MSG } from '../shared/constants.js';
+import { STORAGE_KEY, MATCH_TYPE } from '../shared/constants.js';
 import {
   getEnabled, setEnabled,
   getKeywords, addKeyword,
@@ -56,52 +56,7 @@ async function renderAll() {
     renderStatus(),
     renderCounts(),
     renderHistory(),
-    refreshLiveStatus(),
   ]);
-}
-
-// ─── Live Match Status ────────────────────────────────────────────────────────
-
-/** Query the active tab's content script for current keyword presence state. */
-function getActiveTabMatches() {
-  return new Promise((resolve) => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs || !tabs[0]) { resolve(null); return; }
-      chrome.tabs.sendMessage(tabs[0].id, { type: MSG.GET_MATCH_STATE }, (response) => {
-        if (chrome.runtime.lastError || !response) { resolve(null); return; }
-        resolve(response.matches || null);
-      });
-    });
-  });
-}
-
-async function refreshLiveStatus() {
-  const section = qs('#liveSection');
-  const list    = qs('#matchList');
-  const matches = await getActiveTabMatches();
-
-  if (!matches || matches.length === 0) {
-    section.classList.add('hidden');
-    return;
-  }
-
-  section.classList.remove('hidden');
-  list.innerHTML = '';
-  for (const m of matches) {
-    const li = document.createElement('li');
-    li.className = 'match-item';
-    const dotCls = m.present === true  ? 'match-dot--on'
-                 : m.present === false ? 'match-dot--off'
-                 : 'match-dot--unknown';
-    const label = m.present === true ? 'Found' : m.present === false ? 'Absent' : '…';
-    li.innerHTML = `
-      <span class="match-dot ${dotCls}" title="${label}"></span>
-      <span class="match-item__text">${escapeHtml(truncate(m.text, 30))}</span>
-      ${m.scopeSelector ? `<span class="match-item__scope" title="${escapeHtml(m.scopeSelector)}">${escapeHtml(truncate(m.scopeSelector, 22))}</span>` : ''}
-      <span class="match-item__status ${dotCls.replace('match-dot', 'match-status')}">${label}</span>
-    `;
-    list.appendChild(li);
-  }
 }
 
 // ─── Toggle ───────────────────────────────────────────────────────────────────
