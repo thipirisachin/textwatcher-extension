@@ -677,6 +677,45 @@ html, body { height: 100%; background: var(--clr-bg); }
   flex-shrink: 0;
 }
 
+/* ── Privacy List ────────────────────────────────────────────────────── */
+.privacy-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.privacy-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--clr-border);
+}
+
+.privacy-item:last-child { border-bottom: none; }
+
+.privacy-item__icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--clr-green);
+}
+
+.privacy-item__icon--muted { color: var(--clr-muted); }
+
+.privacy-item strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+
+.privacy-item p {
+  font-size: 12px;
+  color: var(--clr-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
 /* ── URL Status Result ───────────────────────────────────────────────── */
 .status-result {
   margin-top: 10px;

@@ -15,7 +15,7 @@
       <div class="sidebar__brand">
         <img src="../icons/icon48.png" alt="TextWatcher" />
         <span>TextWatcher</span>
-        <label class="toggle" title="Enable / Disable monitoring" style="margin-left:auto;">
+        <label class="toggle" title="Enable / Disable monitoring" style="margin-left:auto;" aria-label="Enable or disable monitoring">
           <input type="checkbox" id="globalToggle" />
           <span class="toggle__track"></span>
         </label>
@@ -27,8 +27,9 @@
         <li><a href="#activity"      class="nav-link"        data-section="activity"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Alert Log</a></li>
         <li><a href="#badge"         class="nav-link"        data-section="badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Badge &amp; Icon</a></li>
         <li><a href="#history"       class="nav-link"        data-section="history"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Saved Setups</a></li>
+        <li><a href="#privacy"       class="nav-link"        data-section="privacy"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg> Privacy</a></li>
       </ul>
-      <div class="sidebar__status" id="sidebarStatus">
+      <div class="sidebar__status" id="sidebarStatus" aria-live="polite" aria-atomic="true">
         <span class="status-dot" id="sidebarDot"></span>
         <span id="sidebarStatusText">Loading…</span>
       </div>
@@ -37,7 +38,7 @@
     <!-- ── Main Content ──────────────────────────────────── -->
     <main class="main">
 
-      <div class="toast hidden" id="toast"></div>
+      <div class="toast hidden" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
       <!-- ════ Welcome Banner (first install only) ═════════ -->
       <div class="welcome-banner hidden" id="welcomeBanner">
@@ -315,6 +316,68 @@
           <ul class="history-list" id="histList">
             <li class="history-list__empty">No saved setups yet.</li>
           </ul>
+        </div>
+      </section>
+
+      <!-- ════ Privacy ════════════════════════════════════ -->
+      <section class="panel hidden" id="section-privacy">
+        <div class="panel__header">
+          <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg> Privacy</h1>
+          <p class="panel__desc">TextWatcher is 100% local. No data ever leaves your browser.</p>
+        </div>
+        <div class="card">
+          <h2 class="card__title">Data &amp; Storage</h2>
+          <div class="privacy-list">
+            <div class="privacy-item">
+              <svg class="privacy-item__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <div>
+                <strong>All data stored locally</strong>
+                <p>Keywords, URL rules, settings, and alert history are stored in your browser's local extension storage only.</p>
+              </div>
+            </div>
+            <div class="privacy-item">
+              <svg class="privacy-item__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <div>
+                <strong>No network requests</strong>
+                <p>The extension makes zero outbound network requests. No analytics, no telemetry, no external APIs.</p>
+              </div>
+            </div>
+            <div class="privacy-item">
+              <svg class="privacy-item__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <div>
+                <strong>No account required</strong>
+                <p>No sign-up, no login, no cloud sync. Your configuration belongs only to you.</p>
+              </div>
+            </div>
+            <div class="privacy-item">
+              <svg class="privacy-item__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <div>
+                <strong>Page content never transmitted</strong>
+                <p>Text matching runs entirely in the content script inside your browser. Matched text is never sent anywhere.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h2 class="card__title">Permissions Used</h2>
+          <div class="privacy-list">
+            <div class="privacy-item">
+              <svg class="privacy-item__icon privacy-item__icon--muted" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div><strong>storage</strong><p>Read and write your keywords, URLs, settings, and alert log to local extension storage.</p></div>
+            </div>
+            <div class="privacy-item">
+              <svg class="privacy-item__icon privacy-item__icon--muted" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div><strong>notifications</strong><p>Show OS-level alerts when a keyword appears or disappears.</p></div>
+            </div>
+            <div class="privacy-item">
+              <svg class="privacy-item__icon privacy-item__icon--muted" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div><strong>scripting</strong><p>Inject the content script into matching pages to perform text monitoring.</p></div>
+            </div>
+            <div class="privacy-item">
+              <svg class="privacy-item__icon privacy-item__icon--muted" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div><strong>tabs</strong><p>Read the active tab URL (for the &ldquo;Use Current Tab&rdquo; button) and focus the source tab when you click a notification.</p></div>
+            </div>
+          </div>
         </div>
       </section>
 

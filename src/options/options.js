@@ -25,7 +25,7 @@ const SVG_EDIT  = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" s
 
 // ─── Routing ──────────────────────────────────────────────────────────────────
 
-const sections = ['keywords', 'urls', 'notifications', 'activity', 'badge', 'history'];
+const sections = ['keywords', 'urls', 'notifications', 'activity', 'badge', 'history', 'privacy'];
 
 function showSection(id) {
   sections.forEach((s) => {
@@ -148,11 +148,11 @@ async function renderKeywords(filter = '') {
         </div>
       </div>
       <div class="rule-item__actions">
-        <button class="btn--icon" data-action="toggle" data-id="${kw.id}" title="${kw.enabled ? 'Disable' : 'Enable'}">
+        <button class="btn--icon" data-action="toggle" data-id="${kw.id}" title="${kw.enabled ? 'Disable' : 'Enable'}" aria-label="${kw.enabled ? 'Disable' : 'Enable'} keyword ${escapeHtml(kw.text)}">
           ${kw.enabled ? SVG_PAUSE : SVG_PLAY}
         </button>
-        <button class="btn--icon" data-action="edit" data-id="${kw.id}" title="Edit">${SVG_EDIT}</button>
-        <button class="btn--icon del" data-action="delete" data-id="${kw.id}" title="Delete"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        <button class="btn--icon" data-action="edit" data-id="${kw.id}" title="Edit" aria-label="Edit keyword ${escapeHtml(kw.text)}">${SVG_EDIT}</button>
+        <button class="btn--icon del" data-action="delete" data-id="${kw.id}" title="Delete" aria-label="Delete keyword ${escapeHtml(kw.text)}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
     `;
     list.appendChild(li);
@@ -334,11 +334,11 @@ async function renderUrls() {
         </div>
       </div>
       <div class="rule-item__actions">
-        <button class="btn--icon" data-action="toggle" data-id="${url.id}" title="${url.enabled ? 'Disable' : 'Enable'}">
+        <button class="btn--icon" data-action="toggle" data-id="${url.id}" title="${url.enabled ? 'Disable' : 'Enable'}" aria-label="${url.enabled ? 'Disable' : 'Enable'} URL rule ${escapeHtml(url.label || url.pattern)}">
           ${url.enabled ? SVG_PAUSE : SVG_PLAY}
         </button>
-        <button class="btn--icon" data-action="edit-url" data-id="${url.id}" title="Edit">${SVG_EDIT}</button>
-        <button class="btn--icon del" data-action="delete" data-id="${url.id}" title="Delete"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        <button class="btn--icon" data-action="edit-url" data-id="${url.id}" title="Edit" aria-label="Edit URL rule ${escapeHtml(url.label || url.pattern)}">${SVG_EDIT}</button>
+        <button class="btn--icon del" data-action="delete" data-id="${url.id}" title="Delete" aria-label="Delete URL rule ${escapeHtml(url.label || url.pattern)}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
     `;
     list.appendChild(li);
