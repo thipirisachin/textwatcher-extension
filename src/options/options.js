@@ -179,11 +179,18 @@ function bindKeywordEvents() {
       const keywords = await getKeywords();
       const kw = keywords.find((k) => k.id === id);
       if (!kw) return;
-      const li = e.target.closest('li.rule-item');
+      let li = e.target.closest('li.rule-item');
       if (!li) return;
 
-      // Toggle off if form already open
+      // Toggle off if this item's form already open
       if (li.querySelector('form.rule-item__edit')) { await renderKeywords(qs('#kwSearch').value); return; }
+
+      // Close any other open edit form first (one at a time)
+      if (qs('#kwList').querySelector('form.rule-item__edit')) {
+        await renderKeywords(qs('#kwSearch').value);
+        li = qs(`#kwList li[data-id="${id}"]`);
+        if (!li) return;
+      }
 
       const matchOptions = Object.entries(MATCH_TYPE_LABEL)
         .map(([val, lbl]) => `<option value="${val}"${kw.matchType === val ? ' selected' : ''}>${escapeHtml(lbl)}</option>`)
@@ -377,12 +384,19 @@ function bindUrlEvents() {
       const urls = await getUrls();
       const url  = urls.find((u) => u.id === id);
       if (!url) return;
-      const li = e.target.closest('li.rule-item');
+      let li = e.target.closest('li.rule-item');
       if (!li) return;
 
       if (li.querySelector('form.rule-item__edit')) {
         await renderUrls();
         return;
+      }
+
+      // Close any other open edit form first (one at a time)
+      if (qs('#urlList').querySelector('form.rule-item__edit')) {
+        await renderUrls();
+        li = qs(`#urlList li[data-id="${id}"]`);
+        if (!li) return;
       }
 
       const typeOptions = Object.entries(URL_MATCH_TYPE_LABEL)
