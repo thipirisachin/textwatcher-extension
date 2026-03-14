@@ -211,14 +211,14 @@ async function handleMessage(message, sender, sendResponse) {
 
 /**
  * Fire a browser notification.
- * Uses a deterministic ID so rapid repeat events replace rather than stack.
- * ID format: tw:{tabId}:{keywordId}:{event}
+ * Each call gets a unique ID so notifications stack (not replaced).
+ * ID format: tw:{tabId}:{timestamp}
  *
  * @param {object} opts
  */
 async function fireNotification({ tabId, keywordId, event, keyword, matchType, url, snippet, settings }) {
   const isAppear  = event === ALERT_EVENT.APPEARS;
-  const notifId   = `tw:${tabId}:${keywordId}:${event}`;
+  const notifId   = `tw:${tabId}:${Date.now()}`;
   const notifTitle = isAppear
     ? `✅ "${truncate(keyword, 40)}" appeared`
     : `❌ "${truncate(keyword, 40)}" gone`;

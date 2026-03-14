@@ -11,7 +11,7 @@ import {
   getUrls, saveUrls, addUrl, updateUrl, removeUrl,
   getSettings, saveSettings,
   getHistory, saveHistorySnapshot, restoreHistoryEntry, removeHistoryEntry,
-  getAlertHistory, clearAlertHistory,
+  getAlertHistory, clearAlertHistory, removeAlertEvent,
 } from '../shared/storage.js';
 import { validateRegex, matchesUrl } from '../shared/matcher.js';
 import { qs, qsa, timeAgo, truncate, onStorageChange } from '../shared/utils.js';
@@ -347,15 +347,6 @@ function bindUrlEvents() {
     if (e.key === 'Enter') handleAddUrl();
   });
 
-  // Add current tab's URL
-  qs('#addCurrentUrlBtn').addEventListener('click', async () => {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab?.url) {
-      qs('#urlPattern').value = tab.url;
-      qs('#urlLabel').value   = tab.title || tab.url;
-    }
-  });
-
   // URL checker
   qs('#checkUrlBtn').addEventListener('click', async () => {
     const input  = qs('#checkUrl').value.trim();
@@ -495,8 +486,6 @@ async function handleAddUrl() {
 async function renderNotifSettings() {
   const s = await getSettings();
 
-  qs('#alertOnAppear').checked    = s.alertOnAppear    !== false;
-  qs('#alertOnDisappear').checked = s.alertOnDisappear !== false;
   qs('#showUrl').checked          = s.showUrl          !== false;
   qs('#showMatchType').checked    = s.showMatchType    !== false;
   qs('#showSnippet').checked      = s.showSnippet      !== false;
@@ -510,19 +499,26 @@ async function renderNotifSettings() {
 }
 
 function bindNotifEvents() {
-  // Show/hide cooldown input
+  const saveBtn = qs('#saveNotifBtn');
+
+  function markDirty() { saveBtn.disabled = false; }
+
+  // Show/hide cooldown input; mark dirty on any frequency change
   qs('#notifFreqGroup').addEventListener('change', (e) => {
+    markDirty();
     if (e.target.name === 'notifFreq') {
       qs('#cooldownRow').style.display =
         e.target.value === NOTIF_FREQUENCY.COOLDOWN ? 'flex' : 'none';
     }
   });
+  qs('#cooldownSeconds').addEventListener('input', markDirty);
+  qs('#showUrl').addEventListener('change', markDirty);
+  qs('#showMatchType').addEventListener('change', markDirty);
+  qs('#showSnippet').addEventListener('change', markDirty);
 
-  qs('#saveNotifBtn').addEventListener('click', async () => {
+  saveBtn.addEventListener('click', async () => {
     const freq = qs('input[name="notifFreq"]:checked')?.value || NOTIF_FREQUENCY.ONCE_PER_PAGE;
     await saveSettings({
-      alertOnAppear:    qs('#alertOnAppear').checked,
-      alertOnDisappear: qs('#alertOnDisappear').checked,
       showUrl:          qs('#showUrl').checked,
       showMatchType:    qs('#showMatchType').checked,
       showSnippet:      qs('#showSnippet').checked,
@@ -530,6 +526,7 @@ function bindNotifEvents() {
       cooldownSeconds:  parseInt(qs('#cooldownSeconds').value) || 5,
     });
     showToast('Notification settings saved!');
+    saveBtn.disabled = true;
   });
 }
 
@@ -537,19 +534,13 @@ function bindNotifEvents() {
 
 async function renderBadgeSettings() {
   const s = await getSettings();
-  qs('#badgeEnabled').checked      = s.badgeEnabled      !== false;
-  qs('#badgeShowCount').checked    = s.badgeShowCount     !== false;
-  qs('#iconChangeOnMatch').checked = s.iconChangeOnMatch  !== false;
-  qs('#popupStatusEnabled').checked= s.popupStatusEnabled !== false;
+  qs('#badgeEnabled').checked = s.badgeEnabled !== false;
 }
 
 function bindBadgeEvents() {
   qs('#saveBadgeBtn').addEventListener('click', async () => {
     await saveSettings({
-      badgeEnabled:      qs('#badgeEnabled').checked,
-      badgeShowCount:    qs('#badgeShowCount').checked,
-      iconChangeOnMatch: qs('#iconChangeOnMatch').checked,
-      popupStatusEnabled:qs('#popupStatusEnabled').checked,
+      badgeEnabled: qs('#badgeEnabled').checked,
     });
     showToast('Badge settings saved!');
   });
@@ -588,8 +579,9 @@ async function renderAlertHistory() {
           <span class="rule-item__tag" title="${escapeHtml(entry.url)}">${escapeHtml(host)}</span>
           <span class="rule-item__tag">${time}</span>
         </div>
-      </div>
-    `;
+      </div>      <div class="rule-item__actions">
+        <button class="btn--icon del" data-action="delete-alert" data-id="${entry.id}" title="Dismiss"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>    `;
     if (entry.snippet) {
       li.querySelector('.rule-item__main').insertAdjacentHTML(
         'beforeend',
@@ -605,6 +597,15 @@ function bindActivityEvents() {
     await clearAlertHistory();
     await renderAlertHistory();
     showToast('Alert log cleared.');
+  });
+
+  qs('#activityList').addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    if (btn.dataset.action === 'delete-alert') {
+      await removeAlertEvent(btn.dataset.id);
+      await renderAlertHistory();
+    }
   });
 }
 // ─── History ──────────────────────────────────────────────────────────────────

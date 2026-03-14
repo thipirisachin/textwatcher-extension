@@ -24,9 +24,9 @@
         <li><a href="#keywords"      class="nav-link active" data-section="keywords"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg> Keywords</a></li>
         <li><a href="#urls"          class="nav-link"        data-section="urls"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> URLs</a></li>
         <li><a href="#notifications" class="nav-link"        data-section="notifications"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Notifications</a></li>
-        <li><a href="#activity"      class="nav-link"        data-section="activity"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Activity</a></li>
+        <li><a href="#activity"      class="nav-link"        data-section="activity"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Alert Log</a></li>
         <li><a href="#badge"         class="nav-link"        data-section="badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Badge &amp; Icon</a></li>
-        <li><a href="#history"       class="nav-link"        data-section="history"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> History</a></li>
+        <li><a href="#history"       class="nav-link"        data-section="history"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Saved Setups</a></li>
       </ul>
       <div class="sidebar__status" id="sidebarStatus">
         <span class="status-dot" id="sidebarDot"></span>
@@ -144,10 +144,7 @@
             </label>
           </div>
           <p class="error-msg hidden" id="urlError"></p>
-          <div style="display:flex; gap:10px; margin-top:12px;">
-            <button class="btn btn--primary" id="addUrlBtn">Add URL Rule</button>
-            <button class="btn btn--ghost" id="addCurrentUrlBtn">+ Use Current Tab's URL</button>
-          </div>
+          <button class="btn btn--primary" id="addUrlBtn" style="margin-top:12px;">Add URL Rule</button>
         </div>
 
         <!-- Status checker -->
@@ -175,26 +172,6 @@
         <div class="panel__header">
           <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Notifications</h1>
           <p class="panel__desc">Control exactly when and how you get alerted.</p>
-        </div>
-
-        <div class="card">
-          <h2 class="card__title">Alert Events</h2>
-          <div class="settings-list">
-            <div class="setting-row">
-              <div class="setting-row__info">
-                <span class="setting-row__name">Alert when text <strong>appears</strong></span>
-                <span class="setting-row__desc">Notify when monitored text is found on the page</span>
-              </div>
-              <label class="toggle"><input type="checkbox" id="alertOnAppear" /><span class="toggle__track"></span></label>
-            </div>
-            <div class="setting-row">
-              <div class="setting-row__info">
-                <span class="setting-row__name">Alert when text <strong>disappears</strong></span>
-                <span class="setting-row__desc">Notify when monitored text is removed from the page</span>
-              </div>
-              <label class="toggle"><input type="checkbox" id="alertOnDisappear" /><span class="toggle__track"></span></label>
-            </div>
-          </div>
         </div>
 
         <div class="card">
@@ -255,13 +232,15 @@
           </div>
         </div>
 
-        <button class="btn btn--primary" id="saveNotifBtn" style="max-width:200px;">Save Settings</button>
+        <div class="sticky-save">
+          <button class="btn btn--primary" id="saveNotifBtn" disabled>Save Settings</button>
+        </div>
       </section>
       <!-- ════ Activity (Alert Log) ════════════════════════════ -->
       <section class="panel hidden" id="section-activity">
         <div class="panel__header">
-          <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Activity</h1>
-          <p class="panel__desc">Every notification that fired — what appeared or disappeared, when, and where. Last 50 events.</p>
+          <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Alert Log</h1>
+          <p class="panel__desc">Every notification that fired — keyword, event type, URL, and timestamp. Last 50 entries.</p>
         </div>
         <div class="card">
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
@@ -290,13 +269,6 @@
               </div>
               <label class="toggle"><input type="checkbox" id="badgeEnabled" /><span class="toggle__track"></span></label>
             </div>
-            <div class="setting-row">
-              <div class="setting-row__info">
-                <span class="setting-row__name">Show match count</span>
-                <span class="setting-row__desc">Display number of active matches on badge</span>
-              </div>
-              <label class="toggle"><input type="checkbox" id="badgeShowCount" /><span class="toggle__track"></span></label>
-            </div>
           </div>
           <div class="color-preview" id="badgePreview">
             <div class="color-swatch" id="activeColor" title="Active (monitoring, no match)"></div>
@@ -308,34 +280,14 @@
           </div>
         </div>
 
-        <div class="card">
-          <h2 class="card__title">Icon</h2>
-          <div class="settings-list">
-            <div class="setting-row">
-              <div class="setting-row__info">
-                <span class="setting-row__name">Change icon on match</span>
-                <span class="setting-row__desc">Visually change extension icon when a match is found</span>
-              </div>
-              <label class="toggle"><input type="checkbox" id="iconChangeOnMatch" /><span class="toggle__track"></span></label>
-            </div>
-            <div class="setting-row">
-              <div class="setting-row__info">
-                <span class="setting-row__name">Show status in popup</span>
-                <span class="setting-row__desc">Display monitoring status text in popup</span>
-              </div>
-              <label class="toggle"><input type="checkbox" id="popupStatusEnabled" /><span class="toggle__track"></span></label>
-            </div>
-          </div>
-        </div>
-
         <button class="btn btn--primary" id="saveBadgeBtn" style="max-width:200px;">Save Settings</button>
       </section>
 
       <!-- ════ History ══════════════════════════════════════ -->
       <section class="panel hidden" id="section-history">
         <div class="panel__header">
-          <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> History</h1>
-          <p class="panel__desc">Your last 10 saved setups. Restore any previous keyword + URL configuration instantly.</p>
+          <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Saved Setups</h1>
+          <p class="panel__desc">Your last 10 saved keyword + URL configurations. Restore any previous setup instantly.</p>
         </div>
 
         <div class="card">

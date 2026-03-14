@@ -753,3 +753,19 @@ code {
 }
 
 .hidden { display: none !important; }
+
+/* ── Sticky Save Footer ──────────────────────────────────── */
+.sticky-save {
+  position: sticky;
+  bottom: 0;
+  background: var(--clr-bg);
+  border-top: 1px solid var(--clr-border);
+  padding: 16px 0 12px;
+  margin-top: 8px;
+  z-index: 10;
+}
+.sticky-save .btn--primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}

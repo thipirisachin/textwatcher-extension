@@ -252,6 +252,15 @@ export async function clearAlertHistory() {
   await storageSet({ [STORAGE_KEY.ALERT_HISTORY]: [] });
 }
 
+/**
+ * Remove a single alert event by id.
+ * @param {string} id
+ */
+export async function removeAlertEvent(id) {
+  const list = await getAlertHistory();
+  await storageSet({ [STORAGE_KEY.ALERT_HISTORY]: list.filter((e) => e.id !== id) });
+}
+
 // ─── Utility ─────────────────────────────────────────────────────────────────
 
 /**
