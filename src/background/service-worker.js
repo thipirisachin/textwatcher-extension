@@ -13,7 +13,7 @@
 
 import { MSG, BADGE_COLOR, NOTIF_FREQUENCY, ALERT_EVENT, STORAGE_KEY } from '../shared/constants.js';
 import { getKeywords, getUrls, getSettings, getEnabled, addAlertEvent,
-         addKeyword, addUrl, getOnboarded, setOnboarded } from '../shared/storage.js';
+         addKeyword, addUrl, getOnboarded } from '../shared/storage.js';
 import { matchesUrl } from '../shared/matcher.js';
 import { truncate, MATCH_TYPE_LABEL } from '../shared/utils.js';
 
@@ -132,7 +132,6 @@ chrome.runtime.onInstalled.addListener(async ({ reason }) => {
         label:     'Example (replace me)',
         enabled:   true,
       });
-      await setOnboarded();
       chrome.runtime.openOptionsPage();
     }
   }
