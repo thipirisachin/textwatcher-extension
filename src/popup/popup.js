@@ -14,6 +14,11 @@ import {
 import { validateRegex } from '../shared/matcher.js';
 import { qs, timeAgo, truncate, onStorageChange } from '../shared/utils.js';
 
+// ─── SVG Icon Strings ─────────────────────────────────────────────────────────
+const SVG_CHEVRON_RIGHT = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+const SVG_CHEVRON_DOWN  = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+const SVG_CHECK         = '<svg style="vertical-align:middle" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+
 // ─── DOM References ───────────────────────────────────────────────────────────
 const masterToggle      = qs('#masterToggle');
 const statusDot         = qs('#statusDot');
@@ -149,6 +154,15 @@ function bindEvents() {
     await renderStatus();
   });
 
+  // Advanced toggle (scope selector)
+  qs('#advancedToggleBtn').addEventListener('click', () => {
+    const row = qs('#advancedRow');
+    const btn = qs('#advancedToggleBtn');
+    const open = !row.classList.contains('hidden');
+    row.classList.toggle('hidden', open);
+    btn.innerHTML = (open ? SVG_CHEVRON_RIGHT : SVG_CHEVRON_DOWN) + ' Advanced';
+  });
+
   // Add keyword
   addKeywordBtn.addEventListener('click', handleAddKeyword);
   quickKeyword.addEventListener('keydown', (e) => {
@@ -216,15 +230,19 @@ async function handleAddKeyword() {
     }
   }
 
+  const scopeSelector = qs('#quickScope').value.trim();
+
   await addKeyword({
     text,
     matchType,
+    scopeSelector,
     enabled:        true,
     alertAppear:    quickAlertAppear.checked,
     alertDisappear: quickAlertDisappear.checked,
   });
 
-  quickKeyword.value = '';
+  quickKeyword.value    = '';
+  qs('#quickScope').value = '';
   showToast('Keyword added!');
   await renderCounts();
   await renderStatus();
@@ -296,7 +314,7 @@ let toastTimer = null;
 function showToast(msg) {
   // Reuse status bar as toast
   const prev = statusText.textContent;
-  statusText.textContent = `✓ ${msg}`;
+  statusText.innerHTML = `${SVG_CHECK} ${msg}`;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
     renderStatus();

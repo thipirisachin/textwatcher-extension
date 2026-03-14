@@ -15,6 +15,11 @@ import {
 import { validateRegex, matchesUrl } from '../shared/matcher.js';
 import { qs, qsa, timeAgo, truncate, onStorageChange } from '../shared/utils.js';
 
+// ─── SVG Icon Strings ─────────────────────────────────────────────────────────
+const SVG_PAUSE = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
+const SVG_PLAY  = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+const SVG_SCOPE = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
+
 // ─── Routing ──────────────────────────────────────────────────────────────────
 
 const sections = ['keywords', 'urls', 'notifications', 'badge', 'history'];
@@ -114,6 +119,7 @@ async function renderKeywords(filter = '') {
         <div class="rule-item__text">${escapeHtml(kw.text)}</div>
         <div class="rule-item__meta">
           <span class="rule-item__tag rule-item__tag--match">${escapeHtml(matchLabel)}</span>
+          ${kw.scopeSelector ? `<span class="rule-item__tag rule-item__tag--scope" title="Scope: ${escapeHtml(kw.scopeSelector)}">${SVG_SCOPE} ${escapeHtml(truncate(kw.scopeSelector, 30))}</span>` : ''}
           ${kw.alertAppear    ? '<span class="rule-item__tag rule-item__tag--appear">↑ appears</span>' : ''}
           ${kw.alertDisappear ? '<span class="rule-item__tag rule-item__tag--disappear">↓ disappears</span>' : ''}
           ${!kw.enabled       ? '<span class="rule-item__tag">disabled</span>' : ''}
@@ -121,9 +127,9 @@ async function renderKeywords(filter = '') {
       </div>
       <div class="rule-item__actions">
         <button class="btn--icon" data-action="toggle" data-id="${kw.id}" title="${kw.enabled ? 'Disable' : 'Enable'}">
-          ${kw.enabled ? '⏸' : '▶'}
+          ${kw.enabled ? SVG_PAUSE : SVG_PLAY}
         </button>
-        <button class="btn--icon del" data-action="delete" data-id="${kw.id}" title="Delete">✕</button>
+        <button class="btn--icon del" data-action="delete" data-id="${kw.id}" title="Delete"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
     `;
     list.appendChild(li);
@@ -190,12 +196,14 @@ async function handleAddKeyword() {
   await addKeyword({
     text,
     matchType,
+    scopeSelector:  qs('#kwScope').value.trim(),
     enabled:        qs('#kwEnabled').checked,
     alertAppear:    qs('#kwAlertAppear').checked,
     alertDisappear: qs('#kwAlertDisappear').checked,
   });
 
-  qs('#kwText').value = '';
+  qs('#kwText').value  = '';
+  qs('#kwScope').value = '';
   await renderKeywords();
   await renderSidebarStatus();
   showToast('Keyword added!');
@@ -233,9 +241,9 @@ async function renderUrls() {
       </div>
       <div class="rule-item__actions">
         <button class="btn--icon" data-action="toggle" data-id="${url.id}" title="${url.enabled ? 'Disable' : 'Enable'}">
-          ${url.enabled ? '⏸' : '▶'}
+          ${url.enabled ? SVG_PAUSE : SVG_PLAY}
         </button>
-        <button class="btn--icon del" data-action="delete" data-id="${url.id}" title="Delete">✕</button>
+        <button class="btn--icon del" data-action="delete" data-id="${url.id}" title="Delete"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
     `;
     list.appendChild(li);

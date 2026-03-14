@@ -182,13 +182,13 @@ async function fireNotification({ event, keyword, matchType, url, title, snippet
   const lines = [];
 
   if (settings.showUrl && url) {
-    lines.push(`📄 ${truncate(new URL(url).hostname + new URL(url).pathname, 50)}`);
+    lines.push(`${truncate(new URL(url).hostname + new URL(url).pathname, 50)}`);
   }
   if (settings.showMatchType && matchType) {
-    lines.push(`🔍 Match: ${formatMatchType(matchType)}`);
+    lines.push(`Match: ${formatMatchType(matchType)}`);
   }
   if (settings.showSnippet && snippet) {
-    lines.push(`💬 "${truncate(snippet, 80)}"`);
+    lines.push(`"${truncate(snippet, 80)}"`);
   }
 
   const message = lines.join('\n') || (isAppear ? 'Text detected on this page.' : 'Text is no longer present.');
