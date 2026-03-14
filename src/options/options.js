@@ -25,7 +25,7 @@ const SVG_EDIT  = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" s
 
 // ─── Routing ──────────────────────────────────────────────────────────────────
 
-const sections = ['keywords', 'urls', 'notifications', 'activity', 'badge', 'history', 'privacy'];
+const sections = ['setup', 'keywords', 'urls', 'notifications', 'activity', 'badge', 'history', 'privacy'];
 
 function showSection(id) {
   sections.forEach((s) => {
@@ -65,6 +65,7 @@ async function init() {
   bindBadgeEvents();
   bindHistoryEvents();
   bindActivityEvents();
+  bindSetupEvents();
   bindGlobalToggle();
   listenForChanges();
 }
@@ -75,6 +76,7 @@ async function renderWelcomeBanner() {
   const onboarded = await getOnboarded();
   if (!onboarded) {
     qs('#welcomeBanner').classList.remove('hidden');
+    showSection('setup');
     qs('#dismissWelcomeBtn').addEventListener('click', async () => {
       await setOnboarded();
       qs('#welcomeBanner').classList.add('hidden');
@@ -99,6 +101,41 @@ async function renderSidebarStatus() {
   text.textContent = enabled
     ? `${activeK} keywords, ${activeU} URLs`
     : 'Paused';
+}
+
+// ─── Setup Guide ─────────────────────────────────────────────────────────────
+
+function bindSetupEvents() {
+  qs('#testNotifBtn').addEventListener('click', () => {
+    chrome.notifications.create('tw_test_' + Date.now(), {
+      type:     'basic',
+      iconUrl:  chrome.runtime.getURL('src/icons/icon48.png'),
+      title:    'TextWatcher',
+      message:  'Notifications are working correctly! \u2713',
+      priority: 1,
+    });
+    showToast('Test notification sent!');
+  });
+
+  qs('#setupGoKeywords').addEventListener('click', (e) => {
+    e.preventDefault();
+    showSection('keywords');
+  });
+
+  qs('#setupGoUrls').addEventListener('click', (e) => {
+    e.preventDefault();
+    showSection('urls');
+  });
+
+  qs('#setupDone').addEventListener('click', async (e) => {
+    e.preventDefault();
+    await setEnabled(true);
+    const toggle = qs('#globalToggle');
+    if (toggle) toggle.checked = true;
+    await renderSidebarStatus();
+    showSection('keywords');
+    showToast('Monitoring enabled!');
+  });
 }
 
 // ─── Global Toggle ────────────────────────────────────────────────────────────
