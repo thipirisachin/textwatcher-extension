@@ -45,6 +45,9 @@ qsa('.nav-link').forEach((link) => {
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 async function init() {
+  // alertOnAppear/alertOnDisappear are now per-keyword only; reset any stale stored false values
+  await saveSettings({ alertOnAppear: true, alertOnDisappear: true });
+
   await Promise.all([
     renderKeywords(),
     renderUrls(),
