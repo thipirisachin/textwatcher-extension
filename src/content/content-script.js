@@ -415,6 +415,7 @@ function maybeAlert(keyword, event, pageText) {
   sendMessage({
     type:      event === ALERT_EVENT.APPEARS ? MSG.TEXT_APPEARED : MSG.TEXT_DISAPPEARED,
     keyword:   keyword.text,
+    keywordId: keyword.id,
     matchType: keyword.matchType,
     url:       window.location.href,
     title:     document.title,

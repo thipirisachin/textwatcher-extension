@@ -130,11 +130,15 @@ export async function saveUrls(urls) {
 }
 
 /**
- * Add a single URL rule.
+ * Add a single URL rule. Silently rejects exact duplicates (same pattern + matchType).
  * @param {UrlRule} rule
  */
 export async function addUrl(rule) {
   const list = await getUrls();
+  const isDuplicate = list.some(
+    (u) => u.pattern === rule.pattern && u.matchType === rule.matchType
+  );
+  if (isDuplicate) return;
   list.push({ ...rule, id: generateId() });
   await saveUrls(list);
 }

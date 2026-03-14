@@ -37,8 +37,7 @@
     "storage",
     "notifications",
     "scripting",
-    "tabs",
-    "alarms"
+    "tabs"
   ],
 
   "host_permissions": [
