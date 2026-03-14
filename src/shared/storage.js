@@ -261,6 +261,17 @@ export async function removeAlertEvent(id) {
   await storageSet({ [STORAGE_KEY.ALERT_HISTORY]: list.filter((e) => e.id !== id) });
 }
 
+// ─── Onboarding ───────────────────────────────────────────────────────────────
+
+export async function getOnboarded() {
+  const { [STORAGE_KEY.ONBOARDED]: val } = await storageGet(STORAGE_KEY.ONBOARDED);
+  return val === true;
+}
+
+export async function setOnboarded() {
+  await storageSet({ [STORAGE_KEY.ONBOARDED]: true });
+}
+
 // ─── Utility ─────────────────────────────────────────────────────────────────
 
 /**

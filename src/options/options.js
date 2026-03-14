@@ -12,6 +12,7 @@ import {
   getSettings, saveSettings,
   getHistory, saveHistorySnapshot, restoreHistoryEntry, removeHistoryEntry,
   getAlertHistory, clearAlertHistory, removeAlertEvent,
+  getOnboarded, setOnboarded,
 } from '../shared/storage.js';
 import { validateRegex, matchesUrl } from '../shared/matcher.js';
 import { qs, qsa, timeAgo, truncate, onStorageChange } from '../shared/utils.js';
@@ -56,6 +57,7 @@ async function init() {
     renderHistory(),
     renderAlertHistory(),
     renderSidebarStatus(),
+    renderWelcomeBanner(),
   ]);
   bindKeywordEvents();
   bindUrlEvents();
@@ -65,6 +67,19 @@ async function init() {
   bindActivityEvents();
   bindGlobalToggle();
   listenForChanges();
+}
+
+// ─── Welcome Banner ───────────────────────────────────────────────────────────────
+
+async function renderWelcomeBanner() {
+  const onboarded = await getOnboarded();
+  if (!onboarded) {
+    qs('#welcomeBanner').classList.remove('hidden');
+    qs('#dismissWelcomeBtn').addEventListener('click', async () => {
+      await setOnboarded();
+      qs('#welcomeBanner').classList.add('hidden');
+    });
+  }
 }
 
 // ─── Sidebar Status ───────────────────────────────────────────────────────────

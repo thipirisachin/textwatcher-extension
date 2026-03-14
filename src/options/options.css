@@ -754,6 +754,45 @@ code {
 
 .hidden { display: none !important; }
 
+/* ── Welcome Banner ──────────────────────────────────── */
+.welcome-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: var(--accent-gl);
+  border: 1px solid var(--accent-lt);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 24px;
+}
+.welcome-banner__icon {
+  color: var(--accent-lt);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.welcome-banner__body {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.welcome-banner__body strong {
+  display: block;
+  font-size: 14px;
+  color: var(--clr-text);
+  margin-bottom: 4px;
+}
+.welcome-banner__body p { color: var(--clr-muted); margin: 0; }
+.welcome-banner__dismiss {
+  background: none;
+  border: none;
+  color: var(--clr-muted);
+  cursor: pointer;
+  padding: 2px;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.welcome-banner__dismiss:hover { color: var(--clr-text); }
+
 /* ── Sticky Save Footer ──────────────────────────────────── */
 .sticky-save {
   position: sticky;

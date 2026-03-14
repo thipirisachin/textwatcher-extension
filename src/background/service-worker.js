@@ -12,7 +12,8 @@
  */
 
 import { MSG, BADGE_COLOR, NOTIF_FREQUENCY, ALERT_EVENT, STORAGE_KEY } from '../shared/constants.js';
-import { getKeywords, getUrls, getSettings, getEnabled, addAlertEvent } from '../shared/storage.js';
+import { getKeywords, getUrls, getSettings, getEnabled, addAlertEvent,
+         addKeyword, addUrl, getOnboarded, setOnboarded } from '../shared/storage.js';
 import { matchesUrl } from '../shared/matcher.js';
 import { truncate } from '../shared/utils.js';
 
@@ -108,9 +109,33 @@ async function deleteTabMatchCount(tabId) {
 
 // ─── Startup ──────────────────────────────────────────────────────────────────
 
-chrome.runtime.onInstalled.addListener(async () => {
+chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   await injectIntoMatchingTabs();
   await refreshBadge();
+
+  if (reason === 'install') {
+    const alreadyOnboarded = await getOnboarded();
+    if (!alreadyOnboarded) {
+      // Seed one example keyword and one example URL so the user isn't
+      // greeted by empty lists on first open.
+      await addKeyword({
+        text:           'TextWatcher',
+        matchType:      'contains',
+        enabled:        true,
+        alertAppear:    true,
+        alertDisappear: true,
+        scopeSelector:  '',
+      });
+      await addUrl({
+        pattern:   'https://example.com/*',
+        matchType: 'wildcard',
+        label:     'Example (replace me)',
+        enabled:   true,
+      });
+      await setOnboarded();
+      chrome.runtime.openOptionsPage();
+    }
+  }
 });
 
 chrome.runtime.onStartup.addListener(async () => {

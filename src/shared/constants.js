@@ -49,6 +49,7 @@ export const STORAGE_KEY = Object.freeze({
   HISTORY:           'tw_history',       // Last 10 saved setups
   ALERT_HISTORY:     'tw_alert_history', // Last 50 alert events (what fired)
   ENABLED:           'tw_enabled',       // Master on/off boolean
+  ONBOARDED:         'tw_onboarded',     // true once first-install setup is done
 });
 
 // ─── Message Types (content <-> background) ──────────────────────────────────

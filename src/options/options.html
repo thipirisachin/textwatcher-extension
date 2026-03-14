@@ -39,6 +39,18 @@
 
       <div class="toast hidden" id="toast"></div>
 
+      <!-- ════ Welcome Banner (first install only) ═════════ -->
+      <div class="welcome-banner hidden" id="welcomeBanner">
+        <div class="welcome-banner__icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg></div>
+        <div class="welcome-banner__body">
+          <strong>Welcome to TextWatcher!</strong>
+          <p>We've added an example keyword and URL to get you started. Replace them with what you actually want to watch, then enable monitoring with the toggle above.</p>
+        </div>
+        <button class="welcome-banner__dismiss" id="dismissWelcomeBtn" title="Dismiss">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
       <!-- ════ Keywords ════════════════════════════════════ -->
       <section class="panel" id="section-keywords">
         <div class="panel__header">
