@@ -731,26 +731,5 @@ function showToast(msg) {
 function showError(el, msg) { el.textContent = msg; el.classList.remove('hidden'); }
 function hideError(el)      { el.textContent = '';  el.classList.add('hidden'); }
 
-function escapeHtml(str = '') {
-  return str
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-const MATCH_TYPE_LABEL = {
-  exact_case:   'Exact (case-sensitive)',
-  exact_nocase: 'Exact (case-insensitive)',
-  contains:     'Contains',
-  starts_with:  'Starts with',
-  ends_with:    'Ends with',
-  regex:        'Regex',
-};
-
-const URL_MATCH_TYPE_LABEL = {
-  exact:    'Exact URL',
-  wildcard: 'Wildcard',
-  domain:   'Domain-wide',
-};
-
 // ─── Start ────────────────────────────────────────────────────────────────────
 init();
