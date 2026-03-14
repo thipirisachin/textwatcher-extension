@@ -20,6 +20,7 @@ import { qs, qsa, timeAgo, truncate, onStorageChange } from '../shared/utils.js'
 const SVG_PAUSE = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
 const SVG_PLAY  = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
 const SVG_SCOPE = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
+const SVG_EDIT  = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
 
 // ─── Routing ──────────────────────────────────────────────────────────────────
 
@@ -132,6 +133,7 @@ async function renderKeywords(filter = '') {
         <button class="btn--icon" data-action="toggle" data-id="${kw.id}" title="${kw.enabled ? 'Disable' : 'Enable'}">
           ${kw.enabled ? SVG_PAUSE : SVG_PLAY}
         </button>
+        <button class="btn--icon" data-action="edit" data-id="${kw.id}" title="Edit">${SVG_EDIT}</button>
         <button class="btn--icon del" data-action="delete" data-id="${kw.id}" title="Delete"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
     `;
@@ -246,6 +248,7 @@ async function renderUrls() {
         <button class="btn--icon" data-action="toggle" data-id="${url.id}" title="${url.enabled ? 'Disable' : 'Enable'}">
           ${url.enabled ? SVG_PAUSE : SVG_PLAY}
         </button>
+        <button class="btn--icon" data-action="edit-url" data-id="${url.id}" title="Edit">${SVG_EDIT}</button>
         <button class="btn--icon del" data-action="delete" data-id="${url.id}" title="Delete"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
     `;
@@ -300,11 +303,68 @@ function bindUrlEvents() {
     }
   });
 
-  // List actions
+  // List actions (delegated)
   qs('#urlList').addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
     const { action, id } = btn.dataset;
+
+    if (action === 'edit-url') {
+      const urls = await getUrls();
+      const url  = urls.find((u) => u.id === id);
+      if (!url) return;
+      const li = e.target.closest('li.rule-item');
+      if (!li) return;
+
+      if (li.querySelector('form.rule-item__edit')) {
+        await renderUrls();
+        return;
+      }
+
+      const typeOptions = Object.entries(URL_MATCH_TYPE_LABEL)
+        .map(([val, lbl]) => `<option value="${val}"${url.matchType === val ? ' selected' : ''}>${escapeHtml(lbl)}</option>`)
+        .join('');
+
+      li.insertAdjacentHTML('beforeend', `
+        <form class="rule-item__edit" data-edit-id="${id}" novalidate>
+          <div class="rule-item__edit-row">
+            <input class="input" name="pattern" value="${escapeHtml(url.pattern)}" maxlength="500" />
+            <select class="select" name="matchType">${typeOptions}</select>
+          </div>
+          <input class="input" name="label" value="${escapeHtml(url.label || '')}" placeholder="Label (optional)" maxlength="100" />
+          <p class="error-msg hidden" data-role="edit-error"></p>
+          <div class="rule-item__edit-actions">
+            <button type="button" class="btn btn--primary" data-action="save-url-edit" data-id="${id}">Save</button>
+            <button type="button" class="btn btn--ghost"    data-action="cancel-url-edit">Cancel</button>
+          </div>
+        </form>
+      `);
+      li.querySelector('input[name="pattern"]').select();
+    }
+
+    if (action === 'save-url-edit') {
+      const form      = e.target.closest('form.rule-item__edit');
+      const editId    = form?.dataset.editId;
+      const pattern   = form?.querySelector('[name="pattern"]')?.value.trim();
+      const matchType = form?.querySelector('[name="matchType"]')?.value;
+      const label     = form?.querySelector('[name="label"]')?.value.trim();
+      const errEl     = form?.querySelector('[data-role="edit-error"]');
+
+      if (!pattern) { showError(errEl, 'Pattern cannot be empty.'); return; }
+      if (matchType !== URL_MATCH_TYPE.DOMAIN) {
+        try { new URL(pattern.replace(/\*/g, 'x')); }
+        catch (_) { showError(errEl, 'Invalid URL format (e.g. https://example.com/*)'); return; }
+      }
+
+      await updateUrl(editId, { pattern, matchType, label: label || pattern });
+      await renderUrls();
+      await renderSidebarStatus();
+      showToast('URL rule updated!');
+    }
+
+    if (action === 'cancel-url-edit') {
+      await renderUrls();
+    }
 
     if (action === 'toggle') {
       const urls = await getUrls();

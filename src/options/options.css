@@ -472,6 +472,37 @@ html, body { height: 100%; background: var(--clr-bg); }
   text-overflow: ellipsis;
 }
 
+/* ── Inline Edit Form ────────────────────────────────────────────────── */
+.rule-item__edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0 4px;
+  border-top: 1px solid var(--clr-border);
+  margin-top: 8px;
+  width: 100%;
+}
+
+.rule-item__edit-row {
+  display: flex;
+  gap: 8px;
+}
+
+.rule-item__edit-row .input  { flex: 1; min-width: 0; }
+.rule-item__edit-row .select { flex-shrink: 0; width: auto; }
+
+.rule-item__edit-checks {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.rule-item__edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+
 .rule-item__actions {
   display: flex;
   gap: 5px;
