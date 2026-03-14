@@ -46,7 +46,8 @@ export const STORAGE_KEY = Object.freeze({
   KEYWORDS:          'tw_keywords',      // Array of keyword rule objects
   URLS:              'tw_urls',          // Array of URL rule objects
   SETTINGS:          'tw_settings',      // Global settings object
-  HISTORY:           'tw_history',       // Last 10 setups
+  HISTORY:           'tw_history',       // Last 10 saved setups
+  ALERT_HISTORY:     'tw_alert_history', // Last 50 alert events (what fired)
   ENABLED:           'tw_enabled',       // Master on/off boolean
 });
 
@@ -65,6 +66,7 @@ export const LIMITS = Object.freeze({
   MAX_KEYWORDS:      100,
   MAX_URLS:          100,
   MAX_HISTORY:       10,                 // Store last 10 setups
+  MAX_ALERT_HISTORY: 50,                 // Store last 50 alert events
   DEBOUNCE_MS:       50,                 // MutationObserver debounce
   COOLDOWN_DEFAULT:  5,                  // Default cooldown in seconds
   SNIPPET_CHARS:     80,                 // Characters of context around match

@@ -10,6 +10,7 @@ import {
   getKeywords, addKeyword,
   getUrls, addUrl,
   getHistory, saveHistorySnapshot, restoreHistoryEntry, removeHistoryEntry,
+  getAlertHistory,
 } from '../shared/storage.js';
 import { validateRegex } from '../shared/matcher.js';
 import { qs, timeAgo, truncate, onStorageChange } from '../shared/utils.js';
@@ -36,7 +37,9 @@ const addUrlBtn         = qs('#addUrlBtn');
 const urlError          = qs('#urlError');
 const keywordCount      = qs('#keywordCount');
 const urlCount          = qs('#urlCount');
-const historyCount      = qs('#historyCount');
+const alertCount        = qs('#alertCount');
+const alertBadge        = qs('#alertBadge');
+const alertList         = qs('#alertList');
 const historyList       = qs('#historyList');
 const historyBadge      = qs('#historyBadge');
 const openOptionsBtn    = qs('#openOptionsBtn');
@@ -56,6 +59,7 @@ async function renderAll() {
     renderStatus(),
     renderCounts(),
     renderHistory(),
+    renderAlerts(),
   ]);
 }
 
@@ -97,19 +101,51 @@ async function renderStatus() {
 }
 
 async function renderCounts() {
-  const [keywords, urls, history] = await Promise.all([
+  const [keywords, urls, alerts, history] = await Promise.all([
     getKeywords(),
     getUrls(),
+    getAlertHistory(),
     getHistory(),
   ]);
 
   keywordCount.textContent = keywords.filter((k) => k.enabled).length;
   urlCount.textContent     = urls.filter((u) => u.enabled).length;
-  historyCount.textContent = history.length;
+  alertCount.textContent   = alerts.length;
   historyBadge.textContent = history.length;
 }
 
-// ─── History ─────────────────────────────────────────────────────────────────
+// ─── Alert History ────────────────────────────────────────────────────────────
+
+async function renderAlerts() {
+  const alerts = await getAlertHistory();
+  alertBadge.textContent = alerts.length;
+
+  if (alerts.length === 0) {
+    alertList.innerHTML = '<li class="alert-list__empty">No alerts yet — monitoring will log events here.</li>';
+    return;
+  }
+
+  alertList.innerHTML = '';
+  alerts.slice(0, 3).forEach((entry) => {
+    const li = document.createElement('li');
+    li.className = 'alert-item';
+    const isAppear = entry.event === 'appears';
+    const time = new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    let host = entry.url;
+    try { host = new URL(entry.url).hostname; } catch (_) { /* keep raw */ }
+
+    li.innerHTML = `
+      <span class="alert-item__dot alert-item__dot--${isAppear ? 'appear' : 'disappear'}"></span>
+      <div class="alert-item__body">
+        <div class="alert-item__text">&quot;${escapeHtml(truncate(entry.keyword, 28))}&quot; ${isAppear ? 'appeared' : 'gone'}</div>
+        <div class="alert-item__meta">${escapeHtml(host)} &middot; ${time}</div>
+      </div>
+    `;
+    alertList.appendChild(li);
+  });
+}
+
+// ─── History (Saved Setups) ───────────────────────────────────────────────────
 
 async function renderHistory() {
   const history = await getHistory();
@@ -291,7 +327,8 @@ async function handleAddUrl() {
 
 function listenForStorageChanges() {
   onStorageChange(
-    [STORAGE_KEY.KEYWORDS, STORAGE_KEY.URLS, STORAGE_KEY.HISTORY, STORAGE_KEY.ENABLED],
+    [STORAGE_KEY.KEYWORDS, STORAGE_KEY.URLS, STORAGE_KEY.HISTORY,
+     STORAGE_KEY.ALERT_HISTORY, STORAGE_KEY.ENABLED],
     async () => {
       await renderAll();
     }

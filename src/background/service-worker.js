@@ -12,7 +12,7 @@
  */
 
 import { MSG, BADGE_COLOR, NOTIF_FREQUENCY, ALERT_EVENT, STORAGE_KEY } from '../shared/constants.js';
-import { getKeywords, getUrls, getSettings, getEnabled } from '../shared/storage.js';
+import { getKeywords, getUrls, getSettings, getEnabled, addAlertEvent } from '../shared/storage.js';
 import { matchesUrl } from '../shared/matcher.js';
 import { truncate } from '../shared/utils.js';
 
@@ -139,6 +139,17 @@ async function handleMessage(message, sender, sendResponse) {
           settings,
         });
 
+        await addAlertEvent({
+          event:     ALERT_EVENT.APPEARS,
+          keyword:   message.keyword,
+          matchType: message.matchType,
+          url:       message.url,
+          title:     message.title,
+          snippet:   message.snippet,
+          tabId,
+          timestamp: Date.now(),
+        });
+
         // Update badge count
         const current = (await getTabMatchCount(tabId)) + 1;
         await setTabMatchCount(tabId, current);
@@ -169,6 +180,17 @@ async function handleMessage(message, sender, sendResponse) {
           url:       message.url,
           snippet:   null,
           settings,
+        });
+
+        await addAlertEvent({
+          event:     ALERT_EVENT.DISAPPEARS,
+          keyword:   message.keyword,
+          matchType: message.matchType,
+          url:       message.url,
+          title:     message.title,
+          snippet:   null,
+          tabId,
+          timestamp: Date.now(),
         });
 
         // Decrement badge count

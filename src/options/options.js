@@ -11,6 +11,7 @@ import {
   getUrls, saveUrls, addUrl, updateUrl, removeUrl,
   getSettings, saveSettings,
   getHistory, saveHistorySnapshot, restoreHistoryEntry, removeHistoryEntry,
+  getAlertHistory, clearAlertHistory,
 } from '../shared/storage.js';
 import { validateRegex, matchesUrl } from '../shared/matcher.js';
 import { qs, qsa, timeAgo, truncate, onStorageChange } from '../shared/utils.js';
@@ -22,7 +23,7 @@ const SVG_SCOPE = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" s
 
 // ─── Routing ──────────────────────────────────────────────────────────────────
 
-const sections = ['keywords', 'urls', 'notifications', 'badge', 'history'];
+const sections = ['keywords', 'urls', 'notifications', 'activity', 'badge', 'history'];
 
 function showSection(id) {
   sections.forEach((s) => {
@@ -49,6 +50,7 @@ async function init() {
     renderNotifSettings(),
     renderBadgeSettings(),
     renderHistory(),
+    renderAlertHistory(),
     renderSidebarStatus(),
   ]);
   bindKeywordEvents();
@@ -56,6 +58,7 @@ async function init() {
   bindNotifEvents();
   bindBadgeEvents();
   bindHistoryEvents();
+  bindActivityEvents();
   bindGlobalToggle();
   listenForChanges();
 }
@@ -413,10 +416,61 @@ function bindBadgeEvents() {
     showToast('Badge settings saved!');
   });
 }
+// ─── Activity (Alert Log) ───────────────────────────────────────────────────────
 
+async function renderAlertHistory() {
+  const events = await getAlertHistory();
+  const list   = qs('#activityList');
+  const badge  = qs('#activityBadge');
+  badge.textContent = events.length;
+
+  if (events.length === 0) {
+    list.innerHTML = '<li class="rule-list__empty">No alert events yet.</li>';
+    return;
+  }
+
+  list.innerHTML = '';
+  events.forEach((entry) => {
+    const li = document.createElement('li');
+    li.className = 'rule-item';
+    const isAppear = entry.event === 'appears';
+    const time = new Date(entry.timestamp).toLocaleString([], {
+      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
+    let host = entry.url;
+    try { host = new URL(entry.url).hostname; } catch (_) { /* keep raw */ }
+    const matchLabel = MATCH_TYPE_LABEL[entry.matchType] || entry.matchType;
+
+    li.innerHTML = `
+      <div class="rule-item__main">
+        <div class="rule-item__text">“${escapeHtml(truncate(entry.keyword, 50))}” ${isAppear ? 'appeared' : 'gone'}</div>
+        <div class="rule-item__meta">
+          <span class="rule-item__tag ${isAppear ? 'rule-item__tag--appear' : 'rule-item__tag--disappear'}">${isAppear ? '↑ appear' : '↓ gone'}</span>
+          <span class="rule-item__tag rule-item__tag--match">${escapeHtml(matchLabel)}</span>
+          <span class="rule-item__tag" title="${escapeHtml(entry.url)}">${escapeHtml(host)}</span>
+          <span class="rule-item__tag">${time}</span>
+        </div>
+      </div>
+    `;
+    if (entry.snippet) {
+      li.querySelector('.rule-item__main').insertAdjacentHTML(
+        'beforeend',
+        `<div class="rule-item__snippet">“${escapeHtml(truncate(entry.snippet, 100))}”</div>`
+      );
+    }
+    list.appendChild(li);
+  });
+}
+
+function bindActivityEvents() {
+  qs('#clearActivityBtn').addEventListener('click', async () => {
+    await clearAlertHistory();
+    await renderAlertHistory();
+    showToast('Alert log cleared.');
+  });
+}
 // ─── History ──────────────────────────────────────────────────────────────────
 
-async function renderHistory() {
   const history = await getHistory();
   const list    = qs('#histList');
   const badge   = qs('#histBadge');
@@ -487,13 +541,14 @@ function bindHistoryEvents() {
 function listenForChanges() {
   onStorageChange(
     [STORAGE_KEY.KEYWORDS, STORAGE_KEY.URLS, STORAGE_KEY.SETTINGS,
-     STORAGE_KEY.HISTORY, STORAGE_KEY.ENABLED],
+     STORAGE_KEY.HISTORY, STORAGE_KEY.ALERT_HISTORY, STORAGE_KEY.ENABLED],
     async (changes) => {
-      if (STORAGE_KEY.KEYWORDS in changes) await renderKeywords();
-      if (STORAGE_KEY.URLS     in changes) await renderUrls();
-      if (STORAGE_KEY.SETTINGS in changes) { await renderNotifSettings(); await renderBadgeSettings(); }
-      if (STORAGE_KEY.HISTORY  in changes) await renderHistory();
-      await renderSidebarStatus(); // also updates #globalToggle
+      if (STORAGE_KEY.KEYWORDS      in changes) await renderKeywords();
+      if (STORAGE_KEY.URLS          in changes) await renderUrls();
+      if (STORAGE_KEY.SETTINGS      in changes) { await renderNotifSettings(); await renderBadgeSettings(); }
+      if (STORAGE_KEY.HISTORY       in changes) await renderHistory();
+      if (STORAGE_KEY.ALERT_HISTORY in changes) await renderAlertHistory();
+      await renderSidebarStatus();
     }
   );
 }

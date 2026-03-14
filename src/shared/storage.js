@@ -223,6 +223,35 @@ export async function removeHistoryEntry(id) {
   });
 }
 
+// ─── Alert History (what fired, when, where) ───────────────────────────────────
+// Separate from saved-setup history. Records every notification that fired.
+// Capped at LIMITS.MAX_ALERT_HISTORY entries (newest first).
+
+/**
+ * @returns {Promise<AlertEvent[]>}
+ */
+export async function getAlertHistory() {
+  const { [STORAGE_KEY.ALERT_HISTORY]: list } = await storageGet(STORAGE_KEY.ALERT_HISTORY);
+  return list || [];
+}
+
+/**
+ * Prepend a new alert event to the log, trimming to MAX_ALERT_HISTORY.
+ * @param {{ event:string, keyword:string, matchType:string, url:string, title:string, snippet:string|null, tabId:number, timestamp:number }} entry
+ */
+export async function addAlertEvent(entry) {
+  const list    = await getAlertHistory();
+  const updated = [{ ...entry, id: generateId() }, ...list].slice(0, LIMITS.MAX_ALERT_HISTORY);
+  await storageSet({ [STORAGE_KEY.ALERT_HISTORY]: updated });
+}
+
+/**
+ * Wipe the entire alert history log.
+ */
+export async function clearAlertHistory() {
+  await storageSet({ [STORAGE_KEY.ALERT_HISTORY]: [] });
+}
+
 // ─── Utility ─────────────────────────────────────────────────────────────────
 
 /**

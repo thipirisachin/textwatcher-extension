@@ -462,6 +462,16 @@ html, body { height: 100%; background: var(--clr-bg); }
 .rule-item__tag--match     { color: var(--accent-lt); }
 .rule-item__tag--scope     { color: var(--teal); font-family: monospace; }
 
+.rule-item__snippet {
+  font-size: 11px;
+  color: var(--clr-muted);
+  font-style: italic;
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .rule-item__actions {
   display: flex;
   gap: 5px;
