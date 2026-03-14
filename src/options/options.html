@@ -42,14 +42,28 @@
 
       <!-- ════ Welcome Banner (first install only) ═════════ -->
       <div class="welcome-banner hidden" id="welcomeBanner">
-        <div class="welcome-banner__icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg></div>
-        <div class="welcome-banner__body">
+        <div class="welcome-banner__header">
+          <div class="welcome-banner__icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
           <strong>Welcome to TextWatcher!</strong>
-          <p>We've added an example keyword and URL to get you started. Replace them with what you actually want to watch, then enable monitoring with the toggle above.</p>
+          <button class="welcome-banner__dismiss" id="dismissWelcomeBtn" title="Dismiss">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
-        <button class="welcome-banner__dismiss" id="dismissWelcomeBtn" title="Dismiss">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
+        <p class="welcome-banner__intro">Get set up in 3 quick steps:</p>
+        <ol class="welcome-banner__steps">
+          <li class="welcome-banner__step">
+            <span class="welcome-banner__step-num">1</span>
+            <div><strong>Add a keyword</strong><span>Replace the example keyword with text you want to watch for. Choose a match type (contains, exact, regex&hellip;).</span></div>
+          </li>
+          <li class="welcome-banner__step">
+            <span class="welcome-banner__step-num">2</span>
+            <div><strong>Set your URLs</strong><span>Replace the example URL with the pages you want to monitor. Use a wildcard (<code>*</code>) to watch all sites.</span></div>
+          </li>
+          <li class="welcome-banner__step">
+            <span class="welcome-banner__step-num">3</span>
+            <div><strong>Enable monitoring</strong><span>Flip the toggle in the sidebar to activate TextWatcher and start receiving alerts.</span></div>
+          </li>
+        </ol>
       </div>
 
       <!-- ════ Keywords ════════════════════════════════════ -->
