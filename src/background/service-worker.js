@@ -15,7 +15,7 @@ import { MSG, BADGE_COLOR, NOTIF_FREQUENCY, ALERT_EVENT, STORAGE_KEY } from '../
 import { getKeywords, getUrls, getSettings, getEnabled, addAlertEvent,
          addKeyword, addUrl, getOnboarded, setOnboarded } from '../shared/storage.js';
 import { matchesUrl } from '../shared/matcher.js';
-import { truncate } from '../shared/utils.js';
+import { truncate, MATCH_TYPE_LABEL } from '../shared/utils.js';
 
 // ─── Cooldown Tracker ─────────────────────────────────────────────────────────
 // Key: `${tabId}:${keywordId}:${event}`, Value: timestamp of last alert
@@ -320,7 +320,7 @@ async function fireNotification({ tabId, keywordId, event, keyword, matchType, u
 
   // Time always shown; match type appended if enabled
   lines.push(settings.showMatchType && matchType
-    ? `${now}  ·  ${formatMatchType(matchType)}`
+    ? `${now}  ·  ${MATCH_TYPE_LABEL[matchType] || matchType}`
     : now);
 
   if (settings.showSnippet && snippet) {
@@ -554,14 +554,3 @@ async function safelySendToTab(tabId, message) {
   });
 }
 
-function formatMatchType(type) {
-  const labels = {
-    exact_case:   'Exact (case-sensitive)',
-    exact_nocase: 'Exact (case-insensitive)',
-    contains:     'Contains',
-    starts_with:  'Starts with',
-    ends_with:    'Ends with',
-    regex:        'Regex',
-  };
-  return labels[type] || type;
-}

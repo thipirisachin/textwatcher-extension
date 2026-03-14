@@ -13,7 +13,7 @@ import {
   getAlertHistory,
 } from '../shared/storage.js';
 import { validateRegex } from '../shared/matcher.js';
-import { qs, timeAgo, truncate, onStorageChange } from '../shared/utils.js';
+import { qs, timeAgo, truncate, escapeHtml, onStorageChange } from '../shared/utils.js';
 
 // ─── SVG Icon Strings ─────────────────────────────────────────────────────────
 const SVG_CHEVRON_RIGHT = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
@@ -368,12 +368,6 @@ function showToast(msg) {
   }, 2000);
 }
 
-function escapeHtml(str = '') {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 init();

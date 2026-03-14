@@ -57,9 +57,7 @@ export const MSG = Object.freeze({
   TEXT_APPEARED:     'text_appeared',
   TEXT_DISAPPEARED:  'text_disappeared',
   GET_STATE:         'get_state',
-  STATE_UPDATE:      'state_update',
   RELOAD_RULES:      'reload_rules',
-  TAB_MATCHED:       'tab_matched',
 });
 
 // ─── Limits ──────────────────────────────────────────────────────────────────
@@ -77,23 +75,12 @@ export const LIMITS = Object.freeze({
 export const DEFAULT_SETTINGS = Object.freeze({
   enabled:               true,
 
-  // Alert events
-  alertOnAppear:         true,
-  alertOnDisappear:      true,
-
   // Notification frequency
   notifFrequency:        NOTIF_FREQUENCY.ONCE_PER_PAGE,
   cooldownSeconds:       LIMITS.COOLDOWN_DEFAULT,
 
   // Badge
   badgeEnabled:          true,
-  badgeShowCount:        true,
-
-  // Popup status
-  popupStatusEnabled:    true,
-
-  // Icon change on match
-  iconChangeOnMatch:     true,
 
   // Notification content
   showSnippet:           true,
