@@ -538,11 +538,15 @@ async function renderBadgeSettings() {
 }
 
 function bindBadgeEvents() {
-  qs('#saveBadgeBtn').addEventListener('click', async () => {
+  const saveBtn = qs('#saveBadgeBtn');
+  qs('#badgeEnabled').addEventListener('change', () => { saveBtn.disabled = false; });
+
+  saveBtn.addEventListener('click', async () => {
     await saveSettings({
       badgeEnabled: qs('#badgeEnabled').checked,
     });
     showToast('Badge settings saved!');
+    saveBtn.disabled = true;
   });
 }
 // ─── Activity (Alert Log) ───────────────────────────────────────────────────────

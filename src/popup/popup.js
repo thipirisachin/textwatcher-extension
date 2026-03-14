@@ -34,6 +34,7 @@ const quickUrl          = qs('#quickUrl');
 const quickUrlMatchType = qs('#quickUrlMatchType');
 const quickUrlLabel     = qs('#quickUrlLabel');
 const addUrlBtn         = qs('#addUrlBtn');
+const useCurrentUrlBtn  = qs('#useCurrentUrlBtn');
 const urlError          = qs('#urlError');
 const keywordCount      = qs('#keywordCount');
 const urlCount          = qs('#urlCount');
@@ -209,6 +210,15 @@ function bindEvents() {
   addUrlBtn.addEventListener('click', handleAddUrl);
   quickUrl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') handleAddUrl();
+  });
+
+  // Fill URL field from current active tab
+  useCurrentUrlBtn.addEventListener('click', async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.url && !tab.url.startsWith('chrome') && !tab.url.startsWith('about')) {
+      quickUrl.value      = tab.url;
+      quickUrlLabel.value = tab.title || '';
+    }
   });
 
   // History actions (delegated)
