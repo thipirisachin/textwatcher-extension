@@ -418,6 +418,7 @@ html, body { height: 100%; background: var(--clr-bg); }
   padding: 11px 14px;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   transition: border-color 0.15s;
 }
@@ -477,10 +478,16 @@ html, body { height: 100%; background: var(--clr-bg); }
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 12px 0 4px;
+  padding: 10px 0 2px;
   border-top: 1px solid var(--clr-border);
-  margin-top: 8px;
-  width: 100%;
+  margin-top: 2px;
+  flex-basis: 100%;   /* forces edit form to its own row inside the flex parent */
+}
+
+/* Hide the summary row content while edit is open, keep only the form */
+.rule-item:has(.rule-item__edit) .rule-item__main,
+.rule-item:has(.rule-item__edit) .rule-item__actions {
+  display: none;
 }
 
 .rule-item__edit-row {
