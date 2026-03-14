@@ -20,9 +20,27 @@ import { truncate } from '../shared/utils.js';
 // Key: `${tabId}:${keywordId}:${event}`, Value: timestamp of last alert
 const cooldownMap = new Map();
 
-// ─── Match Count Tracker ──────────────────────────────────────────────────────
-// Key: tabId, Value: count of active matches on that tab
-const tabMatchCount = new Map();
+// ─── Tab Match Count (session-persistent) ────────────────────────────────────
+// Stored in chrome.storage.session so counts survive MV3 service worker restarts
+// within a browser session. chrome.storage.session clears on browser close.
+// Key in session storage: 'tw_tab_counts'  Value: { [tabId]: number }
+
+async function getTabMatchCount(tabId) {
+  const { tw_tab_counts: counts = {} } = await chrome.storage.session.get('tw_tab_counts');
+  return counts[String(tabId)] || 0;
+}
+
+async function setTabMatchCount(tabId, count) {
+  const { tw_tab_counts: counts = {} } = await chrome.storage.session.get('tw_tab_counts');
+  counts[String(tabId)] = count;
+  await chrome.storage.session.set({ tw_tab_counts: counts });
+}
+
+async function deleteTabMatchCount(tabId) {
+  const { tw_tab_counts: counts = {} } = await chrome.storage.session.get('tw_tab_counts');
+  delete counts[String(tabId)];
+  await chrome.storage.session.set({ tw_tab_counts: counts });
+}
 
 // ─── Startup ──────────────────────────────────────────────────────────────────
 
@@ -53,14 +71,14 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (matched) {
     await injectContentScript(tabId);
     // Reset match count for this tab on new page load
-    tabMatchCount.set(tabId, 0);
+    await setTabMatchCount(tabId, 0);
     updateBadgeForTab(tabId, 0);
   }
 });
 
 // Clean up when tab is closed
-chrome.tabs.onRemoved.addListener((tabId) => {
-  tabMatchCount.delete(tabId);
+chrome.tabs.onRemoved.addListener(async (tabId) => {
+  await deleteTabMatchCount(tabId);
 });
 
 // ─── Message Handler ──────────────────────────────────────────────────────────
@@ -122,8 +140,8 @@ async function handleMessage(message, sender, sendResponse) {
         });
 
         // Update badge count
-        const current = (tabMatchCount.get(tabId) || 0) + 1;
-        tabMatchCount.set(tabId, current);
+        const current = (await getTabMatchCount(tabId)) + 1;
+        await setTabMatchCount(tabId, current);
         if (settings.badgeEnabled) updateBadgeForTab(tabId, current);
       }
 
@@ -154,8 +172,8 @@ async function handleMessage(message, sender, sendResponse) {
         });
 
         // Decrement badge count
-        const current = Math.max(0, (tabMatchCount.get(tabId) || 1) - 1);
-        tabMatchCount.set(tabId, current);
+        const current = Math.max(0, (await getTabMatchCount(tabId)) - 1);
+        await setTabMatchCount(tabId, current);
         if (settings.badgeEnabled) updateBadgeForTab(tabId, current);
       }
 
