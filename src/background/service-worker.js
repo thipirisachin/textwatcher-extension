@@ -77,11 +77,12 @@ async function flushBatch({ tabId, events }) {
   const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   chrome.notifications.create(notifId, {
-    type:     'basic',
-    iconUrl:  chrome.runtime.getURL('src/icons/icon48.png'),
-    title:    `TextWatcher — ${count} alerts`,
-    message:  `${parts.join(', ')} · ${host}\n${now}`,
-    priority: 1,
+    type:           'basic',
+    iconUrl:        chrome.runtime.getURL('src/icons/icon48.png'),
+    title:          `TextWatcher — ${count} alerts`,
+    message:        parts.join(', '),
+    contextMessage: `${host}  ·  ${now}`,
+    priority:       1,
   });
 }
 
@@ -209,40 +210,9 @@ async function handleMessage(message, sender, sendResponse) {
     case MSG.TEXT_APPEARED: {
       const tabId = sender.tab?.id;
       if (!tabId) break;
-
-      const enabled = await getEnabled();
+      const [enabled, settings] = await Promise.all([getEnabled(), getSettings()]);
       if (!enabled) { sendResponse({ ok: false }); break; }
-
-      const settings = await getSettings();
-
-      if (shouldSendAlert(tabId, message.keywordId, ALERT_EVENT.APPEARS, settings)) {
-        queueNotification({
-          tabId,
-          keywordId: message.keywordId,
-          event:     ALERT_EVENT.APPEARS,
-          keyword:   message.keyword,
-          matchType: message.matchType,
-          url:       message.url,
-          snippet:   message.snippet,
-        });
-
-        await addAlertEvent({
-          event:     ALERT_EVENT.APPEARS,
-          keyword:   message.keyword,
-          matchType: message.matchType,
-          url:       message.url,
-          title:     message.title,
-          snippet:   message.snippet,
-          tabId,
-          timestamp: Date.now(),
-        });
-
-        // Update badge count
-        const current = (await getTabMatchCount(tabId)) + 1;
-        await setTabMatchCount(tabId, current);
-        if (settings.badgeEnabled) updateBadgeForTab(tabId, current);
-      }
-
+      await handleAlertMessage(tabId, ALERT_EVENT.APPEARS, message, settings);
       sendResponse({ ok: true });
       break;
     }
@@ -251,40 +221,9 @@ async function handleMessage(message, sender, sendResponse) {
     case MSG.TEXT_DISAPPEARED: {
       const tabId = sender.tab?.id;
       if (!tabId) break;
-
-      const enabled = await getEnabled();
+      const [enabled, settings] = await Promise.all([getEnabled(), getSettings()]);
       if (!enabled) { sendResponse({ ok: false }); break; }
-
-      const settings = await getSettings();
-
-      if (shouldSendAlert(tabId, message.keywordId, ALERT_EVENT.DISAPPEARS, settings)) {
-        queueNotification({
-          tabId,
-          keywordId: message.keywordId,
-          event:     ALERT_EVENT.DISAPPEARS,
-          keyword:   message.keyword,
-          matchType: message.matchType,
-          url:       message.url,
-          snippet:   null,
-        });
-
-        await addAlertEvent({
-          event:     ALERT_EVENT.DISAPPEARS,
-          keyword:   message.keyword,
-          matchType: message.matchType,
-          url:       message.url,
-          title:     message.title,
-          snippet:   null,
-          tabId,
-          timestamp: Date.now(),
-        });
-
-        // Decrement badge count
-        const current = Math.max(0, (await getTabMatchCount(tabId)) - 1);
-        await setTabMatchCount(tabId, current);
-        if (settings.badgeEnabled) updateBadgeForTab(tabId, current);
-      }
-
+      await handleAlertMessage(tabId, ALERT_EVENT.DISAPPEARS, message, settings);
       sendResponse({ ok: true });
       break;
     }
@@ -296,44 +235,80 @@ async function handleMessage(message, sender, sendResponse) {
 // ─── Notification Logic ───────────────────────────────────────────────────────
 
 /**
- * Fire a browser notification.
- * Each call gets a unique ID so notifications stack (not replaced).
- * ID format: tw:{tabId}:{timestamp}
- *
- * @param {object} opts
+ * Shared handler for TEXT_APPEARED and TEXT_DISAPPEARED messages.
+ * Queues a notification, logs the alert event, and updates the badge.
  */
-async function fireNotification({ tabId, keywordId, event, keyword, matchType, url, snippet, settings }) {
-  const isAppear  = event === ALERT_EVENT.APPEARS;
-  const notifId   = `tw:${tabId}:${Date.now()}`;
-  const notifTitle = isAppear
-    ? `✅ "${truncate(keyword, 40)}" appeared`
-    : `❌ "${truncate(keyword, 40)}" gone`;
+async function handleAlertMessage(tabId, event, message, settings) {
+  if (!shouldSendAlert(tabId, message.keywordId, event, settings)) return;
 
-  const now   = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const lines = [];
+  const isAppear = event === ALERT_EVENT.APPEARS;
 
-  if (settings.showUrl && url) {
-    const { hostname, pathname } = new URL(url);
-    lines.push(truncate(hostname + pathname, 60));
+  queueNotification({
+    tabId,
+    keywordId: message.keywordId,
+    event,
+    keyword:   message.keyword,
+    matchType: message.matchType,
+    url:       message.url,
+    snippet:   isAppear ? message.snippet : null,
+  });
+
+  await addAlertEvent({
+    event,
+    keyword:   message.keyword,
+    matchType: message.matchType,
+    url:       message.url,
+    title:     message.title,
+    snippet:   isAppear ? message.snippet : null,
+    tabId,
+    timestamp: Date.now(),
+  });
+
+  const delta   = isAppear ? 1 : -1;
+  const current = Math.max(0, (await getTabMatchCount(tabId)) + delta);
+  await setTabMatchCount(tabId, current);
+  if (settings.badgeEnabled) updateBadgeForTab(tabId, current);
+}
+
+/**
+ * Fire a browser notification for a single alert event.
+ * Title carries the keyword + verb; message holds match type/snippet;
+ * contextMessage holds URL + time (displayed in a lighter weight by Chrome).
+ */
+async function fireNotification({ tabId, event, keyword, matchType, url, snippet, settings }) {
+  const isAppear = event === ALERT_EVENT.APPEARS;
+  const notifId  = `tw:${tabId}:${Date.now()}`;
+  const verb     = isAppear ? 'appeared' : 'gone';
+  const title    = `TextWatcher — "${truncate(keyword, 40)}" ${verb}`;
+
+  const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  // Primary body: match type and/or snippet
+  const bodyParts = [];
+  if (settings.showMatchType && matchType) {
+    bodyParts.push(MATCH_TYPE_LABEL[matchType] || matchType);
   }
-
-  // Time always shown; match type appended if enabled
-  lines.push(settings.showMatchType && matchType
-    ? `${now}  ·  ${MATCH_TYPE_LABEL[matchType] || matchType}`
-    : now);
-
   if (settings.showSnippet && snippet) {
-    lines.push(`"${truncate(snippet, 80)}"`);
+    bodyParts.push(truncate(snippet, 100));
   }
 
-  const message = lines.join('\n');
+  // contextMessage: URL path + time (lighter sub-line in Chrome)
+  const ctxParts = [];
+  if (settings.showUrl && url) {
+    try {
+      const { hostname, pathname } = new URL(url);
+      ctxParts.push(truncate(hostname + pathname, 55));
+    } catch (_) { ctxParts.push(truncate(url, 55)); }
+  }
+  ctxParts.push(now);
 
   chrome.notifications.create(notifId, {
-    type:     'basic',
-    iconUrl:  chrome.runtime.getURL('src/icons/icon48.png'),
-    title:    notifTitle,
-    message,
-    priority: 1,
+    type:           'basic',
+    iconUrl:        chrome.runtime.getURL('src/icons/icon48.png'),
+    title,
+    message:        bodyParts.join('  ·  ') || verb.charAt(0).toUpperCase() + verb.slice(1),
+    contextMessage: ctxParts.join('  ·  '),
+    priority:       1,
   });
 }
 
