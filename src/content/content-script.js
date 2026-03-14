@@ -383,10 +383,6 @@ function maybeAlert(keyword, event, pageText) {
   if (event === ALERT_EVENT.APPEARS    && !keyword.alertAppear)    return;
   if (event === ALERT_EVENT.DISAPPEARS && !keyword.alertDisappear) return;
 
-  // Global settings
-  if (event === ALERT_EVENT.APPEARS    && settings.alertOnAppear    === false) return;
-  if (event === ALERT_EVENT.DISAPPEARS && settings.alertOnDisappear === false) return;
-
   // once_per_page frequency gate
   const alerted = alertedThisLoad.get(keyword.id) || { appeared: false, disappeared: false };
   if (settings.notifFrequency === 'once_per_page') {
@@ -415,6 +411,7 @@ function maybeAlert(keyword, event, pageText) {
   sendMessage({
     type:      event === ALERT_EVENT.APPEARS ? MSG.TEXT_APPEARED : MSG.TEXT_DISAPPEARED,
     keyword:   keyword.text,
+    keywordId: keyword.id,
     matchType: keyword.matchType,
     url:       window.location.href,
     title:     document.title,

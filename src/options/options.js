@@ -11,18 +11,21 @@ import {
   getUrls, saveUrls, addUrl, updateUrl, removeUrl,
   getSettings, saveSettings,
   getHistory, saveHistorySnapshot, restoreHistoryEntry, removeHistoryEntry,
+  getAlertHistory, clearAlertHistory, removeAlertEvent,
+  getOnboarded, setOnboarded,
 } from '../shared/storage.js';
 import { validateRegex, matchesUrl } from '../shared/matcher.js';
-import { qs, qsa, timeAgo, truncate, onStorageChange } from '../shared/utils.js';
+import { qs, qsa, timeAgo, truncate, escapeHtml, MATCH_TYPE_LABEL, URL_MATCH_TYPE_LABEL, onStorageChange } from '../shared/utils.js';
 
 // ─── SVG Icon Strings ─────────────────────────────────────────────────────────
 const SVG_PAUSE = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
 const SVG_PLAY  = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
 const SVG_SCOPE = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
+const SVG_EDIT  = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
 
 // ─── Routing ──────────────────────────────────────────────────────────────────
 
-const sections = ['keywords', 'urls', 'notifications', 'badge', 'history'];
+const sections = ['setup', 'keywords', 'urls', 'notifications', 'activity', 'badge', 'history', 'privacy'];
 
 function showSection(id) {
   sections.forEach((s) => {
@@ -43,21 +46,42 @@ qsa('.nav-link').forEach((link) => {
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 async function init() {
+  // alertOnAppear/alertOnDisappear are now per-keyword only; reset any stale stored false values
+  await saveSettings({ alertOnAppear: true, alertOnDisappear: true });
+
   await Promise.all([
     renderKeywords(),
     renderUrls(),
     renderNotifSettings(),
     renderBadgeSettings(),
     renderHistory(),
+    renderAlertHistory(),
     renderSidebarStatus(),
+    renderWelcomeBanner(),
   ]);
   bindKeywordEvents();
   bindUrlEvents();
   bindNotifEvents();
   bindBadgeEvents();
   bindHistoryEvents();
+  bindActivityEvents();
+  bindSetupEvents();
   bindGlobalToggle();
   listenForChanges();
+}
+
+// ─── Welcome Banner ───────────────────────────────────────────────────────────────
+
+async function renderWelcomeBanner() {
+  const onboarded = await getOnboarded();
+  if (!onboarded) {
+    qs('#welcomeBanner').classList.remove('hidden');
+    showSection('setup');
+    qs('#dismissWelcomeBtn').addEventListener('click', async () => {
+      await setOnboarded();
+      qs('#welcomeBanner').classList.add('hidden');
+    });
+  }
 }
 
 // ─── Sidebar Status ───────────────────────────────────────────────────────────
@@ -77,6 +101,41 @@ async function renderSidebarStatus() {
   text.textContent = enabled
     ? `${activeK} keywords, ${activeU} URLs`
     : 'Paused';
+}
+
+// ─── Setup Guide ─────────────────────────────────────────────────────────────
+
+function bindSetupEvents() {
+  qs('#testNotifBtn').addEventListener('click', () => {
+    chrome.notifications.create('tw_test_' + Date.now(), {
+      type:     'basic',
+      iconUrl:  chrome.runtime.getURL('src/icons/icon48.png'),
+      title:    'TextWatcher',
+      message:  'Notifications are working correctly! \u2713',
+      priority: 1,
+    });
+    showToast('Test notification sent!');
+  });
+
+  qs('#setupGoKeywords').addEventListener('click', (e) => {
+    e.preventDefault();
+    showSection('keywords');
+  });
+
+  qs('#setupGoUrls').addEventListener('click', (e) => {
+    e.preventDefault();
+    showSection('urls');
+  });
+
+  qs('#setupDone').addEventListener('click', async (e) => {
+    e.preventDefault();
+    await setEnabled(true);
+    const toggle = qs('#globalToggle');
+    if (toggle) toggle.checked = true;
+    await renderSidebarStatus();
+    showSection('keywords');
+    showToast('Monitoring enabled!');
+  });
 }
 
 // ─── Global Toggle ────────────────────────────────────────────────────────────
@@ -126,10 +185,11 @@ async function renderKeywords(filter = '') {
         </div>
       </div>
       <div class="rule-item__actions">
-        <button class="btn--icon" data-action="toggle" data-id="${kw.id}" title="${kw.enabled ? 'Disable' : 'Enable'}">
+        <button class="btn--icon" data-action="toggle" data-id="${kw.id}" title="${kw.enabled ? 'Disable' : 'Enable'}" aria-label="${kw.enabled ? 'Disable' : 'Enable'} keyword ${escapeHtml(kw.text)}">
           ${kw.enabled ? SVG_PAUSE : SVG_PLAY}
         </button>
-        <button class="btn--icon del" data-action="delete" data-id="${kw.id}" title="Delete"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        <button class="btn--icon" data-action="edit" data-id="${kw.id}" title="Edit" aria-label="Edit keyword ${escapeHtml(kw.text)}">${SVG_EDIT}</button>
+        <button class="btn--icon del" data-action="delete" data-id="${kw.id}" title="Delete" aria-label="Delete keyword ${escapeHtml(kw.text)}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
     `;
     list.appendChild(li);
@@ -168,6 +228,77 @@ function bindKeywordEvents() {
       if (kw) await updateKeyword(id, { enabled: !kw.enabled });
       await renderKeywords(qs('#kwSearch').value);
       await renderSidebarStatus();
+    }
+
+    if (action === 'edit') {
+      const keywords = await getKeywords();
+      const kw = keywords.find((k) => k.id === id);
+      if (!kw) return;
+      let li = e.target.closest('li.rule-item');
+      if (!li) return;
+
+      // Toggle off if this item's form already open
+      if (li.querySelector('form.rule-item__edit')) { await renderKeywords(qs('#kwSearch').value); return; }
+
+      // Close any other open edit form first (one at a time)
+      if (qs('#kwList').querySelector('form.rule-item__edit')) {
+        await renderKeywords(qs('#kwSearch').value);
+        li = qs(`#kwList li[data-id="${id}"]`);
+        if (!li) return;
+      }
+
+      const matchOptions = Object.entries(MATCH_TYPE_LABEL)
+        .map(([val, lbl]) => `<option value="${val}"${kw.matchType === val ? ' selected' : ''}>${escapeHtml(lbl)}</option>`)
+        .join('');
+
+      li.insertAdjacentHTML('beforeend', `
+        <form class="rule-item__edit" data-edit-id="${id}" novalidate>
+          <div class="rule-item__edit-row">
+            <input class="input" name="text" value="${escapeHtml(kw.text)}" maxlength="500" placeholder="Keyword…" />
+            <select class="select" name="matchType">${matchOptions}</select>
+          </div>
+          <input class="input" name="scope" value="${escapeHtml(kw.scopeSelector || '')}" placeholder="Scope: CSS selector (optional)" maxlength="500" />
+          <div class="rule-item__edit-checks">
+            <label><input type="checkbox" name="alertAppear"    ${kw.alertAppear    ? 'checked' : ''} /> Alert appears</label>
+            <label><input type="checkbox" name="alertDisappear" ${kw.alertDisappear ? 'checked' : ''} /> Alert disappears</label>
+          </div>
+          <p class="error-msg hidden" data-role="edit-error"></p>
+          <div class="rule-item__edit-actions">
+            <button type="button" class="btn btn--primary" data-action="save-edit" data-id="${id}">Save</button>
+            <button type="button" class="btn btn--ghost"   data-action="cancel-edit">Cancel</button>
+          </div>
+        </form>
+      `);
+      li.querySelector('input[name="text"]').select();
+    }
+
+    if (action === 'save-edit') {
+      const form      = e.target.closest('form.rule-item__edit');
+      const editId    = form?.dataset.editId;
+      const text      = form?.querySelector('[name="text"]')?.value.trim();
+      const matchType = form?.querySelector('[name="matchType"]')?.value;
+      const errEl     = form?.querySelector('[data-role="edit-error"]');
+
+      if (!text) { showError(errEl, 'Keyword cannot be empty.'); return; }
+      if (matchType === MATCH_TYPE.REGEX) {
+        const { valid, error } = validateRegex(text);
+        if (!valid) { showError(errEl, `Invalid regex: ${error}`); return; }
+      }
+
+      await updateKeyword(editId, {
+        text,
+        matchType,
+        scopeSelector:  form.querySelector('[name="scope"]')?.value.trim() || '',
+        alertAppear:    form.querySelector('[name="alertAppear"]')?.checked ?? true,
+        alertDisappear: form.querySelector('[name="alertDisappear"]')?.checked ?? true,
+      });
+      await renderKeywords(qs('#kwSearch').value);
+      await renderSidebarStatus();
+      showToast('Keyword updated!');
+    }
+
+    if (action === 'cancel-edit') {
+      await renderKeywords(qs('#kwSearch').value);
     }
 
     if (action === 'delete') {
@@ -240,10 +371,11 @@ async function renderUrls() {
         </div>
       </div>
       <div class="rule-item__actions">
-        <button class="btn--icon" data-action="toggle" data-id="${url.id}" title="${url.enabled ? 'Disable' : 'Enable'}">
+        <button class="btn--icon" data-action="toggle" data-id="${url.id}" title="${url.enabled ? 'Disable' : 'Enable'}" aria-label="${url.enabled ? 'Disable' : 'Enable'} URL rule ${escapeHtml(url.label || url.pattern)}">
           ${url.enabled ? SVG_PAUSE : SVG_PLAY}
         </button>
-        <button class="btn--icon del" data-action="delete" data-id="${url.id}" title="Delete"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        <button class="btn--icon" data-action="edit-url" data-id="${url.id}" title="Edit" aria-label="Edit URL rule ${escapeHtml(url.label || url.pattern)}">${SVG_EDIT}</button>
+        <button class="btn--icon del" data-action="delete" data-id="${url.id}" title="Delete" aria-label="Delete URL rule ${escapeHtml(url.label || url.pattern)}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
     `;
     list.appendChild(li);
@@ -270,15 +402,6 @@ function bindUrlEvents() {
     if (e.key === 'Enter') handleAddUrl();
   });
 
-  // Add current tab's URL
-  qs('#addCurrentUrlBtn').addEventListener('click', async () => {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab?.url) {
-      qs('#urlPattern').value = tab.url;
-      qs('#urlLabel').value   = tab.title || tab.url;
-    }
-  });
-
   // URL checker
   qs('#checkUrlBtn').addEventListener('click', async () => {
     const input  = qs('#checkUrl').value.trim();
@@ -290,18 +413,82 @@ function bindUrlEvents() {
     result.classList.remove('hidden', 'status-result--ok', 'status-result--err');
     if (match) {
       result.className = 'status-result status-result--ok';
-      result.textContent = `✅ Matched by rule: "${match.label || match.pattern}" (${match.matchType})`;
+      result.textContent = `Matched by rule: "${match.label || match.pattern}" (${match.matchType})`;
     } else {
       result.className = 'status-result status-result--err';
-      result.textContent = '❌ No active URL rule matches this URL.';
+      result.textContent = 'No active URL rule matches this URL.';
     }
   });
 
-  // List actions
+  // List actions (delegated)
   qs('#urlList').addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
     const { action, id } = btn.dataset;
+
+    if (action === 'edit-url') {
+      const urls = await getUrls();
+      const url  = urls.find((u) => u.id === id);
+      if (!url) return;
+      let li = e.target.closest('li.rule-item');
+      if (!li) return;
+
+      if (li.querySelector('form.rule-item__edit')) {
+        await renderUrls();
+        return;
+      }
+
+      // Close any other open edit form first (one at a time)
+      if (qs('#urlList').querySelector('form.rule-item__edit')) {
+        await renderUrls();
+        li = qs(`#urlList li[data-id="${id}"]`);
+        if (!li) return;
+      }
+
+      const typeOptions = Object.entries(URL_MATCH_TYPE_LABEL)
+        .map(([val, lbl]) => `<option value="${val}"${url.matchType === val ? ' selected' : ''}>${escapeHtml(lbl)}</option>`)
+        .join('');
+
+      li.insertAdjacentHTML('beforeend', `
+        <form class="rule-item__edit" data-edit-id="${id}" novalidate>
+          <div class="rule-item__edit-row">
+            <input class="input" name="pattern" value="${escapeHtml(url.pattern)}" maxlength="500" />
+            <select class="select" name="matchType">${typeOptions}</select>
+          </div>
+          <input class="input" name="label" value="${escapeHtml(url.label || '')}" placeholder="Label (optional)" maxlength="100" />
+          <p class="error-msg hidden" data-role="edit-error"></p>
+          <div class="rule-item__edit-actions">
+            <button type="button" class="btn btn--primary" data-action="save-url-edit" data-id="${id}">Save</button>
+            <button type="button" class="btn btn--ghost"    data-action="cancel-url-edit">Cancel</button>
+          </div>
+        </form>
+      `);
+      li.querySelector('input[name="pattern"]').select();
+    }
+
+    if (action === 'save-url-edit') {
+      const form      = e.target.closest('form.rule-item__edit');
+      const editId    = form?.dataset.editId;
+      const pattern   = form?.querySelector('[name="pattern"]')?.value.trim();
+      const matchType = form?.querySelector('[name="matchType"]')?.value;
+      const label     = form?.querySelector('[name="label"]')?.value.trim();
+      const errEl     = form?.querySelector('[data-role="edit-error"]');
+
+      if (!pattern) { showError(errEl, 'Pattern cannot be empty.'); return; }
+      if (matchType !== URL_MATCH_TYPE.DOMAIN) {
+        try { new URL(pattern.replace(/\*/g, 'x')); }
+        catch (_) { showError(errEl, 'Invalid URL format (e.g. https://example.com/*)'); return; }
+      }
+
+      await updateUrl(editId, { pattern, matchType, label: label || pattern });
+      await renderUrls();
+      await renderSidebarStatus();
+      showToast('URL rule updated!');
+    }
+
+    if (action === 'cancel-url-edit') {
+      await renderUrls();
+    }
 
     if (action === 'toggle') {
       const urls = await getUrls();
@@ -354,8 +541,6 @@ async function handleAddUrl() {
 async function renderNotifSettings() {
   const s = await getSettings();
 
-  qs('#alertOnAppear').checked    = s.alertOnAppear    !== false;
-  qs('#alertOnDisappear').checked = s.alertOnDisappear !== false;
   qs('#showUrl').checked          = s.showUrl          !== false;
   qs('#showMatchType').checked    = s.showMatchType    !== false;
   qs('#showSnippet').checked      = s.showSnippet      !== false;
@@ -369,19 +554,26 @@ async function renderNotifSettings() {
 }
 
 function bindNotifEvents() {
-  // Show/hide cooldown input
+  const saveBtn = qs('#saveNotifBtn');
+
+  function markDirty() { saveBtn.disabled = false; }
+
+  // Show/hide cooldown input; mark dirty on any frequency change
   qs('#notifFreqGroup').addEventListener('change', (e) => {
+    markDirty();
     if (e.target.name === 'notifFreq') {
       qs('#cooldownRow').style.display =
         e.target.value === NOTIF_FREQUENCY.COOLDOWN ? 'flex' : 'none';
     }
   });
+  qs('#cooldownSeconds').addEventListener('input', markDirty);
+  qs('#showUrl').addEventListener('change', markDirty);
+  qs('#showMatchType').addEventListener('change', markDirty);
+  qs('#showSnippet').addEventListener('change', markDirty);
 
-  qs('#saveNotifBtn').addEventListener('click', async () => {
+  saveBtn.addEventListener('click', async () => {
     const freq = qs('input[name="notifFreq"]:checked')?.value || NOTIF_FREQUENCY.ONCE_PER_PAGE;
     await saveSettings({
-      alertOnAppear:    qs('#alertOnAppear').checked,
-      alertOnDisappear: qs('#alertOnDisappear').checked,
       showUrl:          qs('#showUrl').checked,
       showMatchType:    qs('#showMatchType').checked,
       showSnippet:      qs('#showSnippet').checked,
@@ -389,6 +581,7 @@ function bindNotifEvents() {
       cooldownSeconds:  parseInt(qs('#cooldownSeconds').value) || 5,
     });
     showToast('Notification settings saved!');
+    saveBtn.disabled = true;
   });
 }
 
@@ -396,24 +589,84 @@ function bindNotifEvents() {
 
 async function renderBadgeSettings() {
   const s = await getSettings();
-  qs('#badgeEnabled').checked      = s.badgeEnabled      !== false;
-  qs('#badgeShowCount').checked    = s.badgeShowCount     !== false;
-  qs('#iconChangeOnMatch').checked = s.iconChangeOnMatch  !== false;
-  qs('#popupStatusEnabled').checked= s.popupStatusEnabled !== false;
+  qs('#badgeEnabled').checked = s.badgeEnabled !== false;
 }
 
 function bindBadgeEvents() {
-  qs('#saveBadgeBtn').addEventListener('click', async () => {
+  const saveBtn = qs('#saveBadgeBtn');
+  qs('#badgeEnabled').addEventListener('change', () => { saveBtn.disabled = false; });
+
+  saveBtn.addEventListener('click', async () => {
     await saveSettings({
-      badgeEnabled:      qs('#badgeEnabled').checked,
-      badgeShowCount:    qs('#badgeShowCount').checked,
-      iconChangeOnMatch: qs('#iconChangeOnMatch').checked,
-      popupStatusEnabled:qs('#popupStatusEnabled').checked,
+      badgeEnabled: qs('#badgeEnabled').checked,
     });
     showToast('Badge settings saved!');
+    saveBtn.disabled = true;
+  });
+}
+// ─── Activity (Alert Log) ───────────────────────────────────────────────────────
+
+async function renderAlertHistory() {
+  const events = await getAlertHistory();
+  const list   = qs('#activityList');
+  const badge  = qs('#activityBadge');
+  badge.textContent = events.length;
+
+  if (events.length === 0) {
+    list.innerHTML = '<li class="rule-list__empty">No alert events yet.</li>';
+    return;
+  }
+
+  list.innerHTML = '';
+  events.forEach((entry) => {
+    const li = document.createElement('li');
+    li.className = 'rule-item';
+    const isAppear = entry.event === 'appears';
+    const time = new Date(entry.timestamp).toLocaleString([], {
+      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
+    let host = entry.url;
+    try { host = new URL(entry.url).hostname; } catch (_) { /* keep raw */ }
+    const matchLabel = MATCH_TYPE_LABEL[entry.matchType] || entry.matchType;
+
+    li.innerHTML = `
+      <div class="rule-item__main">
+        <div class="rule-item__text">“${escapeHtml(truncate(entry.keyword, 50))}” ${isAppear ? 'appeared' : 'gone'}</div>
+        <div class="rule-item__meta">
+          <span class="rule-item__tag ${isAppear ? 'rule-item__tag--appear' : 'rule-item__tag--disappear'}">${isAppear ? '↑ appear' : '↓ gone'}</span>
+          <span class="rule-item__tag rule-item__tag--match">${escapeHtml(matchLabel)}</span>
+          <span class="rule-item__tag" title="${escapeHtml(entry.url)}">${escapeHtml(host)}</span>
+          <span class="rule-item__tag">${time}</span>
+        </div>
+      </div>      <div class="rule-item__actions">
+        <button class="btn--icon del" data-action="delete-alert" data-id="${entry.id}" title="Dismiss"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>    `;
+    if (entry.snippet) {
+      li.querySelector('.rule-item__main').insertAdjacentHTML(
+        'beforeend',
+        `<div class="rule-item__snippet">“${escapeHtml(truncate(entry.snippet, 100))}”</div>`
+      );
+    }
+    list.appendChild(li);
   });
 }
 
+function bindActivityEvents() {
+  qs('#clearActivityBtn').addEventListener('click', async () => {
+    await clearAlertHistory();
+    await renderAlertHistory();
+    showToast('Alert log cleared.');
+  });
+
+  qs('#activityList').addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    if (btn.dataset.action === 'delete-alert') {
+      await removeAlertEvent(btn.dataset.id);
+      await renderAlertHistory();
+    }
+  });
+}
 // ─── History ──────────────────────────────────────────────────────────────────
 
 async function renderHistory() {
@@ -487,13 +740,14 @@ function bindHistoryEvents() {
 function listenForChanges() {
   onStorageChange(
     [STORAGE_KEY.KEYWORDS, STORAGE_KEY.URLS, STORAGE_KEY.SETTINGS,
-     STORAGE_KEY.HISTORY, STORAGE_KEY.ENABLED],
+     STORAGE_KEY.HISTORY, STORAGE_KEY.ALERT_HISTORY, STORAGE_KEY.ENABLED],
     async (changes) => {
-      if (STORAGE_KEY.KEYWORDS in changes) await renderKeywords();
-      if (STORAGE_KEY.URLS     in changes) await renderUrls();
-      if (STORAGE_KEY.SETTINGS in changes) { await renderNotifSettings(); await renderBadgeSettings(); }
-      if (STORAGE_KEY.HISTORY  in changes) await renderHistory();
-      await renderSidebarStatus(); // also updates #globalToggle
+      if (STORAGE_KEY.KEYWORDS      in changes) await renderKeywords();
+      if (STORAGE_KEY.URLS          in changes) await renderUrls();
+      if (STORAGE_KEY.SETTINGS      in changes) { await renderNotifSettings(); await renderBadgeSettings(); }
+      if (STORAGE_KEY.HISTORY       in changes) await renderHistory();
+      if (STORAGE_KEY.ALERT_HISTORY in changes) await renderAlertHistory();
+      await renderSidebarStatus();
     }
   );
 }
@@ -513,27 +767,6 @@ function showToast(msg) {
 
 function showError(el, msg) { el.textContent = msg; el.classList.remove('hidden'); }
 function hideError(el)      { el.textContent = '';  el.classList.add('hidden'); }
-
-function escapeHtml(str = '') {
-  return str
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-const MATCH_TYPE_LABEL = {
-  exact_case:   'Exact (case-sensitive)',
-  exact_nocase: 'Exact (case-insensitive)',
-  contains:     'Contains',
-  starts_with:  'Starts with',
-  ends_with:    'Ends with',
-  regex:        'Regex',
-};
-
-const URL_MATCH_TYPE_LABEL = {
-  exact:    'Exact URL',
-  wildcard: 'Wildcard',
-  domain:   'Domain-wide',
-};
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 init();

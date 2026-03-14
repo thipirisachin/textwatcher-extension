@@ -14,14 +14,14 @@
       <img src="../icons/icon48.png" alt="TextWatcher" class="header__logo" />
       <span class="header__title">TextWatcher</span>
     </div>
-    <label class="toggle" title="Enable / Disable monitoring">
+    <label class="toggle" title="Enable / Disable monitoring" aria-label="Enable or disable monitoring">
       <input type="checkbox" id="masterToggle" />
       <span class="toggle__track"></span>
     </label>
   </header>
 
   <!-- ── Status Bar ─────────────────────────────────────────── -->
-  <div class="status-bar" id="statusBar">
+  <div class="status-bar" id="statusBar" aria-live="polite" aria-atomic="true">
     <span class="status-dot" id="statusDot"></span>
     <span class="status-text" id="statusText">Loading…</span>
   </div>
@@ -68,7 +68,7 @@
       <p class="advanced-hint">Leave empty to scan the whole page.</p>
     </div>
     <button class="btn btn--primary" id="addKeywordBtn">Add Keyword</button>
-    <p class="error-msg hidden" id="keywordError"></p>
+    <p class="error-msg hidden" id="keywordError" role="alert"></p>
   </section>
 
   <!-- ── Quick Add URL ──────────────────────────────────────── -->
@@ -96,8 +96,11 @@
       maxlength="100"
       style="margin-top: 6px;"
     />
+    <div class="input-row" style="margin-top:6px;">
+      <button class="btn btn--ghost" id="useCurrentUrlBtn" style="width:100%; font-size:12px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> Use Current Tab's URL</button>
+    </div>
     <button class="btn btn--primary" id="addUrlBtn" style="margin-top: 8px;">Add URL</button>
-    <p class="error-msg hidden" id="urlError"></p>
+    <p class="error-msg hidden" id="urlError" role="alert"></p>
   </section>
 
   <!-- ── Active Rules Summary ───────────────────────────────── -->
@@ -113,10 +116,21 @@
         <span class="summary-card__label">URLs</span>
       </div>
       <div class="summary-card">
-        <span class="summary-card__count" id="historyCount">0</span>
-        <span class="summary-card__label">History</span>
+        <span class="summary-card__count" id="alertCount">0</span>
+        <span class="summary-card__label">Alerts</span>
       </div>
     </div>
+  </section>
+
+  <!-- ── Recent Alerts ─────────────────────────────────────── -->
+  <section class="section" id="alertSection">
+    <h2 class="section__title">
+      Recent Alerts
+      <span class="section__badge" id="alertBadge">0</span>
+    </h2>
+    <ul class="alert-list" id="alertList">
+      <li class="alert-list__empty">No alerts yet — monitoring will log events here.</li>
+    </ul>
   </section>
 
   <!-- ── Recent History ─────────────────────────────────────── -->

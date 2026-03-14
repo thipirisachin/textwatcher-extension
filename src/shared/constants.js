@@ -46,8 +46,10 @@ export const STORAGE_KEY = Object.freeze({
   KEYWORDS:          'tw_keywords',      // Array of keyword rule objects
   URLS:              'tw_urls',          // Array of URL rule objects
   SETTINGS:          'tw_settings',      // Global settings object
-  HISTORY:           'tw_history',       // Last 10 setups
+  HISTORY:           'tw_history',       // Last 10 saved setups
+  ALERT_HISTORY:     'tw_alert_history', // Last 50 alert events (what fired)
   ENABLED:           'tw_enabled',       // Master on/off boolean
+  ONBOARDED:         'tw_onboarded',     // true once first-install setup is done
 });
 
 // ─── Message Types (content <-> background) ──────────────────────────────────
@@ -55,9 +57,7 @@ export const MSG = Object.freeze({
   TEXT_APPEARED:     'text_appeared',
   TEXT_DISAPPEARED:  'text_disappeared',
   GET_STATE:         'get_state',
-  STATE_UPDATE:      'state_update',
   RELOAD_RULES:      'reload_rules',
-  TAB_MATCHED:       'tab_matched',
 });
 
 // ─── Limits ──────────────────────────────────────────────────────────────────
@@ -65,6 +65,7 @@ export const LIMITS = Object.freeze({
   MAX_KEYWORDS:      100,
   MAX_URLS:          100,
   MAX_HISTORY:       10,                 // Store last 10 setups
+  MAX_ALERT_HISTORY: 50,                 // Store last 50 alert events
   DEBOUNCE_MS:       50,                 // MutationObserver debounce
   COOLDOWN_DEFAULT:  5,                  // Default cooldown in seconds
   SNIPPET_CHARS:     80,                 // Characters of context around match
@@ -74,23 +75,12 @@ export const LIMITS = Object.freeze({
 export const DEFAULT_SETTINGS = Object.freeze({
   enabled:               true,
 
-  // Alert events
-  alertOnAppear:         true,
-  alertOnDisappear:      true,
-
   // Notification frequency
   notifFrequency:        NOTIF_FREQUENCY.ONCE_PER_PAGE,
   cooldownSeconds:       LIMITS.COOLDOWN_DEFAULT,
 
   // Badge
   badgeEnabled:          true,
-  badgeShowCount:        true,
-
-  // Popup status
-  popupStatusEnabled:    true,
-
-  // Icon change on match
-  iconChangeOnMatch:     true,
 
   // Notification content
   showSnippet:           true,

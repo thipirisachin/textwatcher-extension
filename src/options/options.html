@@ -15,19 +15,22 @@
       <div class="sidebar__brand">
         <img src="../icons/icon48.png" alt="TextWatcher" />
         <span>TextWatcher</span>
-        <label class="toggle" title="Enable / Disable monitoring" style="margin-left:auto;">
+        <label class="toggle" title="Enable / Disable monitoring" style="margin-left:auto;" aria-label="Enable or disable monitoring">
           <input type="checkbox" id="globalToggle" />
           <span class="toggle__track"></span>
         </label>
       </div>
       <ul class="nav-list">
+        <li><a href="#setup"         class="nav-link"        data-section="setup"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg> Setup Guide</a></li>
         <li><a href="#keywords"      class="nav-link active" data-section="keywords"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg> Keywords</a></li>
         <li><a href="#urls"          class="nav-link"        data-section="urls"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> URLs</a></li>
         <li><a href="#notifications" class="nav-link"        data-section="notifications"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Notifications</a></li>
+        <li><a href="#activity"      class="nav-link"        data-section="activity"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Alert Log</a></li>
         <li><a href="#badge"         class="nav-link"        data-section="badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Badge &amp; Icon</a></li>
-        <li><a href="#history"       class="nav-link"        data-section="history"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> History</a></li>
+        <li><a href="#history"       class="nav-link"        data-section="history"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Saved Setups</a></li>
+        <li><a href="#privacy"       class="nav-link"        data-section="privacy"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg> Privacy</a></li>
       </ul>
-      <div class="sidebar__status" id="sidebarStatus">
+      <div class="sidebar__status" id="sidebarStatus" aria-live="polite" aria-atomic="true">
         <span class="status-dot" id="sidebarDot"></span>
         <span id="sidebarStatusText">Loading…</span>
       </div>
@@ -36,8 +39,102 @@
     <!-- ── Main Content ──────────────────────────────────── -->
     <main class="main">
 
-      <div class="toast hidden" id="toast"></div>
+      <div class="toast hidden" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
+      <!-- ════ Welcome Banner (first install only) ═════════ -->
+      <div class="welcome-banner hidden" id="welcomeBanner">
+        <div class="welcome-banner__icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg></div>
+        <div class="welcome-banner__body">
+          <strong>Welcome to TextWatcher!</strong>
+          <p>Follow the Setup Guide below to get monitoring up and running in minutes.</p>
+        </div>
+        <button class="welcome-banner__dismiss" id="dismissWelcomeBtn" title="Dismiss">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <!-- ════ Setup Guide ════════════════════════════════ -->
+      <section class="panel hidden" id="section-setup">
+        <div class="panel__header">
+          <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg> Setup Guide</h1>
+          <p class="panel__desc">Get TextWatcher monitoring pages and firing alerts in four quick steps.</p>
+        </div>
+
+        <!-- Step 1: Notifications -->
+        <div class="card setup-card">
+          <div class="setup-card__hd">
+            <span class="setup-card__num">1</span>
+            <h2 class="card__title" style="margin:0">Allow Notifications</h2>
+          </div>
+          <p class="hint" style="margin-top:8px;">TextWatcher delivers alerts via OS notifications. Chrome must be permitted to show them at the <strong>system</strong> level &mdash; browser permission alone is not enough on some machines.</p>
+          <div class="setup-os-block">
+            <div class="setup-os-block__row">
+              <strong>Windows 10 / 11</strong>
+              <p>Settings &rarr; System &rarr; Notifications &rarr; <em>Google Chrome</em> &rarr; switch ON</p>
+            </div>
+            <div class="setup-os-block__row">
+              <strong>macOS</strong>
+              <p>System Settings &rarr; Notifications &rarr; <em>Google Chrome</em> &rarr; Allow Notifications</p>
+            </div>
+          </div>
+          <button class="btn btn--ghost" id="testNotifBtn" style="margin-top:14px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Test Notification</button>
+        </div>
+
+        <!-- Step 2: Keywords -->
+        <div class="card setup-card">
+          <div class="setup-card__hd">
+            <span class="setup-card__num">2</span>
+            <h2 class="card__title" style="margin:0">Add a Keyword</h2>
+          </div>
+          <p class="hint" style="margin-top:8px;">Define the text TextWatcher looks for. Each keyword fires its own alert independently and has its own match type.</p>
+          <table class="setup-table">
+            <thead><tr><th>Match Type</th><th>Behaviour</th><th>Example</th></tr></thead>
+            <tbody>
+              <tr><td>Contains</td><td>Text exists anywhere on the page</td><td><code>price drop</code></td></tr>
+              <tr><td>Exact (case-insensitive)</td><td>Exact phrase, any casing</td><td><code>In Stock</code></td></tr>
+              <tr><td>Starts / Ends with</td><td>Node text starts or ends with this value</td><td><code>Sale:</code></td></tr>
+              <tr><td>Regex</td><td>Full regular expression</td><td><code>\$\d+\.\d{2}</code></td></tr>
+            </tbody>
+          </table>
+          <p class="hint" style="margin-top:10px;"><strong>Scope selector</strong> &mdash; restrict matching to a specific element (e.g. <code>#price-box</code>). Leave blank to scan the whole page.</p>
+          <button class="btn btn--primary" id="setupGoKeywords" style="margin-top:14px;">Go to Keywords &rarr;</button>
+        </div>
+
+        <!-- Step 3: URLs -->
+        <div class="card setup-card">
+          <div class="setup-card__hd">
+            <span class="setup-card__num">3</span>
+            <h2 class="card__title" style="margin:0">Set Your URLs</h2>
+          </div>
+          <p class="hint" style="margin-top:8px;">Tell TextWatcher which pages to monitor. Without a URL rule no pages are scanned, regardless of your keywords.</p>
+          <div class="setup-os-block">
+            <div class="setup-os-block__row">
+              <strong>Wildcard</strong>
+              <p><code>https://example.com/*</code> &mdash; matches every page on example.com</p>
+            </div>
+            <div class="setup-os-block__row">
+              <strong>Domain-wide</strong>
+              <p>Matches the given domain and all its subdomains</p>
+            </div>
+            <div class="setup-os-block__row">
+              <strong>Exact</strong>
+              <p>Only one specific URL &mdash; useful for single-page monitoring</p>
+            </div>
+          </div>
+          <p class="hint" style="margin-top:10px;"><strong>Tip:</strong> Use <em>Use Current Tab</em> in the popup to fill in the URL of the page you&rsquo;re currently viewing automatically.</p>
+          <button class="btn btn--primary" id="setupGoUrls" style="margin-top:14px;">Go to URLs &rarr;</button>
+        </div>
+
+        <!-- Step 4: Enable -->
+        <div class="card setup-card">
+          <div class="setup-card__hd">
+            <span class="setup-card__num">4</span>
+            <h2 class="card__title" style="margin:0">Enable Monitoring</h2>
+          </div>
+          <p class="hint" style="margin-top:8px;">Flip the toggle at the top of the sidebar to activate TextWatcher. The status dot turns green when monitoring is live.</p>
+          <p class="hint" style="margin-top:6px;">You can pause at any time &mdash; your keywords and URL rules stay intact.</p>
+          <button class="btn btn--primary" id="setupDone" style="margin-top:14px;">Enable &amp; Go to Keywords &rarr;</button>
+        </div>
+      </section>
       <!-- ════ Keywords ════════════════════════════════════ -->
       <section class="panel" id="section-keywords">
         <div class="panel__header">
@@ -84,7 +181,7 @@
             <label class="toggle-field">
               <input type="checkbox" id="kwEnabled" checked />
               <span class="toggle-field__track"></span>
-              <span class="toggle-field__label">Enabled</span>
+              <span class="toggle-field__label">Enable/ Disable alerts for this keyword</span>
             </label>
           </div>
           <p class="hint" id="kwRegexHint" style="display:none;"><svg style="vertical-align:middle;flex-shrink:0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> Regex patterns are tested case-insensitively by default. Example: <code>\bprice\b</code></p>
@@ -139,14 +236,11 @@
             <label class="toggle-field">
               <input type="checkbox" id="urlEnabled" checked />
               <span class="toggle-field__track"></span>
-              <span class="toggle-field__label">Enabled</span>
+              <span class="toggle-field__label">Enable/ Disable alerts for this URL</span>
             </label>
           </div>
           <p class="error-msg hidden" id="urlError"></p>
-          <div style="display:flex; gap:10px; margin-top:12px;">
-            <button class="btn btn--primary" id="addUrlBtn">Add URL Rule</button>
-            <button class="btn btn--ghost" id="addCurrentUrlBtn">+ Use Current Tab's URL</button>
-          </div>
+          <button class="btn btn--primary" id="addUrlBtn" style="margin-top:12px;">Add URL Rule</button>
         </div>
 
         <!-- Status checker -->
@@ -174,26 +268,6 @@
         <div class="panel__header">
           <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Notifications</h1>
           <p class="panel__desc">Control exactly when and how you get alerted.</p>
-        </div>
-
-        <div class="card">
-          <h2 class="card__title">Alert Events</h2>
-          <div class="settings-list">
-            <div class="setting-row">
-              <div class="setting-row__info">
-                <span class="setting-row__name">Alert when text <strong>appears</strong></span>
-                <span class="setting-row__desc">Notify when monitored text is found on the page</span>
-              </div>
-              <label class="toggle"><input type="checkbox" id="alertOnAppear" /><span class="toggle__track"></span></label>
-            </div>
-            <div class="setting-row">
-              <div class="setting-row__info">
-                <span class="setting-row__name">Alert when text <strong>disappears</strong></span>
-                <span class="setting-row__desc">Notify when monitored text is removed from the page</span>
-              </div>
-              <label class="toggle"><input type="checkbox" id="alertOnDisappear" /><span class="toggle__track"></span></label>
-            </div>
-          </div>
         </div>
 
         <div class="card">
@@ -254,9 +328,26 @@
           </div>
         </div>
 
-        <button class="btn btn--primary" id="saveNotifBtn" style="max-width:200px;">Save Settings</button>
+        <div class="sticky-save">
+          <button class="btn btn--primary" id="saveNotifBtn" disabled>Save Settings</button>
+        </div>
       </section>
-
+      <!-- ════ Activity (Alert Log) ════════════════════════════ -->
+      <section class="panel hidden" id="section-activity">
+        <div class="panel__header">
+          <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Alert Log</h1>
+          <p class="panel__desc">Every notification that fired — keyword, event type, URL, and timestamp. Last 50 entries.</p>
+        </div>
+        <div class="card">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+            <h2 class="card__title" style="margin:0;">Alert Log <span class="badge" id="activityBadge">0</span></h2>
+            <button class="btn btn--ghost" id="clearActivityBtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg> Clear All</button>
+          </div>
+          <ul class="rule-list" id="activityList">
+            <li class="rule-list__empty">No alert events yet.</li>
+          </ul>
+        </div>
+      </section>
       <!-- ════ Badge & Icon ══════════════════════════════════ -->
       <section class="panel hidden" id="section-badge">
         <div class="panel__header">
@@ -274,13 +365,6 @@
               </div>
               <label class="toggle"><input type="checkbox" id="badgeEnabled" /><span class="toggle__track"></span></label>
             </div>
-            <div class="setting-row">
-              <div class="setting-row__info">
-                <span class="setting-row__name">Show match count</span>
-                <span class="setting-row__desc">Display number of active matches on badge</span>
-              </div>
-              <label class="toggle"><input type="checkbox" id="badgeShowCount" /><span class="toggle__track"></span></label>
-            </div>
           </div>
           <div class="color-preview" id="badgePreview">
             <div class="color-swatch" id="activeColor" title="Active (monitoring, no match)"></div>
@@ -292,34 +376,16 @@
           </div>
         </div>
 
-        <div class="card">
-          <h2 class="card__title">Icon</h2>
-          <div class="settings-list">
-            <div class="setting-row">
-              <div class="setting-row__info">
-                <span class="setting-row__name">Change icon on match</span>
-                <span class="setting-row__desc">Visually change extension icon when a match is found</span>
-              </div>
-              <label class="toggle"><input type="checkbox" id="iconChangeOnMatch" /><span class="toggle__track"></span></label>
-            </div>
-            <div class="setting-row">
-              <div class="setting-row__info">
-                <span class="setting-row__name">Show status in popup</span>
-                <span class="setting-row__desc">Display monitoring status text in popup</span>
-              </div>
-              <label class="toggle"><input type="checkbox" id="popupStatusEnabled" /><span class="toggle__track"></span></label>
-            </div>
-          </div>
+        <div class="sticky-save">
+          <button class="btn btn--primary" id="saveBadgeBtn" disabled>Save Settings</button>
         </div>
-
-        <button class="btn btn--primary" id="saveBadgeBtn" style="max-width:200px;">Save Settings</button>
       </section>
 
       <!-- ════ History ══════════════════════════════════════ -->
       <section class="panel hidden" id="section-history">
         <div class="panel__header">
-          <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> History</h1>
-          <p class="panel__desc">Your last 10 saved setups. Restore any previous keyword + URL configuration instantly.</p>
+          <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Saved Setups</h1>
+          <p class="panel__desc">Your last 10 saved keyword + URL configurations. Restore any previous setup instantly.</p>
         </div>
 
         <div class="card">
@@ -333,6 +399,68 @@
           <ul class="history-list" id="histList">
             <li class="history-list__empty">No saved setups yet.</li>
           </ul>
+        </div>
+      </section>
+
+      <!-- ════ Privacy ════════════════════════════════════ -->
+      <section class="panel hidden" id="section-privacy">
+        <div class="panel__header">
+          <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg> Privacy</h1>
+          <p class="panel__desc">TextWatcher is 100% local. No data ever leaves your browser.</p>
+        </div>
+        <div class="card">
+          <h2 class="card__title">Data &amp; Storage</h2>
+          <div class="privacy-list">
+            <div class="privacy-item">
+              <svg class="privacy-item__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <div>
+                <strong>All data stored locally</strong>
+                <p>Keywords, URL rules, settings, and alert history are stored in your browser's local extension storage only.</p>
+              </div>
+            </div>
+            <div class="privacy-item">
+              <svg class="privacy-item__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <div>
+                <strong>No network requests</strong>
+                <p>The extension makes zero outbound network requests. No analytics, no telemetry, no external APIs.</p>
+              </div>
+            </div>
+            <div class="privacy-item">
+              <svg class="privacy-item__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <div>
+                <strong>No account required</strong>
+                <p>No sign-up, no login, no cloud sync. Your configuration belongs only to you.</p>
+              </div>
+            </div>
+            <div class="privacy-item">
+              <svg class="privacy-item__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <div>
+                <strong>Page content never transmitted</strong>
+                <p>Text matching runs entirely in the content script inside your browser. Matched text is never sent anywhere.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h2 class="card__title">Permissions Used</h2>
+          <div class="privacy-list">
+            <div class="privacy-item">
+              <svg class="privacy-item__icon privacy-item__icon--muted" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div><strong>storage</strong><p>Read and write your keywords, URLs, settings, and alert log to local extension storage.</p></div>
+            </div>
+            <div class="privacy-item">
+              <svg class="privacy-item__icon privacy-item__icon--muted" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div><strong>notifications</strong><p>Show OS-level alerts when a keyword appears or disappears.</p></div>
+            </div>
+            <div class="privacy-item">
+              <svg class="privacy-item__icon privacy-item__icon--muted" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div><strong>scripting</strong><p>Inject the content script into matching pages to perform text monitoring.</p></div>
+            </div>
+            <div class="privacy-item">
+              <svg class="privacy-item__icon privacy-item__icon--muted" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div><strong>tabs</strong><p>Read the active tab URL (for the &ldquo;Use Current Tab&rdquo; button) and focus the source tab when you click a notification.</p></div>
+            </div>
+          </div>
         </div>
       </section>
 

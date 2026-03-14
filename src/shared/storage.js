@@ -130,11 +130,15 @@ export async function saveUrls(urls) {
 }
 
 /**
- * Add a single URL rule.
+ * Add a single URL rule. Silently rejects exact duplicates (same pattern + matchType).
  * @param {UrlRule} rule
  */
 export async function addUrl(rule) {
   const list = await getUrls();
+  const isDuplicate = list.some(
+    (u) => u.pattern === rule.pattern && u.matchType === rule.matchType
+  );
+  if (isDuplicate) return;
   list.push({ ...rule, id: generateId() });
   await saveUrls(list);
 }
@@ -219,6 +223,55 @@ export async function removeHistoryEntry(id) {
   });
 }
 
+// ─── Alert History (what fired, when, where) ───────────────────────────────────
+// Separate from saved-setup history. Records every notification that fired.
+// Capped at LIMITS.MAX_ALERT_HISTORY entries (newest first).
+
+/**
+ * @returns {Promise<AlertEvent[]>}
+ */
+export async function getAlertHistory() {
+  const { [STORAGE_KEY.ALERT_HISTORY]: list } = await storageGet(STORAGE_KEY.ALERT_HISTORY);
+  return list || [];
+}
+
+/**
+ * Prepend a new alert event to the log, trimming to MAX_ALERT_HISTORY.
+ * @param {{ event:string, keyword:string, matchType:string, url:string, title:string, snippet:string|null, tabId:number, timestamp:number }} entry
+ */
+export async function addAlertEvent(entry) {
+  const list    = await getAlertHistory();
+  const updated = [{ ...entry, id: generateId() }, ...list].slice(0, LIMITS.MAX_ALERT_HISTORY);
+  await storageSet({ [STORAGE_KEY.ALERT_HISTORY]: updated });
+}
+
+/**
+ * Wipe the entire alert history log.
+ */
+export async function clearAlertHistory() {
+  await storageSet({ [STORAGE_KEY.ALERT_HISTORY]: [] });
+}
+
+/**
+ * Remove a single alert event by id.
+ * @param {string} id
+ */
+export async function removeAlertEvent(id) {
+  const list = await getAlertHistory();
+  await storageSet({ [STORAGE_KEY.ALERT_HISTORY]: list.filter((e) => e.id !== id) });
+}
+
+// ─── Onboarding ───────────────────────────────────────────────────────────────
+
+export async function getOnboarded() {
+  const { [STORAGE_KEY.ONBOARDED]: val } = await storageGet(STORAGE_KEY.ONBOARDED);
+  return val === true;
+}
+
+export async function setOnboarded() {
+  await storageSet({ [STORAGE_KEY.ONBOARDED]: true });
+}
+
 // ─── Utility ─────────────────────────────────────────────────────────────────
 
 /**
@@ -234,6 +287,7 @@ export function generateId() {
  * @property {string}  id
  * @property {string}  text           - The keyword/phrase to match
  * @property {string}  matchType      - One of MATCH_TYPE values
+ * @property {string}  scopeSelector  - CSS selector to scope matching (empty = whole page)
  * @property {boolean} enabled        - Whether this rule is active
  * @property {boolean} alertAppear    - Alert when text appears
  * @property {boolean} alertDisappear - Alert when text disappears

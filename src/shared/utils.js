@@ -23,28 +23,6 @@ export function debounce(fn, delay) {
   };
 }
 
-// ─── Throttle ─────────────────────────────────────────────────────────────────
-
-/**
- * Returns a throttled version of fn that fires at most once per `limit` ms.
- * Used to cap notification rate.
- *
- * @template {(...args: any[]) => any} T
- * @param {T} fn
- * @param {number} limit  - milliseconds
- * @returns {T}
- */
-export function throttle(fn, limit) {
-  let lastCall = 0;
-  return function (...args) {
-    const now = Date.now();
-    if (now - lastCall >= limit) {
-      lastCall = now;
-      return fn.apply(this, args);
-    }
-  };
-}
-
 // ─── String Utilities ─────────────────────────────────────────────────────────
 
 /**
@@ -131,16 +109,6 @@ export function qs(selector, root = document) {
  */
 export function qsa(selector, root = document) {
   return Array.from(root.querySelectorAll(selector));
-}
-
-/**
- * Add multiple event listeners in one call.
- * @param {Element} el
- * @param {string[]} events
- * @param {EventListenerOrEventListenerObject} handler
- */
-export function onEvents(el, events, handler) {
-  events.forEach((ev) => el.addEventListener(ev, handler));
 }
 
 // ─── Storage Change Listener Helper ──────────────────────────────────────────

@@ -447,6 +447,45 @@ body {
 
 .footer .btn { flex: 1; }
 
+/* ── Alert History Items ─────────────────────────────────────────────── */
+.alert-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.alert-list__empty {
+  font-size: 11px;
+  color: var(--text-3);
+  padding: 6px 0;
+}
+
+.alert-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.alert-item:last-child { border-bottom: none; }
+
+.alert-item__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.alert-item__dot--appear    { background: var(--green); box-shadow: 0 0 0 2px var(--green-gl); }
+.alert-item__dot--disappear { background: var(--red);   box-shadow: 0 0 0 2px var(--red-gl); }
+
+.alert-item__body   { min-width: 0; }
+.alert-item__text   { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.alert-item__meta   { font-size: 10px; color: var(--text-3); margin-top: 1px; }
+
 /* ── Utilities ───────────────────────────────────────────────────────── */
 .error-msg {
   font-size: 11px;
