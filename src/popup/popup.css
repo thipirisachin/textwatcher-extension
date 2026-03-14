@@ -446,7 +446,68 @@ body {
 }
 
 .footer .btn { flex: 1; }
+/* ── Live Match Status ───────────────────────────────────────────────────── */
+.match-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
 
+.match-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  min-width: 0;
+}
+
+.match-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+
+.match-dot--on      { background: var(--green); box-shadow: 0 0 0 3px var(--green-gl); }
+.match-dot--off     { background: var(--text-3); }
+.match-dot--unknown { background: var(--border-2); }
+
+.match-item__text {
+  flex: 1;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.match-item__scope {
+  font-family: monospace;
+  font-size: 10px;
+  color: var(--teal);
+  background: rgba(45,212,191,0.08);
+  border: 1px solid rgba(45,212,191,0.2);
+  padding: 1px 5px;
+  border-radius: 3px;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.match-item__status {
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.match-status--on      { color: var(--green); }
+.match-status--off     { color: var(--text-3); }
+.match-status--unknown { color: var(--border-2); }
 /* ── Utilities ───────────────────────────────────────────────────────── */
 .error-msg {
   font-size: 11px;
