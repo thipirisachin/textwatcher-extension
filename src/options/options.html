@@ -28,6 +28,7 @@
         <li><a href="#activity"      class="nav-link"        data-section="activity"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Alert Log</a></li>
         <li><a href="#badge"         class="nav-link"        data-section="badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Badge &amp; Icon</a></li>
         <li><a href="#history"       class="nav-link"        data-section="history"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Saved Setups</a></li>
+        <li><a href="#webhooks"      class="nav-link"        data-section="webhooks"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Webhooks</a></li>
         <li><a href="#privacy"       class="nav-link"        data-section="privacy"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg> Privacy</a></li>
       </ul>
       <div class="sidebar__status" id="sidebarStatus" aria-live="polite" aria-atomic="true">
@@ -404,6 +405,84 @@
         </div>
       </section>
 
+      <!-- ════ Webhooks ════════════════════════════════════ -->
+      <section class="panel hidden" id="section-webhooks">
+        <div class="panel__header">
+          <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Webhooks</h1>
+          <p class="panel__desc">Send an HTTP POST to your own endpoint whenever a keyword alert fires. Useful for Slack, Discord, Zapier, or your own server.</p>
+        </div>
+
+        <div class="card">
+          <h2 class="card__title">Configuration</h2>
+
+          <div class="settings-list">
+            <div class="setting-row">
+              <div class="setting-row__info">
+                <span class="setting-row__name">Enable webhooks</span>
+                <span class="setting-row__desc">POST a JSON payload to your endpoint on every alert</span>
+              </div>
+              <label class="toggle"><input type="checkbox" id="webhookEnabled" /><span class="toggle__track"></span></label>
+            </div>
+          </div>
+
+          <div class="form-grid" style="margin-top:16px;">
+            <div class="form-field form-field--wide">
+              <label class="label">Endpoint URL</label>
+              <input type="url" id="webhookUrl" class="input" placeholder="https://your-server.com/webhook" maxlength="500" />
+              <p class="hint" style="margin-top:5px;">Must be <code>https://</code>. <code>http://localhost</code> is also allowed for local testing.</p>
+            </div>
+            <div class="form-field form-field--wide">
+              <label class="label">Secret <span class="label__opt">(optional)</span></label>
+              <div class="webhook-secret-row">
+                <input type="password" id="webhookSecret" class="input" placeholder="Leave empty for no authentication" maxlength="200" autocomplete="new-password" />
+                <button type="button" class="btn btn--ghost webhook-secret-toggle" id="webhookSecretToggle" title="Show / hide secret" aria-label="Toggle secret visibility">
+                  <svg id="webhookSecretEye" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <p class="hint" style="margin-top:5px;">Sent as <code>X-TextWatcher-Secret</code> header. Treat this like a password &mdash; never share it. Stored locally in your browser profile.</p>
+            </div>
+          </div>
+
+          <div class="toggle-row" style="margin-top:12px;">
+            <label class="toggle-field">
+              <input type="checkbox" id="webhookOnAppear" />
+              <span class="toggle-field__track"></span>
+              <span class="toggle-field__label">Send when keyword <strong>appears</strong></span>
+            </label>
+            <label class="toggle-field">
+              <input type="checkbox" id="webhookOnDisappear" />
+              <span class="toggle-field__track"></span>
+              <span class="toggle-field__label">Send when keyword <strong>disappears</strong></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 class="card__title">Payload Preview</h2>
+          <pre class="webhook-payload-preview" id="webhookPayloadPreview">{
+  "event":     "appears",
+  "keyword":   "your keyword",
+  "matchType": "contains",
+  "url":       "https://monitored-page.com/",
+  "title":     "Page Title",
+  "snippet":   "...surrounding context...",
+  "timestamp": 1710000000000,
+  "source":    "TextWatcher"
+}</pre>
+        </div>
+
+        <div class="card">
+          <h2 class="card__title">Test Delivery</h2>
+          <p class="hint">Sends a test payload to your endpoint using the current saved settings. Save first, then test.</p>
+          <button class="btn btn--ghost" id="webhookTestBtn" style="margin-top:12px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Test Payload</button>
+          <div class="webhook-test-result hidden" id="webhookTestResult"></div>
+        </div>
+
+        <div class="sticky-save">
+          <button class="btn btn--primary" id="saveWebhookBtn" disabled>Save Webhook Settings</button>
+        </div>
+      </section>
+
       <!-- ════ Privacy ════════════════════════════════════ -->
       <section class="panel hidden" id="section-privacy">
         <div class="panel__header">
@@ -423,8 +502,8 @@
             <div class="privacy-item">
               <svg class="privacy-item__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
               <div>
-                <strong>No network requests</strong>
-                <p>The extension makes zero outbound network requests. No analytics, no telemetry, no external APIs.</p>
+                <strong>No network requests (unless webhook is enabled)</strong>
+                <p>The extension makes zero outbound network requests by default. If you configure a webhook, alert data is sent to your chosen endpoint only &mdash; no analytics, no telemetry, no third parties.</p>
               </div>
             </div>
             <div class="privacy-item">

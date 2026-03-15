@@ -13,7 +13,7 @@
 
 import { MSG, BADGE_COLOR, NOTIF_FREQUENCY, ALERT_EVENT, STORAGE_KEY } from '../shared/constants.js';
 import { getKeywords, getUrls, getSettings, getEnabled, addAlertEvent,
-         getOnboarded } from '../shared/storage.js';
+         getOnboarded, getWebhookSettings } from '../shared/storage.js';
 import { matchesUrl } from '../shared/matcher.js';
 import { truncate, MATCH_TYPE_LABEL } from '../shared/utils.js';
 
@@ -215,6 +215,21 @@ async function handleMessage(message, sender, sendResponse) {
       sendResponse({ ok: true });
       break;
     }
+
+    // Options page requesting a test webhook delivery
+    case MSG.TEST_WEBHOOK: {
+      const result = await fireWebhook({
+        event:     'appears',
+        keyword:   'TextWatcher Test',
+        matchType: 'contains',
+        url:       'https://textwatcher.test/demo',
+        title:     'TextWatcher — Test Payload',
+        snippet:   'This is a test payload sent from TextWatcher settings.',
+      }, { isTest: true });
+      sendResponse(result);
+      break;
+    }
+
     default:
       sendResponse(null);
   }
@@ -241,16 +256,28 @@ async function handleAlertMessage(tabId, event, message, settings) {
     snippet:   isAppear ? message.snippet : null,
   });
 
-  await addAlertEvent({
-    event,
-    keyword:   message.keyword,
-    matchType: message.matchType,
-    url:       message.url,
-    title:     message.title,
-    snippet:   isAppear ? message.snippet : null,
-    tabId,
-    timestamp: Date.now(),
-  });
+  // Fire webhook in parallel with the alert log write — both are awaited so
+  // the service worker stays alive for the full duration of both operations.
+  await Promise.all([
+    addAlertEvent({
+      event,
+      keyword:   message.keyword,
+      matchType: message.matchType,
+      url:       message.url,
+      title:     message.title,
+      snippet:   isAppear ? message.snippet : null,
+      tabId,
+      timestamp: Date.now(),
+    }),
+    fireWebhook({
+      event,
+      keyword:   message.keyword,
+      matchType: message.matchType,
+      url:       message.url,
+      title:     message.title,
+      snippet:   isAppear ? message.snippet : null,
+    }),
+  ]);
 
   const delta   = isAppear ? 1 : -1;
   const current = Math.max(0, (await getTabMatchCount(tabId)) + delta);
@@ -315,6 +342,97 @@ chrome.notifications.onClicked.addListener(async (notificationId) => {
     // Tab was closed — nothing to do
   }
 });
+
+// ─── Webhook ──────────────────────────────────────────────────────────────────
+
+const WEBHOOK_TIMEOUT_MS = 8000;
+
+/**
+ * Validate a webhook URL.
+ * Allows https:// for any host and http:// for localhost / 127.0.0.1 only.
+ * @param {string} urlStr
+ * @returns {boolean}
+ */
+function isAllowedWebhookUrl(urlStr) {
+  try {
+    const u = new URL(urlStr);
+    if (u.protocol === 'https:') return true;
+    if (u.protocol === 'http:') {
+      return u.hostname === 'localhost' || u.hostname === '127.0.0.1';
+    }
+    return false;
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * POST an alert payload to the configured webhook URL.
+ * Completely isolated — a failure here must never affect notifications or badge.
+ *
+ * @param {{ event, keyword, matchType, url, title, snippet }} payload
+ * @param {{ isTest?: boolean }} [opts]
+ * @returns {Promise<{ sent: boolean, status?: number, error?: string }>}
+ */
+async function fireWebhook(payload, opts = {}) {
+  let cfg;
+  try {
+    cfg = await getWebhookSettings();
+  } catch (_) {
+    return { sent: false, error: 'Could not read webhook settings.' };
+  }
+
+  if (!cfg.enabled) return { sent: false };
+
+  const isAppear = payload.event === ALERT_EVENT.APPEARS;
+  if (!opts.isTest) {
+    if (isAppear  && !cfg.onAppear)    return { sent: false };
+    if (!isAppear && !cfg.onDisappear) return { sent: false };
+  }
+
+  if (!isAllowedWebhookUrl(cfg.url)) {
+    return { sent: false, error: 'Invalid or disallowed webhook URL.' };
+  }
+
+  const body = JSON.stringify({
+    event:     payload.event,
+    keyword:   payload.keyword,
+    matchType: payload.matchType,
+    url:       payload.url,
+    title:     payload.title     || '',
+    snippet:   payload.snippet   || null,
+    timestamp: Date.now(),
+    source:    'TextWatcher',
+  });
+
+  const headers = {
+    'Content-Type': 'application/json',
+    'User-Agent':   'TextWatcher-Extension/1.0',
+  };
+  if (cfg.secret) {
+    headers['X-TextWatcher-Secret'] = cfg.secret;
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(cfg.url, {
+      method:  'POST',
+      headers,
+      body,
+      signal:  controller.signal,
+    });
+    clearTimeout(timer);
+    return { sent: true, status: res.status };
+  } catch (err) {
+    clearTimeout(timer);
+    const error = err.name === 'AbortError'
+      ? `Timed out after ${WEBHOOK_TIMEOUT_MS / 1000}s`
+      : (err.message || 'Network error');
+    return { sent: false, error };
+  }
+}
 
 /**
  * Check cooldown / frequency settings before firing an alert.

@@ -4,7 +4,7 @@
  * Sections: Keywords, URLs, Notifications, Badge & Icon, History
  */
 
-import { MATCH_TYPE, URL_MATCH_TYPE, NOTIF_FREQUENCY, STORAGE_KEY } from '../shared/constants.js';
+import { MATCH_TYPE, URL_MATCH_TYPE, NOTIF_FREQUENCY, STORAGE_KEY, MSG } from '../shared/constants.js';
 import {
   getEnabled, setEnabled,
   getKeywords, saveKeywords, addKeyword, updateKeyword, removeKeyword,
@@ -13,6 +13,7 @@ import {
   getHistory, saveHistorySnapshot, restoreHistoryEntry, removeHistoryEntry,
   getAlertHistory, clearAlertHistory, removeAlertEvent,
   getOnboarded, setOnboarded,
+  getWebhookSettings, saveWebhookSettings,
 } from '../shared/storage.js';
 import { validateRegex, matchesUrl } from '../shared/matcher.js';
 import { qs, qsa, timeAgo, truncate, escapeHtml, MATCH_TYPE_LABEL, URL_MATCH_TYPE_LABEL, onStorageChange } from '../shared/utils.js';
@@ -25,7 +26,7 @@ const SVG_EDIT  = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" s
 
 // ─── Routing ──────────────────────────────────────────────────────────────────
 
-const sections = ['setup', 'keywords', 'urls', 'notifications', 'activity', 'badge', 'history', 'privacy'];
+const sections = ['setup', 'keywords', 'urls', 'notifications', 'activity', 'badge', 'history', 'webhooks', 'privacy'];
 
 function showSection(id) {
   sections.forEach((s) => {
@@ -55,6 +56,7 @@ async function init() {
     renderAlertHistory(),
     renderSidebarStatus(),
     renderWelcomeBanner(),
+    renderWebhookSettings(),
   ]);
   bindKeywordEvents();
   bindUrlEvents();
@@ -64,6 +66,7 @@ async function init() {
   bindActivityEvents();
   bindSetupEvents();
   bindGlobalToggle();
+  bindWebhookEvents();
   listenForChanges();
 
   // Deep-link: if the popup stored a target section, navigate there and clear.
@@ -796,16 +799,133 @@ function bindHistoryEvents() {
 function listenForChanges() {
   onStorageChange(
     [STORAGE_KEY.KEYWORDS, STORAGE_KEY.URLS, STORAGE_KEY.SETTINGS,
-     STORAGE_KEY.HISTORY, STORAGE_KEY.ALERT_HISTORY, STORAGE_KEY.ENABLED],
+     STORAGE_KEY.HISTORY, STORAGE_KEY.ALERT_HISTORY, STORAGE_KEY.ENABLED,
+     STORAGE_KEY.WEBHOOK],
     async (changes) => {
       if (STORAGE_KEY.KEYWORDS      in changes) await renderKeywords();
       if (STORAGE_KEY.URLS          in changes) await renderUrls();
       if (STORAGE_KEY.SETTINGS      in changes) { await renderNotifSettings(); await renderBadgeSettings(); }
       if (STORAGE_KEY.HISTORY       in changes) await renderHistory();
       if (STORAGE_KEY.ALERT_HISTORY in changes) await renderAlertHistory();
+      if (STORAGE_KEY.WEBHOOK       in changes) await renderWebhookSettings();
       await renderSidebarStatus();
     }
   );
+}
+
+// ─── Webhooks ───────────────────────────────────────────────────────────────
+
+async function renderWebhookSettings() {
+  const cfg = await getWebhookSettings();
+  qs('#webhookEnabled').checked    = cfg.enabled;
+  qs('#webhookOnAppear').checked   = cfg.onAppear;
+  qs('#webhookOnDisappear').checked = cfg.onDisappear;
+
+  // Show masked placeholder if a secret is saved; never pre-fill the real value
+  const secretInput = qs('#webhookSecret');
+  secretInput.placeholder = cfg.secret
+    ? '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022 (saved — enter new value to change)'
+    : 'Leave empty for no authentication';
+  secretInput.value = '';
+
+  // URL is safe to pre-fill (not a secret)
+  qs('#webhookUrl').value = cfg.url;
+
+  qs('#saveWebhookBtn').disabled = true;
+}
+
+function bindWebhookEvents() {
+  const saveBtn   = qs('#saveWebhookBtn');
+  const testBtn   = qs('#webhookTestBtn');
+  const testResult = qs('#webhookTestResult');
+
+  function markDirty() { saveBtn.disabled = false; }
+
+  qs('#webhookEnabled').addEventListener('change', markDirty);
+  qs('#webhookUrl').addEventListener('input', markDirty);
+  qs('#webhookSecret').addEventListener('input', markDirty);
+  qs('#webhookOnAppear').addEventListener('change', markDirty);
+  qs('#webhookOnDisappear').addEventListener('change', markDirty);
+
+  // Show/hide secret toggle
+  qs('#webhookSecretToggle').addEventListener('click', () => {
+    const inp = qs('#webhookSecret');
+    const isHidden = inp.type === 'password';
+    inp.type = isHidden ? 'text' : 'password';
+    qs('#webhookSecretEye').innerHTML = isHidden
+      ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
+      : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+  });
+
+  saveBtn.addEventListener('click', async () => {
+    const url    = qs('#webhookUrl').value.trim();
+    const secret = qs('#webhookSecret').value; // intentionally not trimmed
+
+    // Validate URL only if one is entered
+    if (url) {
+      try {
+        const u = new URL(url);
+        const isHttps    = u.protocol === 'https:';
+        const isLocalHttp = u.protocol === 'http:' &&
+          (u.hostname === 'localhost' || u.hostname === '127.0.0.1');
+        if (!isHttps && !isLocalHttp) throw new Error();
+      } catch (_) {
+        showToast('Invalid URL. Use https:// or http://localhost.');
+        return;
+      }
+    }
+
+    const patch = {
+      enabled:      qs('#webhookEnabled').checked,
+      url,
+      onAppear:     qs('#webhookOnAppear').checked,
+      onDisappear:  qs('#webhookOnDisappear').checked,
+    };
+    // Only overwrite the secret if the user typed a new one
+    if (secret) patch.secret = secret;
+
+    await saveWebhookSettings(patch);
+    await renderWebhookSettings(); // re-render to show masked placeholder
+    showToast('Webhook settings saved!');
+    saveBtn.disabled = true;
+
+    // Hide any previous test result on save
+    testResult.classList.add('hidden');
+  });
+
+  testBtn.addEventListener('click', async () => {
+    testResult.className = 'webhook-test-result';
+    testResult.textContent = 'Sending…';
+
+    let result;
+    try {
+      result = await chrome.runtime.sendMessage({ type: MSG.TEST_WEBHOOK });
+    } catch (err) {
+      testResult.className = 'webhook-test-result webhook-test-result--err';
+      testResult.textContent = `Extension error: ${err.message}`;
+      return;
+    }
+
+    if (!result) {
+      testResult.className = 'webhook-test-result webhook-test-result--err';
+      testResult.textContent = 'No response from service worker.';
+      return;
+    }
+
+    if (!result.sent) {
+      testResult.className = 'webhook-test-result webhook-test-result--err';
+      testResult.textContent = result.error
+        ? `✗ Failed: ${result.error}`
+        : '✗ Webhook is disabled or no URL configured. Save settings first.';
+      return;
+    }
+
+    const ok = result.status >= 200 && result.status < 300;
+    testResult.className = `webhook-test-result webhook-test-result--${ok ? 'ok' : 'warn'}`;
+    testResult.textContent = ok
+      ? `✓ Delivered — server responded ${result.status}`
+      : `⚠ Sent but server responded ${result.status} — check your endpoint`;
+  });
 }
 
 // ─── Toast ────────────────────────────────────────────────────────────────────

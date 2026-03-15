@@ -5,7 +5,7 @@
  * 100% local, zero external calls.
  */
 
-import { STORAGE_KEY, DEFAULT_SETTINGS, LIMITS } from './constants.js';
+import { STORAGE_KEY, DEFAULT_SETTINGS, DEFAULT_WEBHOOK, LIMITS } from './constants.js';
 
 // ─── Generic Helpers ─────────────────────────────────────────────────────────
 
@@ -277,6 +277,25 @@ export async function clearAlertHistory() {
 export async function removeAlertEvent(id) {
   const list = await getAlertHistory();
   await storageSet({ [STORAGE_KEY.ALERT_HISTORY]: list.filter((e) => e.id !== id) });
+}
+
+// ─── Webhook Settings ────────────────────────────────────────────────────────
+
+/**
+ * @returns {Promise<{enabled:boolean,url:string,secret:string,onAppear:boolean,onDisappear:boolean}>}
+ */
+export async function getWebhookSettings() {
+  const { [STORAGE_KEY.WEBHOOK]: saved } = await storageGet(STORAGE_KEY.WEBHOOK);
+  return { ...DEFAULT_WEBHOOK, ...(saved || {}) };
+}
+
+/**
+ * Persist webhook settings. Merges with existing values.
+ * @param {Partial<typeof DEFAULT_WEBHOOK>} partial
+ */
+export async function saveWebhookSettings(partial) {
+  const current = await getWebhookSettings();
+  await storageSet({ [STORAGE_KEY.WEBHOOK]: { ...current, ...partial } });
 }
 
 // ─── Onboarding ───────────────────────────────────────────────────────────────
