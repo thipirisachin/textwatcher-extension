@@ -166,8 +166,12 @@
               <label class="label">Scope — CSS Selector <span class="label__opt">(optional)</span></label>
               <input type="text" id="kwScope" class="input" placeholder="e.g. #results, .price-box, [data-section=\"live\"]" maxlength="500" />
               <p class="hint" style="margin-top:5px;">Leave empty to scan the whole page. Tip: right-click an element in DevTools → Copy → Copy selector.</p>
-            </div>
-          </div>
+            </div>            <div class="form-field form-field--wide">
+              <label class="label">URL Binding <span class="label__opt">(optional)</span></label>
+              <div class="url-binding-select" id="kwUrlBinding">
+                <p class="hint" style="margin:4px 0 0;">Add URL rules first, then bind this keyword to specific URLs. Leave unselected to monitor on <em>all</em> matched URLs.</p>
+              </div>
+            </div>          </div>
           <div class="toggle-row">
             <label class="toggle-field">
               <input type="checkbox" id="kwAlertAppear" checked />

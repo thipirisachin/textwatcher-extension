@@ -4,7 +4,7 @@
  * Sections: Keywords, URLs, Notifications, Badge & Icon, History
  */
 
-import { MATCH_TYPE, URL_MATCH_TYPE, NOTIF_FREQUENCY, STORAGE_KEY, MSG, WEBHOOK_FORMAT } from '../shared/constants.js';
+import { MATCH_TYPE, URL_MATCH_TYPE, NOTIF_FREQUENCY, STORAGE_KEY, MSG, WEBHOOK_FORMAT, URL_SCOPE_ALL } from '../shared/constants.js';
 import {
   getEnabled, setEnabled,
   getKeywords, saveKeywords, addKeyword, updateKeyword, removeKeyword,
@@ -57,6 +57,7 @@ async function init() {
     renderSidebarStatus(),
     renderWelcomeBanner(),
     renderWebhookSettings(),
+    renderUrlBindingAddForm(),
   ]);
   bindKeywordEvents();
   bindUrlEvents();
@@ -207,8 +208,73 @@ function bindGlobalToggle() {
 
 // ─── Keywords ─────────────────────────────────────────────────────────────────
 
+// ─── URL Binding Helpers ──────────────────────────────────────────────────────
+
+/**
+ * Render small tags in keyword list showing which URLs a keyword is bound to.
+ */
+function buildUrlScopeTags(kw, urls) {
+  const scope = kw.urlScope;
+  if (!scope || scope === URL_SCOPE_ALL || !Array.isArray(scope) || scope.length === 0) return '';
+  return scope.map((id) => {
+    const rule = urls.find((u) => u.id === id);
+    if (!rule) return '';
+    const label = rule.label || truncate(rule.pattern, 28);
+    return `<span class="rule-item__tag rule-item__tag--url-bound" title="Bound to: ${escapeHtml(rule.pattern)}">\uD83D\uDD17 ${escapeHtml(label)}</span>`;
+  }).join('');
+}
+
+/**
+ * Build a checklist of URL rules for inside the inline edit form.
+ * @param {string|string[]} currentScope
+ * @param {Array} urls
+ */
+async function buildUrlBindingChecklist(currentScope, urls) {
+  const active = urls.filter((u) => u.enabled);
+  if (active.length === 0) {
+    return '<p class="hint" style="margin:4px 0;">No URL rules defined yet.</p>';
+  }
+  const isAll = !currentScope || currentScope === URL_SCOPE_ALL || !Array.isArray(currentScope);
+  const selected = isAll ? [] : currentScope;
+  const items = active.map((u) => {
+    const checked = selected.includes(u.id) ? 'checked' : '';
+    const label   = u.label || truncate(u.pattern, 40);
+    return `<label class="url-binding-item">
+      <input type="checkbox" name="urlScope" value="${escapeHtml(u.id)}" ${checked} />
+      <span class="url-binding-item__label" title="${escapeHtml(u.pattern)}">${escapeHtml(label)}</span>
+    </label>`;
+  }).join('');
+  return `<p class="hint url-binding-hint">Bind to specific URLs (leave all unchecked for <em>all URLs</em>):</p>${items}`;
+}
+
+/**
+ * Read selected URL rule IDs from a form container (inline edit form).
+ * Returns URL_SCOPE_ALL if none checked.
+ */
+function readUrlBindingFromForm(form) {
+  return readUrlBindingFromContainer(form.querySelector('.url-binding-edit'));
+}
+
+function readUrlBindingFromContainer(container) {
+  if (!container) return URL_SCOPE_ALL;
+  const checked = Array.from(container.querySelectorAll('input[name="urlScope"]:checked')).map((cb) => cb.value);
+  return checked.length > 0 ? checked : URL_SCOPE_ALL;
+}
+
+/**
+ * Populate the URL binding widget in the Add Keyword form.
+ * Called on init and whenever URL rules change.
+ */
+async function renderUrlBindingAddForm() {
+  const container = qs('#kwUrlBinding');
+  if (!container) return;
+  const urls = await getUrls();
+  const html = await buildUrlBindingChecklist(URL_SCOPE_ALL, urls);
+  container.innerHTML = html;
+}
+
 async function renderKeywords(filter = '') {
-  const keywords = await getKeywords();
+  const [keywords, urls] = await Promise.all([getKeywords(), getUrls()]);
   const list  = qs('#kwList');
   const badge = qs('#kwBadge');
   badge.textContent = keywords.filter((k) => k.enabled).length;
@@ -236,6 +302,7 @@ async function renderKeywords(filter = '') {
         <div class="rule-item__meta">
           <span class="rule-item__tag rule-item__tag--match">${escapeHtml(matchLabel)}</span>
           ${kw.scopeSelector ? `<span class="rule-item__tag rule-item__tag--scope" title="Scope: ${escapeHtml(kw.scopeSelector)}">${SVG_SCOPE} ${escapeHtml(truncate(kw.scopeSelector, 30))}</span>` : ''}
+          ${buildUrlScopeTags(kw, urls)}
           ${kw.alertAppear    ? '<span class="rule-item__tag rule-item__tag--appear">↑ appears</span>' : ''}
           ${kw.alertDisappear ? '<span class="rule-item__tag rule-item__tag--disappear">↓ disappears</span>' : ''}
           ${!kw.enabled       ? '<span class="rule-item__tag">disabled</span>' : ''}
@@ -315,6 +382,9 @@ function bindKeywordEvents() {
             <select class="select" name="matchType">${matchOptions}</select>
           </div>
           <input class="input" name="scope" value="${escapeHtml(kw.scopeSelector || '')}" placeholder="Scope: CSS selector (optional)" maxlength="500" />
+          <div class="url-binding-edit" data-binding-for="${id}">
+            ${await buildUrlBindingChecklist(kw.urlScope, urls)}
+          </div>
           <div class="rule-item__edit-checks">
             <label><input type="checkbox" name="alertAppear"    ${kw.alertAppear    ? 'checked' : ''} /> Alert appears</label>
             <label><input type="checkbox" name="alertDisappear" ${kw.alertDisappear ? 'checked' : ''} /> Alert disappears</label>
@@ -346,6 +416,7 @@ function bindKeywordEvents() {
         text,
         matchType,
         scopeSelector:  form.querySelector('[name="scope"]')?.value.trim() || '',
+        urlScope:       readUrlBindingFromForm(form),
         alertAppear:    form.querySelector('[name="alertAppear"]')?.checked ?? true,
         alertDisappear: form.querySelector('[name="alertDisappear"]')?.checked ?? true,
       });
@@ -385,6 +456,7 @@ async function handleAddKeyword() {
     text,
     matchType,
     scopeSelector:  qs('#kwScope').value.trim(),
+    urlScope:       readUrlBindingFromContainer(qs('#kwUrlBinding')),
     enabled:        qs('#kwEnabled').checked,
     alertAppear:    qs('#kwAlertAppear').checked,
     alertDisappear: qs('#kwAlertDisappear').checked,
@@ -392,6 +464,8 @@ async function handleAddKeyword() {
 
   qs('#kwText').value  = '';
   qs('#kwScope').value = '';
+  // Reset binding checkboxes
+  qs('#kwUrlBinding').querySelectorAll('input[type=checkbox]').forEach((cb) => { cb.checked = false; });
   await renderKeywords();
   await renderSidebarStatus();
   showToast('Keyword added!');
@@ -813,7 +887,7 @@ function listenForChanges() {
      STORAGE_KEY.WEBHOOK],
     async (changes) => {
       if (STORAGE_KEY.KEYWORDS      in changes) await renderKeywords();
-      if (STORAGE_KEY.URLS          in changes) await renderUrls();
+      if (STORAGE_KEY.URLS          in changes) { await renderUrls(); await renderUrlBindingAddForm(); }
       if (STORAGE_KEY.SETTINGS      in changes) { await renderNotifSettings(); await renderBadgeSettings(); }
       if (STORAGE_KEY.HISTORY       in changes) await renderHistory();
       if (STORAGE_KEY.ALERT_HISTORY in changes) await renderAlertHistory();
