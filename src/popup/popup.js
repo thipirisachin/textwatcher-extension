@@ -39,12 +39,6 @@ const urlError          = qs('#urlError');
 const keywordCount      = qs('#keywordCount');
 const urlCount          = qs('#urlCount');
 const alertCount        = qs('#alertCount');
-const alertBadge        = qs('#alertBadge');
-const alertList         = qs('#alertList');
-const alertMoreBtn      = qs('#alertMoreBtn');
-const historyList       = qs('#historyList');
-const historyBadge      = qs('#historyBadge');
-const historyMoreBtn    = qs('#historyMoreBtn');
 const openOptionsBtn    = qs('#openOptionsBtn');
 const saveSnapshotBtn   = qs('#saveSnapshotBtn');
 
@@ -69,8 +63,6 @@ async function renderAll() {
     renderToggle(),
     renderStatus(),
     renderCounts(),
-    renderHistory(),
-    renderAlerts(),
     renderPopupUrlBinding(),
   ]);
 }
@@ -183,17 +175,15 @@ async function renderStatus() {
 }
 
 async function renderCounts() {
-  const [keywords, urls, alerts, history] = await Promise.all([
+  const [keywords, urls, alerts] = await Promise.all([
     getKeywords(),
     getUrls(),
     getAlertHistory(),
-    getHistory(),
   ]);
 
   keywordCount.textContent = keywords.filter((k) => k.enabled).length;
   urlCount.textContent     = urls.filter((u) => u.enabled).length;
   alertCount.textContent   = alerts.length;
-  historyBadge.textContent = history.length;
 }
 
 // ─── Alert History ────────────────────────────────────────────────────────────
@@ -341,33 +331,16 @@ function bindEvents() {
     }
   });
 
-  // History actions (delegated)
-  historyList.addEventListener('click', async (e) => {
-    const btn = e.target.closest('[data-action]');
-    if (!btn) return;
-    const { action, id } = btn.dataset;
-
-    if (action === 'restore') {
-      await restoreHistoryEntry(id);
-      showToast('Setup restored!');
-      await renderAll();
-    }
-
-    if (action === 'delete') {
-      await removeHistoryEntry(id);
-      await renderHistory();
-      await renderCounts();
-    }
-  });
+  // History actions (delegated) - removed (list no longer in popup)
 
   // Summary card navigation
   qs('#cardKeywords').addEventListener('click', () => openOptionsAt('keywords'));
   qs('#cardUrls').addEventListener('click',     () => openOptionsAt('urls'));
   qs('#cardAlerts').addEventListener('click',   () => openOptionsAt('activity'));
 
-  // "View all" More buttons
-  alertMoreBtn.addEventListener('click',   () => openOptionsAt('activity'));
-  historyMoreBtn.addEventListener('click', () => openOptionsAt('history'));
+  // Nav link buttons
+  qs('#navAlerts').addEventListener('click',  () => openOptionsAt('activity'));
+  qs('#navSetups').addEventListener('click',  () => openOptionsAt('history'));
 
   // Open full settings
   openOptionsBtn.addEventListener('click', () => {
@@ -385,7 +358,6 @@ function bindEvents() {
         : 'This setup is already saved.');
       return;
     }
-    await renderHistory();
     await renderCounts();
     showToast('Setup saved!');
   });

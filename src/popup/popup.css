@@ -195,6 +195,7 @@ body {
 /* ── Sections ────────────────────────────────────────────────────────── */
 .section {
   padding: 14px 14px 12px;
+  border-bottom: 0.1px dotted var(--border);
 }
 
 .section + .section {
@@ -547,6 +548,38 @@ body {
   color: var(--text);
   border-color: var(--border-2);
 }
+
+/* ── Nav Link Cards (Alert Log / Saved Setups) ───────────────────────── */
+.nav-links-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.nav-link-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.nav-link-card:hover {
+  border-color: var(--accent-lt);
+  background: var(--overlay);
+  color: var(--accent-lt);
+}
+
+.nav-link-card:active { transform: translateY(1px); }
 
 /* ── Summary Grid ────────────────────────────────────────────────────── */
 .summary-grid {

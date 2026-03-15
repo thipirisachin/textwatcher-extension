@@ -155,26 +155,18 @@
     </div>
   </section>
 
-  <!-- ── Recent Alerts ─────────────────────────────────────── -->
-  <section class="section" id="alertSection">
-    <h2 class="section__title">
-      Recent Alerts
-      <span class="section__badge" id="alertBadge">0</span>
-    </h2>
-    <ul class="alert-list" id="alertList">
-      <li class="alert-list__empty">No alerts yet. Add a keyword and URL to start watching a page.</li>
-    </ul>    <button class="btn--more hidden" id="alertMoreBtn">View all in Full Settings →</button>  </section>
-
-  <!-- ── Recent History ─────────────────────────────────────── -->
-  <section class="section" id="historySection">
-    <h2 class="section__title">
-      Recent Setups
-      <span class="section__badge" id="historyBadge">0</span>
-    </h2>
-    <ul class="history-list" id="historyList">
-      <li class="history-list__empty">No saved setups. Use <em>Save Setup</em> below to snapshot your current config.</li>
-    </ul>
-    <button class="btn--more hidden" id="historyMoreBtn">View all in Full Settings &#8594;</button>
+  <!-- ── Nav Links ──────────────────────────────────────────── -->
+  <section class="section">
+    <div class="nav-links-row">
+      <button class="nav-link-card" id="navAlerts">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Alert Log
+      </button>
+      <button class="nav-link-card" id="navSetups">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Saved Setups
+      </button>
+    </div>
   </section>
 
   <!-- ── Footer ─────────────────────────────────────────────── -->
