@@ -13,7 +13,7 @@
 
 import { MSG, BADGE_COLOR, NOTIF_FREQUENCY, ALERT_EVENT, STORAGE_KEY } from '../shared/constants.js';
 import { getKeywords, getUrls, getSettings, getEnabled, addAlertEvent,
-         addKeyword, addUrl, getOnboarded } from '../shared/storage.js';
+         getOnboarded } from '../shared/storage.js';
 import { matchesUrl } from '../shared/matcher.js';
 import { truncate, MATCH_TYPE_LABEL } from '../shared/utils.js';
 
@@ -117,22 +117,6 @@ chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   if (reason === 'install') {
     const alreadyOnboarded = await getOnboarded();
     if (!alreadyOnboarded) {
-      // Seed one example keyword and one example URL so the user isn't
-      // greeted by empty lists on first open.
-      await addKeyword({
-        text:           'TextWatcher',
-        matchType:      'contains',
-        enabled:        true,
-        alertAppear:    true,
-        alertDisappear: true,
-        scopeSelector:  '',
-      });
-      await addUrl({
-        pattern:   'https://example.com/*',
-        matchType: 'wildcard',
-        label:     'Example (replace me)',
-        enabled:   true,
-      });
       chrome.runtime.openOptionsPage();
     }
   }
@@ -168,6 +152,10 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 // Clean up when tab is closed
 chrome.tabs.onRemoved.addListener(async (tabId) => {
   await deleteTabMatchCount(tabId);
+  // Evict all cooldown entries for this tab to prevent unbounded Map growth
+  for (const key of cooldownMap.keys()) {
+    if (key.startsWith(`${tabId}:`)) cooldownMap.delete(key);
+  }
 });
 
 // ─── Message Handler ──────────────────────────────────────────────────────────

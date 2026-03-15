@@ -132,15 +132,17 @@ export async function saveUrls(urls) {
 /**
  * Add a single URL rule. Silently rejects exact duplicates (same pattern + matchType).
  * @param {UrlRule} rule
+ * @returns {Promise<boolean>} true if added, false if rejected as duplicate
  */
 export async function addUrl(rule) {
   const list = await getUrls();
   const isDuplicate = list.some(
     (u) => u.pattern === rule.pattern && u.matchType === rule.matchType
   );
-  if (isDuplicate) return;
+  if (isDuplicate) return false;
   list.push({ ...rule, id: generateId() });
   await saveUrls(list);
+  return true;
 }
 
 /**
@@ -206,6 +208,8 @@ export async function restoreHistoryEntry(id) {
   const history = await getHistory();
   const entry = history.find((h) => h.id === id);
   if (!entry) throw new Error(`History entry ${id} not found`);
+  // Auto-save current state before overwriting so it can be recovered
+  await saveHistorySnapshot('Before restore');
   await Promise.all([
     saveKeywords(entry.keywords),
     saveUrls(entry.urls),
@@ -275,11 +279,11 @@ export async function setOnboarded() {
 // ─── Utility ─────────────────────────────────────────────────────────────────
 
 /**
- * Generate a short unique ID (no crypto dependency).
+ * Generate a cryptographically random unique ID.
  * @returns {string}
  */
 export function generateId() {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  return crypto.randomUUID();
 }
 
 /**

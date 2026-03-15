@@ -46,9 +46,6 @@ qsa('.nav-link').forEach((link) => {
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 async function init() {
-  // alertOnAppear/alertOnDisappear are now per-keyword only; reset any stale stored false values
-  await saveSettings({ alertOnAppear: true, alertOnDisappear: true });
-
   await Promise.all([
     renderKeywords(),
     renderUrls(),
@@ -522,13 +519,14 @@ async function handleAddUrl() {
     catch (_) { showError(errEl, 'Invalid URL. Example: https://example.com/*'); return; }
   }
 
-  await addUrl({
+  const added = await addUrl({
     pattern,
     matchType,
     label: label || pattern,
     enabled: qs('#urlEnabled').checked,
   });
 
+  if (!added) { showError(errEl, 'This URL rule already exists.'); return; }
   qs('#urlPattern').value = '';
   qs('#urlLabel').value   = '';
   await renderUrls();
