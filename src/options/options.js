@@ -807,7 +807,9 @@ function listenForChanges() {
       if (STORAGE_KEY.SETTINGS      in changes) { await renderNotifSettings(); await renderBadgeSettings(); }
       if (STORAGE_KEY.HISTORY       in changes) await renderHistory();
       if (STORAGE_KEY.ALERT_HISTORY in changes) await renderAlertHistory();
-      if (STORAGE_KEY.WEBHOOK       in changes) await renderWebhookSettings();
+      // Only re-render webhook settings if there are no unsaved changes — avoid
+      // clobbering the form or re-disabling the save button while the user is editing.
+      if (STORAGE_KEY.WEBHOOK in changes && qs('#saveWebhookBtn').disabled) await renderWebhookSettings();
       await renderSidebarStatus();
     }
   );
@@ -878,6 +880,8 @@ async function renderWebhookSettings() {
   qs('#webhookOnDisappear').checked = cfg.onDisappear;
   qs('#webhookFormat').value        = cfg.format || WEBHOOK_FORMAT.TEAMS;
   qs('#webhookTelegramChatId').value = cfg.telegramChatId || '';
+  // Set URL before updateWebhookFormatUI so the Telegram placeholder check is accurate
+  qs('#webhookUrl').value = cfg.url;
   updateWebhookFormatUI(cfg.format || WEBHOOK_FORMAT.TEAMS);
 
   // Show masked placeholder if a secret is saved; never pre-fill the real value
@@ -886,9 +890,6 @@ async function renderWebhookSettings() {
     ? '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022 (saved — enter new value to change)'
     : 'Leave empty for no authentication';
   secretInput.value = '';
-
-  // URL is safe to pre-fill (not a secret)
-  qs('#webhookUrl').value = cfg.url;
 
   qs('#saveWebhookBtn').disabled = true;
 }
