@@ -70,6 +70,16 @@ async function init() {
   listenForChanges();
 
   // Deep-link: if the popup stored a target section, navigate there and clear.
+  // Also listen for future writes (options page already open when popup fires).
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local' || !changes.tw_open_section) return;
+    const target = changes.tw_open_section.newValue;
+    if (target) {
+      chrome.storage.local.remove('tw_open_section');
+      showSection(target);
+    }
+  });
+
   const { tw_open_section: target } = await chrome.storage.local.get('tw_open_section');
   if (target) {
     await chrome.storage.local.remove('tw_open_section');
