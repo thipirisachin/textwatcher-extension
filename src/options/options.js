@@ -4,7 +4,7 @@
  * Sections: Keywords, URLs, Notifications, Badge & Icon, History
  */
 
-import { MATCH_TYPE, URL_MATCH_TYPE, NOTIF_FREQUENCY, STORAGE_KEY } from '../shared/constants.js';
+import { MATCH_TYPE, URL_MATCH_TYPE, NOTIF_FREQUENCY, STORAGE_KEY, MSG, WEBHOOK_FORMAT } from '../shared/constants.js';
 import {
   getEnabled, setEnabled,
   getKeywords, saveKeywords, addKeyword, updateKeyword, removeKeyword,
@@ -13,6 +13,7 @@ import {
   getHistory, saveHistorySnapshot, restoreHistoryEntry, removeHistoryEntry,
   getAlertHistory, clearAlertHistory, removeAlertEvent,
   getOnboarded, setOnboarded,
+  getWebhookSettings, saveWebhookSettings,
 } from '../shared/storage.js';
 import { validateRegex, matchesUrl } from '../shared/matcher.js';
 import { qs, qsa, timeAgo, truncate, escapeHtml, MATCH_TYPE_LABEL, URL_MATCH_TYPE_LABEL, onStorageChange } from '../shared/utils.js';
@@ -25,7 +26,7 @@ const SVG_EDIT  = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" s
 
 // ─── Routing ──────────────────────────────────────────────────────────────────
 
-const sections = ['setup', 'keywords', 'urls', 'notifications', 'activity', 'badge', 'history', 'privacy'];
+const sections = ['setup', 'keywords', 'urls', 'notifications', 'activity', 'badge', 'history', 'webhooks', 'privacy'];
 
 function showSection(id) {
   sections.forEach((s) => {
@@ -55,6 +56,7 @@ async function init() {
     renderAlertHistory(),
     renderSidebarStatus(),
     renderWelcomeBanner(),
+    renderWebhookSettings(),
   ]);
   bindKeywordEvents();
   bindUrlEvents();
@@ -64,9 +66,20 @@ async function init() {
   bindActivityEvents();
   bindSetupEvents();
   bindGlobalToggle();
+  bindWebhookEvents();
   listenForChanges();
 
   // Deep-link: if the popup stored a target section, navigate there and clear.
+  // Also listen for future writes (options page already open when popup fires).
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local' || !changes.tw_open_section) return;
+    const target = changes.tw_open_section.newValue;
+    if (target) {
+      chrome.storage.local.remove('tw_open_section');
+      showSection(target);
+    }
+  });
+
   const { tw_open_section: target } = await chrome.storage.local.get('tw_open_section');
   if (target) {
     await chrome.storage.local.remove('tw_open_section');
@@ -796,16 +809,227 @@ function bindHistoryEvents() {
 function listenForChanges() {
   onStorageChange(
     [STORAGE_KEY.KEYWORDS, STORAGE_KEY.URLS, STORAGE_KEY.SETTINGS,
-     STORAGE_KEY.HISTORY, STORAGE_KEY.ALERT_HISTORY, STORAGE_KEY.ENABLED],
+     STORAGE_KEY.HISTORY, STORAGE_KEY.ALERT_HISTORY, STORAGE_KEY.ENABLED,
+     STORAGE_KEY.WEBHOOK],
     async (changes) => {
       if (STORAGE_KEY.KEYWORDS      in changes) await renderKeywords();
       if (STORAGE_KEY.URLS          in changes) await renderUrls();
       if (STORAGE_KEY.SETTINGS      in changes) { await renderNotifSettings(); await renderBadgeSettings(); }
       if (STORAGE_KEY.HISTORY       in changes) await renderHistory();
       if (STORAGE_KEY.ALERT_HISTORY in changes) await renderAlertHistory();
+      // Only re-render webhook settings if there are no unsaved changes — avoid
+      // clobbering the form or re-disabling the save button while the user is editing.
+      if (STORAGE_KEY.WEBHOOK in changes && qs('#saveWebhookBtn').disabled) await renderWebhookSettings();
       await renderSidebarStatus();
     }
   );
+}
+
+// ─── Webhooks ───────────────────────────────────────────────────────────────
+
+// ─── Webhook Payload Previews ────────────────────────────────────────────────
+function localISOString(date) {
+  const tzOffset = -date.getTimezoneOffset();
+  const sign = tzOffset >= 0 ? '+' : '-';
+  const pad  = n => String(Math.floor(Math.abs(n))).padStart(2, '0');
+  return date.getFullYear()
+    + '-' + pad(date.getMonth() + 1)
+    + '-' + pad(date.getDate())
+    + 'T' + pad(date.getHours())
+    + ':' + pad(date.getMinutes())
+    + ':' + pad(date.getSeconds())
+    + sign + pad(tzOffset / 60) + ':' + pad(tzOffset % 60);
+}
+
+function buildPayloadPreviews() {
+  const ts = localISOString(new Date());
+  const ms = Date.now();
+  return {
+    [WEBHOOK_FORMAT.TEAMS]: `{
+  "@type":    "MessageCard",
+  "@context": "http://schema.org/extensions",
+  "themeColor": "28a745",
+  "summary":  "TextWatcher: \\"your keyword\\" appeared",
+  "sections": [{
+    "activityTitle":    "\u{1F7E2} Keyword \\"your keyword\\" appeared",
+    "activitySubtitle": "Page Title",
+    "activityText":     "[https://monitored-page.com/](https://monitored-page.com/)",
+    "facts": [
+      { "name": "Keyword",    "value": "your keyword" },
+      { "name": "Event",      "value": "appears"      },
+      { "name": "Match Type", "value": "contains"     },
+      { "name": "Time",       "value": "${ts}" }
+    ]
+  }],
+  "potentialAction": [{
+    "@type": "OpenUri",
+    "name":  "Open Page",
+    "targets": [{ "os": "default", "uri": "https://monitored-page.com/" }]
+  }]
+}`,
+    [WEBHOOK_FORMAT.SLACK]: `{
+  "text": "\u{1F7E2} *your keyword* appeared \u2014 <https://monitored-page.com/|Page Title>"
+}`,
+    [WEBHOOK_FORMAT.TELEGRAM]: `{
+  "chat_id":    "-1001234567890",
+  "text":       "\u{1F7E2} *your keyword* appeared\\n\u{1F517} https://monitored-page.com/",
+  "parse_mode": "Markdown"
+}`,
+    [WEBHOOK_FORMAT.GENERIC]: `{
+  "event":        "appears",
+  "keyword":      "your keyword",
+  "matchType":    "contains",
+  "url":          "https://monitored-page.com/",
+  "title":        "Page Title",
+  "snippet":      "...surrounding context...",
+  "timestamp":    "${ts}",
+  "timestamp_ms": ${ms},
+  "source":       "TextWatcher"
+}`,
+  };
+}
+
+const TELEGRAM_URL_HINT = 'Set URL to <code>https://api.telegram.org/bot{YOUR_TOKEN}/sendMessage</code>. The Chat ID field below identifies the destination chat.';
+const DEFAULT_URL_HINT  = 'Must be <code>https://</code>. <code>http://localhost</code> is also allowed for local testing.';
+
+// ─── Webhook UI helpers ───────────────────────────────────────────────────────
+function updateWebhookFormatUI(format) {
+  const previews = buildPayloadPreviews();
+  qs('#webhookPayloadPreview').textContent = previews[format] || previews[WEBHOOK_FORMAT.GENERIC];
+  const isTelegram = format === WEBHOOK_FORMAT.TELEGRAM;
+  qs('#webhookTelegramChatIdRow').style.display = isTelegram ? '' : 'none';
+  qs('#webhookUrlHint').innerHTML = isTelegram ? TELEGRAM_URL_HINT : DEFAULT_URL_HINT;
+  if (isTelegram && !qs('#webhookUrl').value) {
+    qs('#webhookUrl').placeholder = 'https://api.telegram.org/bot{TOKEN}/sendMessage';
+  } else if (!isTelegram) {
+    qs('#webhookUrl').placeholder = 'https://your-server.com/webhook';
+  }
+}
+
+async function renderWebhookSettings() {
+  const cfg = await getWebhookSettings();
+  qs('#webhookEnabled').checked     = cfg.enabled;
+  qs('#webhookOnAppear').checked    = cfg.onAppear;
+  qs('#webhookOnDisappear').checked = cfg.onDisappear;
+  qs('#webhookFormat').value        = cfg.format || WEBHOOK_FORMAT.TEAMS;
+  qs('#webhookTelegramChatId').value = cfg.telegramChatId || '';
+  // Set URL before updateWebhookFormatUI so the Telegram placeholder check is accurate
+  qs('#webhookUrl').value = cfg.url;
+  updateWebhookFormatUI(cfg.format || WEBHOOK_FORMAT.TEAMS);
+
+  // Show masked placeholder if a secret is saved; never pre-fill the real value
+  const secretInput = qs('#webhookSecret');
+  secretInput.placeholder = cfg.secret
+    ? '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022 (saved — enter new value to change)'
+    : 'Leave empty for no authentication';
+  secretInput.value = '';
+
+  qs('#saveWebhookBtn').disabled = true;
+}
+
+function bindWebhookEvents() {
+  const saveBtn   = qs('#saveWebhookBtn');
+  const testBtn   = qs('#webhookTestBtn');
+  const testResult = qs('#webhookTestResult');
+
+  function markDirty() { saveBtn.disabled = false; }
+
+  const urlErrEl = qs('#webhookUrlError');
+
+  qs('#webhookEnabled').addEventListener('change', markDirty);
+  qs('#webhookUrl').addEventListener('input', () => { markDirty(); hideError(urlErrEl); });
+  qs('#webhookSecret').addEventListener('input', markDirty);
+  qs('#webhookFormat').addEventListener('change', () => {
+    markDirty();
+    updateWebhookFormatUI(qs('#webhookFormat').value);
+  });
+  qs('#webhookTelegramChatId').addEventListener('input', markDirty);
+  qs('#webhookOnAppear').addEventListener('change', markDirty);
+  qs('#webhookOnDisappear').addEventListener('change', markDirty);
+
+  // Show/hide secret toggle
+  qs('#webhookSecretToggle').addEventListener('click', () => {
+    const inp = qs('#webhookSecret');
+    const isHidden = inp.type === 'password';
+    inp.type = isHidden ? 'text' : 'password';
+    qs('#webhookSecretEye').innerHTML = isHidden
+      ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
+      : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+  });
+
+  saveBtn.addEventListener('click', async () => {
+    const url    = qs('#webhookUrl').value.trim();
+    const secret = qs('#webhookSecret').value; // intentionally not trimmed
+
+    // Validate URL only if one is entered
+    if (url) {
+      try {
+        const u = new URL(url);
+        const isHttps    = u.protocol === 'https:';
+        const isLocalHttp = u.protocol === 'http:' &&
+          (u.hostname === 'localhost' || u.hostname === '127.0.0.1');
+        if (!isHttps && !isLocalHttp) throw new Error();
+      } catch (_) {
+        showError(urlErrEl, 'Invalid URL. Must be https:// or http://localhost.');
+        qs('#webhookUrl').focus();
+        return;
+      }
+    }
+
+    const patch = {
+      enabled:        qs('#webhookEnabled').checked,
+      url,
+      format:         qs('#webhookFormat').value,
+      telegramChatId: qs('#webhookTelegramChatId').value.trim(),
+      onAppear:       qs('#webhookOnAppear').checked,
+      onDisappear:    qs('#webhookOnDisappear').checked,
+    };
+    // Only overwrite the secret if the user typed a new one
+    if (secret) patch.secret = secret;
+
+    hideError(urlErrEl);
+    await saveWebhookSettings(patch);
+    await renderWebhookSettings(); // re-render to show masked placeholder
+    showToast('Webhook settings saved!');
+    saveBtn.disabled = true;
+
+    // Hide any previous test result on save
+    testResult.classList.add('hidden');
+  });
+
+  testBtn.addEventListener('click', async () => {
+    testResult.className = 'webhook-test-result';
+    testResult.textContent = 'Sending…';
+
+    let result;
+    try {
+      result = await chrome.runtime.sendMessage({ type: MSG.TEST_WEBHOOK });
+    } catch (err) {
+      testResult.className = 'webhook-test-result webhook-test-result--err';
+      testResult.textContent = `Extension error: ${err.message}`;
+      return;
+    }
+
+    if (!result) {
+      testResult.className = 'webhook-test-result webhook-test-result--err';
+      testResult.textContent = 'No response from service worker.';
+      return;
+    }
+
+    if (!result.sent) {
+      testResult.className = 'webhook-test-result webhook-test-result--err';
+      testResult.textContent = result.error
+        ? `✗ Failed: ${result.error}`
+        : '✗ Webhook is disabled or no URL configured. Save settings first.';
+      return;
+    }
+
+    const ok = result.status >= 200 && result.status < 300;
+    testResult.className = `webhook-test-result webhook-test-result--${ok ? 'ok' : 'warn'}`;
+    testResult.textContent = ok
+      ? `✓ Delivered — server responded ${result.status}`
+      : `⚠ Sent but server responded ${result.status} — check your endpoint`;
+  });
 }
 
 // ─── Toast ────────────────────────────────────────────────────────────────────

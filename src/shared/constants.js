@@ -50,6 +50,7 @@ export const STORAGE_KEY = Object.freeze({
   ALERT_HISTORY:     'tw_alert_history', // Last 50 alert events (what fired)
   ENABLED:           'tw_enabled',       // Master on/off boolean
   ONBOARDED:         'tw_onboarded',     // true once first-install setup is done
+  WEBHOOK:           'tw_webhook',       // Webhook configuration object
 });
 
 // ─── Message Types (content <-> background) ──────────────────────────────────
@@ -58,6 +59,26 @@ export const MSG = Object.freeze({
   TEXT_DISAPPEARED:  'text_disappeared',
   GET_STATE:         'get_state',
   RELOAD_RULES:      'reload_rules',
+  TEST_WEBHOOK:      'test_webhook',     // Options page → SW: fire a test payload
+});
+
+// ─── Webhook Payload Formats ──────────────────────────────────────────────────
+export const WEBHOOK_FORMAT = Object.freeze({
+  TEAMS:    'teams',
+  SLACK:    'slack',
+  TELEGRAM: 'telegram',
+  GENERIC:  'generic',
+});
+
+// ─── Default Webhook Settings ─────────────────────────────────────────────────
+export const DEFAULT_WEBHOOK = Object.freeze({
+  enabled:        false,
+  url:            '',
+  secret:         '',   // Sent as X-TextWatcher-Secret header
+  format:         'teams',
+  telegramChatId: '',
+  onAppear:       true,
+  onDisappear:    true,
 });
 
 // ─── Limits ──────────────────────────────────────────────────────────────────

@@ -11,9 +11,9 @@
  *  - Cooldown tracking to prevent notification spam
  */
 
-import { MSG, BADGE_COLOR, NOTIF_FREQUENCY, ALERT_EVENT, STORAGE_KEY } from '../shared/constants.js';
+import { MSG, BADGE_COLOR, NOTIF_FREQUENCY, ALERT_EVENT, STORAGE_KEY, WEBHOOK_FORMAT } from '../shared/constants.js';
 import { getKeywords, getUrls, getSettings, getEnabled, addAlertEvent,
-         getOnboarded } from '../shared/storage.js';
+         getOnboarded, getWebhookSettings } from '../shared/storage.js';
 import { matchesUrl } from '../shared/matcher.js';
 import { truncate, MATCH_TYPE_LABEL } from '../shared/utils.js';
 
@@ -215,6 +215,21 @@ async function handleMessage(message, sender, sendResponse) {
       sendResponse({ ok: true });
       break;
     }
+
+    // Options page requesting a test webhook delivery
+    case MSG.TEST_WEBHOOK: {
+      const result = await fireWebhook({
+        event:     'appears',
+        keyword:   'TextWatcher Test',
+        matchType: 'contains',
+        url:       'https://textwatcher.test/demo',
+        title:     'TextWatcher — Test Payload',
+        snippet:   'This is a test payload sent from TextWatcher settings.',
+      }, { isTest: true });
+      sendResponse(result);
+      break;
+    }
+
     default:
       sendResponse(null);
   }
@@ -241,16 +256,28 @@ async function handleAlertMessage(tabId, event, message, settings) {
     snippet:   isAppear ? message.snippet : null,
   });
 
-  await addAlertEvent({
-    event,
-    keyword:   message.keyword,
-    matchType: message.matchType,
-    url:       message.url,
-    title:     message.title,
-    snippet:   isAppear ? message.snippet : null,
-    tabId,
-    timestamp: Date.now(),
-  });
+  // Fire webhook in parallel with the alert log write — both are awaited so
+  // the service worker stays alive for the full duration of both operations.
+  await Promise.all([
+    addAlertEvent({
+      event,
+      keyword:   message.keyword,
+      matchType: message.matchType,
+      url:       message.url,
+      title:     message.title,
+      snippet:   isAppear ? message.snippet : null,
+      tabId,
+      timestamp: Date.now(),
+    }),
+    fireWebhook({
+      event,
+      keyword:   message.keyword,
+      matchType: message.matchType,
+      url:       message.url,
+      title:     message.title,
+      snippet:   isAppear ? message.snippet : null,
+    }),
+  ]);
 
   const delta   = isAppear ? 1 : -1;
   const current = Math.max(0, (await getTabMatchCount(tabId)) + delta);
@@ -315,6 +342,169 @@ chrome.notifications.onClicked.addListener(async (notificationId) => {
     // Tab was closed — nothing to do
   }
 });
+
+// ─── Webhook ──────────────────────────────────────────────────────────────────
+
+const WEBHOOK_TIMEOUT_MS = 8000;
+
+/**
+ * Validate a webhook URL.
+ * Allows https:// for any host and http:// for localhost / 127.0.0.1 only.
+ * @param {string} urlStr
+ * @returns {boolean}
+ */
+function isAllowedWebhookUrl(urlStr) {
+  try {
+    const u = new URL(urlStr);
+    if (u.protocol === 'https:') return true;
+    if (u.protocol === 'http:') {
+      return u.hostname === 'localhost' || u.hostname === '127.0.0.1';
+    }
+    return false;
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * Shape the request body according to the configured payload format.
+ * @param {object} cfg  Webhook settings from storage
+ * @param {object} payload  Internal alert payload
+ * @returns {string}  JSON string ready to POST
+ */
+function buildWebhookPayload(cfg, payload) {
+  const title      = payload.title    || '';
+  const url        = payload.url      || '';
+  const isAppear   = payload.event === ALERT_EVENT.APPEARS;
+  const eventLabel = isAppear ? 'appeared' : 'disappeared';
+  const emoji      = isAppear ? '\u{1F7E2}' : '\u{1F534}';
+  const tsDate     = new Date(payload.timestamp || Date.now());
+  // ISO-8601 with local offset — used in Slack/Telegram/Generic
+  const tzOffset   = -tsDate.getTimezoneOffset();
+  const sign       = tzOffset >= 0 ? '+' : '-';
+  const pad        = n => String(Math.floor(Math.abs(n))).padStart(2, '0');
+  const tsIso      = tsDate.getFullYear()
+    + '-' + pad(tsDate.getMonth() + 1)
+    + '-' + pad(tsDate.getDate())
+    + 'T' + pad(tsDate.getHours())
+    + ':' + pad(tsDate.getMinutes())
+    + ':' + pad(tsDate.getSeconds())
+    + sign + pad(tzOffset / 60) + ':' + pad(tzOffset % 60);
+  // Human-readable local string for Teams facts — avoids Teams auto-reformatting ISO dates
+  const tsLocal    = tsDate.toLocaleString(undefined, {
+    dateStyle: 'medium', timeStyle: 'long',
+  });
+
+  switch (cfg.format) {
+    case WEBHOOK_FORMAT.TEAMS:
+      return JSON.stringify({
+        '@type':    'MessageCard',
+        '@context': 'http://schema.org/extensions',
+        themeColor: isAppear ? '28a745' : 'dc3545',
+        summary:    `TextWatcher: "${payload.keyword}" ${eventLabel}`,
+        sections: [{
+          activityTitle:    `${emoji} Keyword "${payload.keyword}" ${eventLabel}`,
+          activitySubtitle: title || url,
+          activityText:     `[${url}](${url})`,
+          facts: [
+            { name: 'Keyword',    value: payload.keyword   },
+            { name: 'Event',      value: payload.event     },
+            { name: 'Match Type', value: payload.matchType },
+            { name: 'Time',       value: tsLocal              },
+          ],
+        }],
+        potentialAction: [{
+          '@type': 'OpenUri',
+          name:    'Open Page',
+          targets: [{ os: 'default', uri: url }],
+        }],
+      });
+
+    case WEBHOOK_FORMAT.SLACK:
+      return JSON.stringify({
+        text: `${emoji} *${payload.keyword}* ${eventLabel} — <${url}|${title || url}>`,
+      });
+
+    case WEBHOOK_FORMAT.TELEGRAM:
+      return JSON.stringify({
+        chat_id:    cfg.telegramChatId || '',
+        text:       `${emoji} *${payload.keyword}* ${eventLabel}\n\u{1F517} ${url}`,
+        parse_mode: 'Markdown',
+      });
+
+    default: // WEBHOOK_FORMAT.GENERIC
+      return JSON.stringify({
+        event:     payload.event,
+        keyword:   payload.keyword,
+        matchType: payload.matchType,
+        url:       payload.url,
+        title:     payload.title   || '',
+        snippet:   payload.snippet || null,
+        timestamp: tsIso,
+        timestamp_ms: payload.timestamp || Date.now(),
+        source:    'TextWatcher',
+      });
+  }
+}
+
+/**
+ * POST an alert payload to the configured webhook URL.
+ * Completely isolated — a failure here must never affect notifications or badge.
+ *
+ * @param {{ event, keyword, matchType, url, title, snippet }} payload
+ * @param {{ isTest?: boolean }} [opts]
+ * @returns {Promise<{ sent: boolean, status?: number, error?: string }>}
+ */
+async function fireWebhook(payload, opts = {}) {
+  let cfg;
+  try {
+    cfg = await getWebhookSettings();
+  } catch (_) {
+    return { sent: false, error: 'Could not read webhook settings.' };
+  }
+
+  if (!cfg.enabled) return { sent: false };
+
+  const isAppear = payload.event === ALERT_EVENT.APPEARS;
+  if (!opts.isTest) {
+    if (isAppear  && !cfg.onAppear)    return { sent: false };
+    if (!isAppear && !cfg.onDisappear) return { sent: false };
+  }
+
+  if (!isAllowedWebhookUrl(cfg.url)) {
+    return { sent: false, error: 'Invalid or disallowed webhook URL.' };
+  }
+
+  const body = buildWebhookPayload(cfg, { ...payload, timestamp: payload.timestamp || Date.now() });
+
+  const headers = {
+    'Content-Type': 'application/json',
+    'User-Agent':   'TextWatcher-Extension/1.0',
+  };
+  if (cfg.secret) {
+    headers['X-TextWatcher-Secret'] = cfg.secret;
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(cfg.url, {
+      method:  'POST',
+      headers,
+      body,
+      signal:  controller.signal,
+    });
+    clearTimeout(timer);
+    return { sent: true, status: res.status };
+  } catch (err) {
+    clearTimeout(timer);
+    const error = err.name === 'AbortError'
+      ? `Timed out after ${WEBHOOK_TIMEOUT_MS / 1000}s`
+      : (err.message || 'Network error');
+    return { sent: false, error };
+  }
+}
 
 /**
  * Check cooldown / frequency settings before firing an alert.
