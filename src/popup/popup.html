@@ -107,18 +107,18 @@
   <section class="section">
     <h2 class="section__title">Active Rules</h2>
     <div class="summary-grid">
-      <div class="summary-card">
+      <button class="summary-card" id="cardKeywords" title="Open Keywords in Full Settings">
         <span class="summary-card__count" id="keywordCount">0</span>
         <span class="summary-card__label">Keywords</span>
-      </div>
-      <div class="summary-card">
+      </button>
+      <button class="summary-card" id="cardUrls" title="Open URLs in Full Settings">
         <span class="summary-card__count" id="urlCount">0</span>
         <span class="summary-card__label">URLs</span>
-      </div>
-      <div class="summary-card">
+      </button>
+      <button class="summary-card" id="cardAlerts" title="Open Activity in Full Settings">
         <span class="summary-card__count" id="alertCount">0</span>
         <span class="summary-card__label">Alerts</span>
-      </div>
+      </button>
     </div>
   </section>
 
@@ -130,8 +130,7 @@
     </h2>
     <ul class="alert-list" id="alertList">
       <li class="alert-list__empty">No alerts yet — monitoring will log events here.</li>
-    </ul>
-  </section>
+    </ul>    <button class="btn--more hidden" id="alertMoreBtn">View all in Full Settings →</button>  </section>
 
   <!-- ── Recent History ─────────────────────────────────────── -->
   <section class="section" id="historySection">
@@ -142,6 +141,7 @@
     <ul class="history-list" id="historyList">
       <li class="history-list__empty">No saved setups yet.</li>
     </ul>
+    <button class="btn--more hidden" id="historyMoreBtn">View all in Full Settings &#8594;</button>
   </section>
 
   <!-- ── Footer ─────────────────────────────────────────────── -->

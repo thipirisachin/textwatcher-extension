@@ -930,3 +930,19 @@ code {
   cursor: not-allowed;
   pointer-events: none;
 }
+
+/* ── Permission Denied Banner ─────────────────────────────────────────── */
+.perm-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: var(--r-sm);
+  background: var(--red-gl);
+  border: 1px solid rgba(248, 81, 73, 0.4);
+  color: var(--clr-text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.perm-banner svg { flex-shrink: 0; margin-top: 2px; color: var(--clr-red); }

@@ -65,6 +65,13 @@ async function init() {
   bindSetupEvents();
   bindGlobalToggle();
   listenForChanges();
+
+  // Deep-link: if the popup stored a target section, navigate there and clear.
+  const { tw_open_section: target } = await chrome.storage.local.get('tw_open_section');
+  if (target) {
+    await chrome.storage.local.remove('tw_open_section');
+    showSection(target);
+  }
 }
 
 // ─── Welcome Banner ───────────────────────────────────────────────────────────────
@@ -104,14 +111,21 @@ async function renderSidebarStatus() {
 
 function bindSetupEvents() {
   qs('#testNotifBtn').addEventListener('click', () => {
-    chrome.notifications.create('tw_test_' + Date.now(), {
-      type:     'basic',
-      iconUrl:  chrome.runtime.getURL('src/icons/icon48.png'),
-      title:    'TextWatcher',
-      message:  'Notifications are working correctly! \u2713',
-      priority: 1,
+    chrome.notifications.getPermissionLevel((level) => {
+      if (level !== 'granted') {
+        showToast('OS notifications are blocked. Check your system notification settings.');
+        qs('#notifPermBanner').classList.remove('hidden');
+        return;
+      }
+      chrome.notifications.create('tw_test_' + Date.now(), {
+        type:     'basic',
+        iconUrl:  chrome.runtime.getURL('src/icons/icon48.png'),
+        title:    'TextWatcher',
+        message:  'Notifications are working correctly! \u2713',
+        priority: 1,
+      });
+      showToast('Test notification sent!');
     });
-    showToast('Test notification sent!');
   });
 
   qs('#setupGoKeywords').addEventListener('click', (e) => {

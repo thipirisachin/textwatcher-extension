@@ -41,8 +41,10 @@ const urlCount          = qs('#urlCount');
 const alertCount        = qs('#alertCount');
 const alertBadge        = qs('#alertBadge');
 const alertList         = qs('#alertList');
+const alertMoreBtn      = qs('#alertMoreBtn');
 const historyList       = qs('#historyList');
 const historyBadge      = qs('#historyBadge');
+const historyMoreBtn    = qs('#historyMoreBtn');
 const openOptionsBtn    = qs('#openOptionsBtn');
 const saveSnapshotBtn   = qs('#saveSnapshotBtn');
 
@@ -123,6 +125,7 @@ async function renderAlerts() {
 
   if (alerts.length === 0) {
     alertList.innerHTML = '<li class="alert-list__empty">No alerts yet — monitoring will log events here.</li>';
+    alertMoreBtn.classList.add('hidden');
     return;
   }
 
@@ -144,6 +147,7 @@ async function renderAlerts() {
     `;
     alertList.appendChild(li);
   });
+  alertMoreBtn.classList.toggle('hidden', alerts.length <= 3);
 }
 
 // ─── History (Saved Setups) ───────────────────────────────────────────────────
@@ -153,11 +157,12 @@ async function renderHistory() {
 
   if (history.length === 0) {
     historyList.innerHTML = '<li class="history-list__empty">No saved setups yet.</li>';
+    historyMoreBtn.classList.add('hidden');
     return;
   }
 
   historyList.innerHTML = '';
-  history.forEach((entry) => {
+  history.slice(0, 3).forEach((entry) => {
     const li = document.createElement('li');
     li.className = 'history-item';
     li.dataset.id = entry.id;
@@ -179,6 +184,14 @@ async function renderHistory() {
     `;
     historyList.appendChild(li);
   });
+  historyMoreBtn.classList.toggle('hidden', history.length <= 3);
+}
+
+// ─── Open Options at Section ──────────────────────────────────────────────────
+
+function openOptionsAt(section) {
+  chrome.storage.local.set({ tw_open_section: section });
+  chrome.runtime.openOptionsPage();
 }
 
 // ─── Event Bindings ───────────────────────────────────────────────────────────
@@ -239,6 +252,15 @@ function bindEvents() {
       await renderCounts();
     }
   });
+
+  // Summary card navigation
+  qs('#cardKeywords').addEventListener('click', () => openOptionsAt('keywords'));
+  qs('#cardUrls').addEventListener('click',     () => openOptionsAt('urls'));
+  qs('#cardAlerts').addEventListener('click',   () => openOptionsAt('activity'));
+
+  // "View all" More buttons
+  alertMoreBtn.addEventListener('click',   () => openOptionsAt('activity'));
+  historyMoreBtn.addEventListener('click', () => openOptionsAt('history'));
 
   // Open full settings
   openOptionsBtn.addEventListener('click', () => {
