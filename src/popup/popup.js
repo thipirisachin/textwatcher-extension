@@ -4,7 +4,6 @@
  * Communicates via chrome.storage and chrome.runtime messaging only.
  */
 
-import { STORAGE_KEY, MATCH_TYPE } from '../shared/constants.js';
 import {
   getEnabled, setEnabled,
   getKeywords, addKeyword,
@@ -12,6 +11,7 @@ import {
   getHistory, saveHistorySnapshot, restoreHistoryEntry, removeHistoryEntry,
   getAlertHistory,
 } from '../shared/storage.js';
+import { STORAGE_KEY, MATCH_TYPE, URL_SCOPE_ALL } from '../shared/constants.js';
 import { validateRegex, matchesUrl } from '../shared/matcher.js';
 import { qs, timeAgo, truncate, escapeHtml, onStorageChange } from '../shared/utils.js';
 
@@ -53,6 +53,7 @@ const tabCtxBar    = qs('#tabCtxBar');
 const tabCtxDot    = qs('#tabCtxDot');
 const tabCtxText   = qs('#tabCtxText');
 const tabCtxAddBtn = qs('#tabCtxAddBtn');
+const quickUrlBinding = qs('#quickUrlBinding');
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
@@ -70,7 +71,33 @@ async function renderAll() {
     renderCounts(),
     renderHistory(),
     renderAlerts(),
+    renderPopupUrlBinding(),
   ]);
+}
+
+// ─── URL Binding in Popup Keyword Form ───────────────────────────────────────────────────────────
+
+async function renderPopupUrlBinding() {
+  if (!quickUrlBinding) return;
+  const urls = await getUrls();
+  const active = urls.filter((u) => u.enabled);
+  if (active.length === 0) {
+    quickUrlBinding.innerHTML = '<p class="advanced-hint" style="margin:0">Add URL rules first to bind this keyword to specific pages.</p>';
+    return;
+  }
+  quickUrlBinding.innerHTML = active.map((u) => {
+    const label = truncate(u.label || u.pattern, 38);
+    return `<label class="popup-url-binding__item">
+      <input type="checkbox" name="quickUrlScope" value="${escapeHtml(u.id)}" />
+      <span>${escapeHtml(label)}</span>
+    </label>`;
+  }).join('');
+}
+
+function readPopupUrlBinding() {
+  if (!quickUrlBinding) return URL_SCOPE_ALL;
+  const checked = Array.from(quickUrlBinding.querySelectorAll('input[name="quickUrlScope"]:checked')).map((cb) => cb.value);
+  return checked.length > 0 ? checked : URL_SCOPE_ALL;
 }
 
 // ─── Tab Context Bar ────────────────────────────────────────────────────────────────────────────────
@@ -380,6 +407,7 @@ async function handleAddKeyword() {
     text,
     matchType,
     scopeSelector,
+    urlScope:       readPopupUrlBinding(),
     enabled:        true,
     alertAppear:    quickAlertAppear.checked,
     alertDisappear: quickAlertDisappear.checked,
@@ -387,6 +415,8 @@ async function handleAddKeyword() {
 
   quickKeyword.value    = '';
   qs('#quickScope').value = '';
+  // Reset URL binding checkboxes
+  quickUrlBinding?.querySelectorAll('input[type="checkbox"]').forEach((cb) => { cb.checked = false; });
   showToast('Keyword added!');
   await renderCounts();
   await renderStatus();

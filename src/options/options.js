@@ -185,6 +185,11 @@ function bindSetupEvents() {
     showSection('urls');
   });
 
+  qs('#setupGoWebhooks').addEventListener('click', (e) => {
+    e.preventDefault();
+    showSection('webhooks');
+  });
+
   qs('#setupDone').addEventListener('click', async (e) => {
     e.preventDefault();
     await setEnabled(true);
@@ -193,6 +198,17 @@ function bindSetupEvents() {
     await renderSidebarStatus();
     showSection('keywords');
     showToast('Monitoring enabled!');
+  });
+
+  // Accordion for setup guide steps
+  document.querySelectorAll('.setup-accordion__hd').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const bodyId = btn.dataset.accordion;
+      const body   = qs(`#${bodyId}`);
+      const open   = btn.getAttribute('aria-expanded') === 'true';
+      btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+      body.hidden = open;
+    });
   });
 }
 

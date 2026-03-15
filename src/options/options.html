@@ -66,83 +66,122 @@
       <section class="panel hidden" id="section-setup">
         <div class="panel__header">
           <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg> Setup Guide</h1>
-          <p class="panel__desc">Get TextWatcher monitoring pages and firing alerts in four quick steps.</p>
+          <p class="panel__desc">Get TextWatcher monitoring pages and firing alerts in five steps. Click any step to expand it.</p>
         </div>
 
         <!-- Step 1: Notifications -->
-        <div class="card setup-card">
-          <div class="setup-card__hd">
+        <div class="card setup-card setup-accordion">
+          <button class="setup-accordion__hd" aria-expanded="false" data-accordion="step1">
             <span class="setup-card__num">1</span>
-            <h2 class="card__title" style="margin:0">Allow Notifications</h2>
-          </div>
-          <p class="hint" style="margin-top:8px;">TextWatcher delivers alerts via OS notifications. Chrome must be permitted to show them at the <strong>system</strong> level &mdash; browser permission alone is not enough on some machines.</p>
-          <div class="setup-os-block">
-            <div class="setup-os-block__row">
-              <strong>Windows 10 / 11</strong>
-              <p>Settings &rarr; System &rarr; Notifications &rarr; <em>Google Chrome</em> &rarr; switch ON</p>
+            <h2 class="card__title" style="margin:0;flex:1">Allow Notifications</h2>
+            <svg class="setup-accordion__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="setup-accordion__body" id="step1" hidden>
+            <p class="hint" style="margin-top:8px;">TextWatcher delivers alerts via OS notifications. Chrome must be permitted to show them at the <strong>system</strong> level &mdash; browser permission alone is not enough on some machines.</p>
+            <div class="setup-os-block">
+              <div class="setup-os-block__row">
+                <strong>Windows 10 / 11</strong>
+                <p>Settings &rarr; System &rarr; Notifications &rarr; <em>Google Chrome</em> &rarr; switch ON</p>
+              </div>
+              <div class="setup-os-block__row">
+                <strong>macOS</strong>
+                <p>System Settings &rarr; Notifications &rarr; <em>Google Chrome</em> &rarr; Allow Notifications</p>
+              </div>
             </div>
-            <div class="setup-os-block__row">
-              <strong>macOS</strong>
-              <p>System Settings &rarr; Notifications &rarr; <em>Google Chrome</em> &rarr; Allow Notifications</p>
-            </div>
+            <button class="btn btn--ghost" id="testNotifBtn" style="margin-top:14px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Test Notification</button>
           </div>
-          <button class="btn btn--ghost" id="testNotifBtn" style="margin-top:14px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Test Notification</button>
         </div>
 
         <!-- Step 2: Keywords -->
-        <div class="card setup-card">
-          <div class="setup-card__hd">
+        <div class="card setup-card setup-accordion">
+          <button class="setup-accordion__hd" aria-expanded="false" data-accordion="step2">
             <span class="setup-card__num">2</span>
-            <h2 class="card__title" style="margin:0">Add a Keyword</h2>
+            <h2 class="card__title" style="margin:0;flex:1">Add a Keyword</h2>
+            <svg class="setup-accordion__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="setup-accordion__body" id="step2" hidden>
+            <p class="hint" style="margin-top:8px;">Define the text TextWatcher looks for. Each keyword fires its own alert independently and has its own match type.</p>
+            <table class="setup-table">
+              <thead><tr><th>Match Type</th><th>Behaviour</th><th>Example</th></tr></thead>
+              <tbody>
+                <tr><td>Contains</td><td>Text exists anywhere on the page</td><td><code>price drop</code></td></tr>
+                <tr><td>Exact (case-insensitive)</td><td>Exact phrase, any casing</td><td><code>In Stock</code></td></tr>
+                <tr><td>Starts / Ends with</td><td>Node text starts or ends with this value</td><td><code>Sale:</code></td></tr>
+                <tr><td>Regex</td><td>Full regular expression</td><td><code>\$\d+\.\d{2}</code></td></tr>
+              </tbody>
+            </table>
+            <p class="hint" style="margin-top:10px;"><strong>Scope selector</strong> &mdash; restrict matching to a specific element (e.g. <code>#price-box</code>). Leave blank to scan the whole page.</p>
+            <button class="btn btn--primary" id="setupGoKeywords" style="margin-top:14px;">Go to Keywords &rarr;</button>
           </div>
-          <p class="hint" style="margin-top:8px;">Define the text TextWatcher looks for. Each keyword fires its own alert independently and has its own match type.</p>
-          <table class="setup-table">
-            <thead><tr><th>Match Type</th><th>Behaviour</th><th>Example</th></tr></thead>
-            <tbody>
-              <tr><td>Contains</td><td>Text exists anywhere on the page</td><td><code>price drop</code></td></tr>
-              <tr><td>Exact (case-insensitive)</td><td>Exact phrase, any casing</td><td><code>In Stock</code></td></tr>
-              <tr><td>Starts / Ends with</td><td>Node text starts or ends with this value</td><td><code>Sale:</code></td></tr>
-              <tr><td>Regex</td><td>Full regular expression</td><td><code>\$\d+\.\d{2}</code></td></tr>
-            </tbody>
-          </table>
-          <p class="hint" style="margin-top:10px;"><strong>Scope selector</strong> &mdash; restrict matching to a specific element (e.g. <code>#price-box</code>). Leave blank to scan the whole page.</p>
-          <button class="btn btn--primary" id="setupGoKeywords" style="margin-top:14px;">Go to Keywords &rarr;</button>
         </div>
 
         <!-- Step 3: URLs -->
-        <div class="card setup-card">
-          <div class="setup-card__hd">
+        <div class="card setup-card setup-accordion">
+          <button class="setup-accordion__hd" aria-expanded="false" data-accordion="step3">
             <span class="setup-card__num">3</span>
-            <h2 class="card__title" style="margin:0">Set Your URLs</h2>
+            <h2 class="card__title" style="margin:0;flex:1">Set Your URLs</h2>
+            <svg class="setup-accordion__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="setup-accordion__body" id="step3" hidden>
+            <p class="hint" style="margin-top:8px;">Tell TextWatcher which pages to monitor. Without a URL rule no pages are scanned, regardless of your keywords.</p>
+            <div class="setup-os-block">
+              <div class="setup-os-block__row">
+                <strong>Wildcard</strong>
+                <p><code>https://example.com/*</code> &mdash; matches every page on example.com</p>
+              </div>
+              <div class="setup-os-block__row">
+                <strong>Domain-wide</strong>
+                <p>Matches the given domain and all its subdomains</p>
+              </div>
+              <div class="setup-os-block__row">
+                <strong>Exact</strong>
+                <p>Only one specific URL &mdash; useful for single-page monitoring</p>
+              </div>
+            </div>
+            <p class="hint" style="margin-top:10px;"><strong>Tip:</strong> Use <em>Use Current Tab</em> in the popup to fill in the URL of the page you&rsquo;re currently viewing automatically.</p>
+            <button class="btn btn--primary" id="setupGoUrls" style="margin-top:14px;">Go to URLs &rarr;</button>
           </div>
-          <p class="hint" style="margin-top:8px;">Tell TextWatcher which pages to monitor. Without a URL rule no pages are scanned, regardless of your keywords.</p>
-          <div class="setup-os-block">
-            <div class="setup-os-block__row">
-              <strong>Wildcard</strong>
-              <p><code>https://example.com/*</code> &mdash; matches every page on example.com</p>
-            </div>
-            <div class="setup-os-block__row">
-              <strong>Domain-wide</strong>
-              <p>Matches the given domain and all its subdomains</p>
-            </div>
-            <div class="setup-os-block__row">
-              <strong>Exact</strong>
-              <p>Only one specific URL &mdash; useful for single-page monitoring</p>
-            </div>
-          </div>
-          <p class="hint" style="margin-top:10px;"><strong>Tip:</strong> Use <em>Use Current Tab</em> in the popup to fill in the URL of the page you&rsquo;re currently viewing automatically.</p>
-          <button class="btn btn--primary" id="setupGoUrls" style="margin-top:14px;">Go to URLs &rarr;</button>
         </div>
 
-        <!-- Step 4: Enable -->
-        <div class="card setup-card">
-          <div class="setup-card__hd">
+        <!-- Step 4: Webhooks -->
+        <div class="card setup-card setup-accordion">
+          <button class="setup-accordion__hd" aria-expanded="false" data-accordion="step4">
             <span class="setup-card__num">4</span>
-            <h2 class="card__title" style="margin:0">Enable Monitoring</h2>
+            <h2 class="card__title" style="margin:0;flex:1">Set Up Webhooks <span class="setup-card__opt">optional</span></h2>
+            <svg class="setup-accordion__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="setup-accordion__body" id="step4" hidden>
+            <p class="hint" style="margin-top:8px;">Webhooks let TextWatcher POST a JSON payload to any URL each time an alert fires &mdash; useful for Slack, Teams, Telegram, or custom automations.</p>
+            <div class="setup-os-block">
+              <div class="setup-os-block__row">
+                <strong>Slack / Teams</strong>
+                <p>Create an Incoming Webhook in your workspace and paste the URL. Choose the matching format in Webhooks settings.</p>
+              </div>
+              <div class="setup-os-block__row">
+                <strong>Telegram</strong>
+                <p>Create a bot via @BotFather, copy the token, and add your chat ID in the Webhooks page.</p>
+              </div>
+              <div class="setup-os-block__row">
+                <strong>Generic</strong>
+                <p>Any endpoint that accepts a POST with a JSON body. Use the <em>Generic</em> format for full control over the payload.</p>
+              </div>
+            </div>
+            <button class="btn btn--primary" id="setupGoWebhooks" style="margin-top:14px;">Go to Webhooks &rarr;</button>
           </div>
-          <p class="hint" style="margin-top:8px;">Flip the toggle at the top of the sidebar to activate TextWatcher. The status dot turns green when monitoring is live.</p>
-          <p class="hint" style="margin-top:6px;">You can pause at any time &mdash; your keywords and URL rules stay intact.</p>
-          <button class="btn btn--primary" id="setupDone" style="margin-top:14px;">Enable &amp; Go to Keywords &rarr;</button>
+        </div>
+
+        <!-- Step 5: Enable -->
+        <div class="card setup-card setup-accordion">
+          <button class="setup-accordion__hd" aria-expanded="false" data-accordion="step5">
+            <span class="setup-card__num">5</span>
+            <h2 class="card__title" style="margin:0;flex:1">Enable Monitoring</h2>
+            <svg class="setup-accordion__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="setup-accordion__body" id="step5" hidden>
+            <p class="hint" style="margin-top:8px;">Flip the toggle at the top of the sidebar to activate TextWatcher. The status dot turns green when monitoring is live.</p>
+            <p class="hint" style="margin-top:6px;">You can pause at any time &mdash; your keywords and URL rules stay intact.</p>
+            <button class="btn btn--primary" id="setupDone" style="margin-top:14px;">Enable &amp; Go to Keywords &rarr;</button>
+          </div>
         </div>
       </section>
       <!-- ════ Keywords ════════════════════════════════════ -->
