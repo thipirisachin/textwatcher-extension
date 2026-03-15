@@ -859,7 +859,8 @@ const DEFAULT_URL_HINT  = 'Must be <code>https://</code>. <code>http://localhost
 
 // ─── Webhook UI helpers ───────────────────────────────────────────────────────
 function updateWebhookFormatUI(format) {
-  qs('#webhookPayloadPreview').textContent = WEBHOOK_PAYLOAD_PREVIEWS[format] || WEBHOOK_PAYLOAD_PREVIEWS[WEBHOOK_FORMAT.GENERIC];
+  const previews = buildPayloadPreviews();
+  qs('#webhookPayloadPreview').textContent = previews[format] || previews[WEBHOOK_FORMAT.GENERIC];
   const isTelegram = format === WEBHOOK_FORMAT.TELEGRAM;
   qs('#webhookTelegramChatIdRow').style.display = isTelegram ? '' : 'none';
   qs('#webhookUrlHint').innerHTML = isTelegram ? TELEGRAM_URL_HINT : DEFAULT_URL_HINT;

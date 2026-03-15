@@ -378,7 +378,18 @@ function buildWebhookPayload(cfg, payload) {
   const isAppear   = payload.event === ALERT_EVENT.APPEARS;
   const eventLabel = isAppear ? 'appeared' : 'disappeared';
   const emoji      = isAppear ? '\u{1F7E2}' : '\u{1F534}';
-  const ts         = new Date(payload.timestamp || Date.now()).toISOString();
+  const tsDate     = new Date(payload.timestamp || Date.now());
+  // ISO-8601 with local offset (e.g. 2026-03-15T14:32:00+01:00)
+  const tzOffset   = -tsDate.getTimezoneOffset();
+  const sign       = tzOffset >= 0 ? '+' : '-';
+  const pad        = n => String(Math.floor(Math.abs(n))).padStart(2, '0');
+  const ts         = tsDate.getFullYear()
+    + '-' + pad(tsDate.getMonth() + 1)
+    + '-' + pad(tsDate.getDate())
+    + 'T' + pad(tsDate.getHours())
+    + ':' + pad(tsDate.getMinutes())
+    + ':' + pad(tsDate.getSeconds())
+    + sign + pad(tzOffset / 60) + ':' + pad(tzOffset % 60);
 
   switch (cfg.format) {
     case WEBHOOK_FORMAT.TEAMS:
@@ -420,7 +431,8 @@ function buildWebhookPayload(cfg, payload) {
         url:       payload.url,
         title:     payload.title   || '',
         snippet:   payload.snippet || null,
-        timestamp: payload.timestamp || Date.now(),
+        timestamp: ts,
+        timestamp_ms: payload.timestamp || Date.now(),
         source:    'TextWatcher',
       });
   }
