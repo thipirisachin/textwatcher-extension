@@ -249,7 +249,13 @@ function bindEvents() {
   saveSnapshotBtn.addEventListener('click', async () => {
     const label = `Setup ${new Date().toLocaleString()}`;
     const saved = await saveHistorySnapshot(label);
-    if (!saved) { showToast('Nothing to save — add keywords or URLs first.'); return; }
+    if (saved === null) {
+      const [kws, us] = await Promise.all([getKeywords(), getUrls()]);
+      showToast((kws.length === 0 && us.length === 0)
+        ? 'Nothing to save — add keywords or URLs first.'
+        : 'This setup is already saved.');
+      return;
+    }
     await renderHistory();
     await renderCounts();
     showToast('Setup saved!');

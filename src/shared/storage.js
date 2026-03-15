@@ -190,6 +190,19 @@ export async function saveHistorySnapshot(label = '') {
   // Don't save an empty setup — nothing useful to restore
   if (keywords.length === 0 && urls.length === 0) return null;
 
+  // Deduplicate: don't save if an identical setup already exists.
+  // Fingerprint covers only the fields that affect monitoring behaviour;
+  // label, id, enabled state are intentionally excluded.
+  const fingerprint = (kws, us) => JSON.stringify({
+    k: kws.map((k) => ({ t: k.text, m: k.matchType, s: k.scopeSelector || '', aa: k.alertAppear, ad: k.alertDisappear }))
+          .sort((a, b) => a.t.localeCompare(b.t) || a.m.localeCompare(b.m)),
+    u: us.map((u) => ({ p: u.pattern, m: u.matchType }))
+         .sort((a, b) => a.p.localeCompare(b.p)),
+  });
+
+  const currentPrint = fingerprint(keywords, urls);
+  if (history.some((h) => fingerprint(h.keywords, h.urls) === currentPrint)) return null;
+
   const entry = {
     id:        generateId(),
     label:     label || `Setup ${new Date().toLocaleString()}`,

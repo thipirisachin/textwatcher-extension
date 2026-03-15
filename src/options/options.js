@@ -708,7 +708,13 @@ function bindHistoryEvents() {
   qs('#saveNowBtn').addEventListener('click', async () => {
     const label = qs('#saveLabel').value.trim() || `Setup ${new Date().toLocaleString()}`;
     const saved = await saveHistorySnapshot(label);
-    if (!saved) { showToast('Nothing to save — add keywords or URLs first.'); return; }
+    if (saved === null) {
+      const [kws, us] = await Promise.all([getKeywords(), getUrls()]);
+      showToast((kws.length === 0 && us.length === 0)
+        ? 'Nothing to save — add keywords or URLs first.'
+        : 'This setup is already saved.');
+      return;
+    }
     qs('#saveLabel').value = '';
     await renderHistory();
     showToast('Setup saved!');
