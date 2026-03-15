@@ -828,8 +828,24 @@ function listenForChanges() {
 // ─── Webhooks ───────────────────────────────────────────────────────────────
 
 // ─── Webhook Payload Previews ────────────────────────────────────────────────
-const WEBHOOK_PAYLOAD_PREVIEWS = {
-  [WEBHOOK_FORMAT.TEAMS]: `{
+function localISOString(date) {
+  const tzOffset = -date.getTimezoneOffset();
+  const sign = tzOffset >= 0 ? '+' : '-';
+  const pad  = n => String(Math.floor(Math.abs(n))).padStart(2, '0');
+  return date.getFullYear()
+    + '-' + pad(date.getMonth() + 1)
+    + '-' + pad(date.getDate())
+    + 'T' + pad(date.getHours())
+    + ':' + pad(date.getMinutes())
+    + ':' + pad(date.getSeconds())
+    + sign + pad(tzOffset / 60) + ':' + pad(tzOffset % 60);
+}
+
+function buildPayloadPreviews() {
+  const ts = localISOString(new Date());
+  const ms = Date.now();
+  return {
+    [WEBHOOK_FORMAT.TEAMS]: `{
   "@type":    "MessageCard",
   "@context": "http://schema.org/extensions",
   "themeColor": "28a745",
@@ -842,29 +858,31 @@ const WEBHOOK_PAYLOAD_PREVIEWS = {
       { "name": "Keyword",    "value": "your keyword" },
       { "name": "Event",      "value": "appears"      },
       { "name": "Match Type", "value": "contains"     },
-      { "name": "Time",       "value": "2026-03-15T12:00:00.000Z" }
+      { "name": "Time",       "value": "${ts}" }
     ]
   }]
 }`,
-  [WEBHOOK_FORMAT.SLACK]: `{
+    [WEBHOOK_FORMAT.SLACK]: `{
   "text": "\u{1F7E2} *your keyword* appeared \u2014 <https://monitored-page.com/|Page Title>"
 }`,
-  [WEBHOOK_FORMAT.TELEGRAM]: `{
+    [WEBHOOK_FORMAT.TELEGRAM]: `{
   "chat_id":    "-1001234567890",
   "text":       "\u{1F7E2} *your keyword* appeared\\n\u{1F517} https://monitored-page.com/",
   "parse_mode": "Markdown"
 }`,
-  [WEBHOOK_FORMAT.GENERIC]: `{
-  "event":     "appears",
-  "keyword":   "your keyword",
-  "matchType": "contains",
-  "url":       "https://monitored-page.com/",
-  "title":     "Page Title",
-  "snippet":   "...surrounding context...",
-  "timestamp": 1710000000000,
-  "source":    "TextWatcher"
+    [WEBHOOK_FORMAT.GENERIC]: `{
+  "event":        "appears",
+  "keyword":      "your keyword",
+  "matchType":    "contains",
+  "url":          "https://monitored-page.com/",
+  "title":        "Page Title",
+  "snippet":      "...surrounding context...",
+  "timestamp":    "${ts}",
+  "timestamp_ms": ${ms},
+  "source":       "TextWatcher"
 }`,
-};
+  };
+}
 
 const TELEGRAM_URL_HINT = 'Set URL to <code>https://api.telegram.org/bot{YOUR_TOKEN}/sendMessage</code>. The Chat ID field below identifies the destination chat.';
 const DEFAULT_URL_HINT  = 'Must be <code>https://</code>. <code>http://localhost</code> is also allowed for local testing.';
