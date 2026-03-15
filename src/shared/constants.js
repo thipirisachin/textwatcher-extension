@@ -81,6 +81,12 @@ export const DEFAULT_WEBHOOK = Object.freeze({
   onDisappear:    true,
 });
 
+// ─── Keyword URL Scope ────────────────────────────────────────────────────────
+// urlScope field on a keyword rule:
+//   'all'        → monitor on every matched URL (default, backwards-compatible)
+//   string[]     → array of URL rule IDs; only monitor on those specific URLs
+export const URL_SCOPE_ALL = 'all';
+
 // ─── Limits ──────────────────────────────────────────────────────────────────
 export const LIMITS = Object.freeze({
   MAX_KEYWORDS:      100,

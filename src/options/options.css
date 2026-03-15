@@ -462,6 +462,7 @@ html, body { height: 100%; background: var(--clr-bg); }
 .rule-item__tag--disappear { color: var(--clr-yellow); }
 .rule-item__tag--match     { color: var(--accent-lt); }
 .rule-item__tag--scope     { color: var(--teal); font-family: monospace; }
+.rule-item__tag--url-bound { color: var(--accent); }
 
 .rule-item__snippet {
   font-size: 11px;
@@ -502,6 +503,41 @@ html, body { height: 100%; background: var(--clr-bg); }
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
+}
+
+/* URL binding checklist — add form + inline edit */
+.url-binding-select,
+.url-binding-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--r-sm);
+  background: var(--clr-surface-2);
+  margin-top: 2px;
+}
+.url-binding-hint {
+  margin: 0 0 4px;
+}
+.url-binding-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 0;
+}
+.url-binding-item input[type=checkbox] {
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+.url-binding-item__label {
+  color: var(--clr-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .rule-item__edit-actions {
@@ -736,6 +772,13 @@ html, body { height: 100%; background: var(--clr-bg); }
   line-height: 1.5;
   margin-bottom: 10px;
 }
+
+.link {
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.link:hover { opacity: 0.8; }
 
 code {
   font-family: 'Fira Code', 'Cascadia Code', Consolas, monospace;

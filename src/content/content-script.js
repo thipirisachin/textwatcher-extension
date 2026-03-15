@@ -196,6 +196,9 @@ function extractSnippet(text, index, length, ctxChars) {
 /** @type {Array<{id:string,text:string,matchType:string,enabled:boolean,alertAppear:boolean,alertDisappear:boolean}>} */
 let activeKeywords = [];
 
+/** @type {Array<{id:string,pattern:string,matchType:string,enabled:boolean}>} */
+let activeUrls = [];
+
 /** @type {object} Snapshot of global settings from storage */
 let settings = {};
 
@@ -212,6 +215,54 @@ const alertedThisLoad = new Map();
 const lastPresence = new Map();
 
 // =============================================================================
+// URL scope filter
+// =============================================================================
+
+/**
+ * Inlined URL matching logic (mirrors shared/matcher.js matchesUrl).
+ * content-script.js cannot use ES module imports.
+ */
+const URL_MATCH_TYPE_CS = Object.freeze({
+  EXACT:    'exact',
+  WILDCARD: 'wildcard',
+  DOMAIN:   'domain',
+});
+
+function matchesUrlCS(href, pattern, matchType) {
+  try {
+    switch (matchType) {
+      case URL_MATCH_TYPE_CS.EXACT:
+        return href === pattern;
+      case URL_MATCH_TYPE_CS.WILDCARD: {
+        const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+        return new RegExp('^' + escaped + '$', 'i').test(href);
+      }
+      case URL_MATCH_TYPE_CS.DOMAIN: {
+        const host = new URL(href).hostname;
+        const pat  = pattern.replace(/^\*\./, '');
+        return host === pat || host.endsWith('.' + pat);
+      }
+      default: return false;
+    }
+  } catch (_) { return false; }
+}
+
+/**
+ * Return true if this keyword should run on the current page.
+ * urlScope === 'all' (or missing) → always active.
+ * urlScope === string[] → active only if current URL matches one of the bound rules.
+ */
+function keywordMatchesCurrentUrl(keyword) {
+  const scope = keyword.urlScope;
+  if (!scope || scope === 'all' || !Array.isArray(scope) || scope.length === 0) return true;
+  const href = window.location.href;
+  return scope.some((ruleId) => {
+    const rule = activeUrls.find((u) => u.id === ruleId);
+    return rule && matchesUrlCS(href, rule.pattern, rule.matchType);
+  });
+}
+
+// =============================================================================
 // Entry point
 // =============================================================================
 
@@ -220,7 +271,8 @@ const lastPresence = new Map();
     const response = await sendMessage({ type: MSG.GET_STATE });
     if (!response || !response.enabled) return;
 
-    activeKeywords = (response.keywords || []).filter((k) => k.enabled);
+    activeUrls     = (response.urls     || []).filter((u) => u.enabled);
+    activeKeywords = (response.keywords || []).filter((k) => k.enabled && keywordMatchesCurrentUrl(k));
     settings       = response.settings  || {};
 
     if (activeKeywords.length === 0) return;
@@ -444,7 +496,8 @@ function handleBackgroundMessage(message) {
   alertedThisLoad.clear();
   lastPresence.clear();
 
-  activeKeywords = (message.keywords || []).filter((k) => k.enabled);
+  activeUrls     = (message.urls     || []).filter((u) => u.enabled);
+  activeKeywords = (message.keywords || []).filter((k) => k.enabled && keywordMatchesCurrentUrl(k));
   settings       = message.settings || {};
 
   if (activeKeywords.length > 0) {
