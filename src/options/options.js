@@ -141,12 +141,12 @@ function bindSetupEvents() {
 
     if (perm === 'denied') {
       // Browser-level block is detectable and definitive.
-      showToast('Notifications are blocked in Chrome settings.');
+      showToast('Notifications are blocked in Browser settings.');
       qs('#notifPermBanner').classList.remove('perm-banner--ok');
       qs('#notifPermBanner').textContent = '';
       qs('#notifPermBanner').insertAdjacentHTML('afterbegin',
         '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
-        ' Notifications are blocked in Chrome. Go to <strong>chrome://settings/content/notifications</strong> and allow notifications for Chrome, then click the test button again.'
+        ' Notifications are blocked in Browser. Go to <strong>chrome://settings/content/notifications</strong> and allow notifications for Browser, then click the test button again.'
       );
       qs('#notifPermBanner').classList.remove('hidden');
       return;
@@ -174,14 +174,14 @@ function bindSetupEvents() {
       }
       // Sent OK at the Chrome level, but OS may still silently swallow it.
       const osHint = perm === 'default'
-        ? ' If nothing appeared, go to <strong>chrome://settings/content/notifications</strong> and allow Chrome.'
-        : ' If nothing appeared, check <strong>OS notification settings</strong> and make sure Chrome is allowed.';
+        ? ' If nothing appeared, go to <strong>chrome://settings/content/notifications</strong> and allow Browser notifications.'
+        : ' If nothing appeared, check <strong>OS notification settings</strong> and make sure Browser notifications are allowed.';
       qs('#notifPermBanner').classList.add('perm-banner--ok');
       showToast('Test notification sent!');
       qs('#notifPermBanner').textContent = '';
       qs('#notifPermBanner').insertAdjacentHTML('afterbegin',
         '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
-        ` Notification sent by Chrome.${osHint}`
+        ` Notification sent by Browser.${osHint}`
       );
       qs('#notifPermBanner').classList.remove('hidden');
     });
