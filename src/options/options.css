@@ -946,3 +946,8 @@ code {
   line-height: 1.5;
 }
 .perm-banner svg { flex-shrink: 0; margin-top: 2px; color: var(--clr-red); }
+.perm-banner--ok {
+  background: rgba(63, 185, 80, 0.1);
+  border-color: rgba(63, 185, 80, 0.35);
+}
+.perm-banner--ok svg { color: var(--clr-green); }

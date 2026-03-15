@@ -111,6 +111,22 @@ async function renderSidebarStatus() {
 
 function bindSetupEvents() {
   qs('#testNotifBtn').addEventListener('click', () => {
+    const perm = Notification.permission;
+
+    if (perm === 'denied') {
+      // Browser-level block is detectable and definitive.
+      showToast('Notifications are blocked in Chrome settings.');
+      qs('#notifPermBanner').classList.remove('perm-banner--ok');
+      qs('#notifPermBanner').textContent = '';
+      qs('#notifPermBanner').insertAdjacentHTML('afterbegin',
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
+        ' Notifications are blocked in Chrome. Go to <strong>chrome://settings/content/notifications</strong> and allow notifications for Chrome, then click the test button again.'
+      );
+      qs('#notifPermBanner').classList.remove('hidden');
+      return;
+    }
+
+    // 'granted' or 'default' — attempt to create and let Chrome decide.
     chrome.notifications.create(`tw_test_${Date.now()}`, {
       type:     'basic',
       iconUrl:  chrome.runtime.getURL('src/icons/icon48.png'),
@@ -119,11 +135,29 @@ function bindSetupEvents() {
       priority: 1,
     }, () => {
       if (chrome.runtime.lastError) {
-        showToast('Notification blocked — check Chrome or OS notification settings.');
+        // Extension-level failure (rare — e.g. notifications manifest permission missing).
+        showToast('Notification could not be sent — check extension permissions.');
+        qs('#notifPermBanner').classList.remove('perm-banner--ok');
+        qs('#notifPermBanner').textContent = '';
+        qs('#notifPermBanner').insertAdjacentHTML('afterbegin',
+          '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
+          ` Extension error: ${chrome.runtime.lastError.message}`
+        );
         qs('#notifPermBanner').classList.remove('hidden');
-      } else {
-        showToast('Test notification sent!');
+        return;
       }
+      // Sent OK at the Chrome level, but OS may still silently swallow it.
+      const osHint = perm === 'default'
+        ? ' If nothing appeared, go to <strong>chrome://settings/content/notifications</strong> and allow Chrome.'
+        : ' If nothing appeared, check <strong>OS notification settings</strong> and make sure Chrome is allowed.';
+      qs('#notifPermBanner').classList.add('perm-banner--ok');
+      showToast('Test notification sent!');
+      qs('#notifPermBanner').textContent = '';
+      qs('#notifPermBanner').insertAdjacentHTML('afterbegin',
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
+        ` Notification sent by Chrome.${osHint}`
+      );
+      qs('#notifPermBanner').classList.remove('hidden');
     });
   });
 
