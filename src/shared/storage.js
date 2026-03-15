@@ -209,7 +209,8 @@ export async function restoreHistoryEntry(id) {
   const entry = history.find((h) => h.id === id);
   if (!entry) throw new Error(`History entry ${id} not found`);
   // Auto-save current state before overwriting so it can be recovered
-  await saveHistorySnapshot('Before restore');
+  const now = new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+  await saveHistorySnapshot(`Before restore · ${now}`);
   await Promise.all([
     saveKeywords(entry.keywords),
     saveUrls(entry.urls),
