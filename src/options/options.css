@@ -222,7 +222,7 @@ html, body { height: 100%; background: var(--clr-bg); }
   height: 34px;
   padding: 0 10px;
   background: var(--clr-surface2);
-  border: 1px solid var(--clr-border);
+  border: 1px solid var(--border-2);
   border-radius: var(--radius-sm);
   color: var(--clr-text);
   font-size: 13px;
@@ -260,6 +260,13 @@ html, body { height: 100%; background: var(--clr-bg); }
 }
 
 .select:focus { border-color: var(--accent-lt); }
+
+/* Ensure dropdown options are readable on dark background */
+.select option,
+.input option {
+  background: var(--clr-surface2);
+  color: var(--clr-text);
+}
 
 /* ── Toggle Switch ───────────────────────────────────────────────────── */
 .toggle {
@@ -864,7 +871,6 @@ html, body { height: 100%; background: var(--clr-bg); }
   font-size: 12px;
   color: var(--clr-muted);
   line-height: 1.5;
-  margin-bottom: 10px;
 }
 
 .link {
