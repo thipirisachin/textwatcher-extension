@@ -355,7 +355,7 @@ function bindKeywordEvents() {
     }
 
     if (action === 'edit') {
-      const keywords = await getKeywords();
+      const [keywords, urls] = await Promise.all([getKeywords(), getUrls()]);
       const kw = keywords.find((k) => k.id === id);
       if (!kw) return;
       let li = e.target.closest('li.rule-item');
