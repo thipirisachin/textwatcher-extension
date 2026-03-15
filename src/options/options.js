@@ -852,14 +852,19 @@ function buildPayloadPreviews() {
   "summary":  "TextWatcher: \\"your keyword\\" appeared",
   "sections": [{
     "activityTitle":    "\u{1F7E2} Keyword \\"your keyword\\" appeared",
-    "activitySubtitle": "https://monitored-page.com/",
-    "activityText":     "Page: Page Title",
+    "activitySubtitle": "Page Title",
+    "activityText":     "[https://monitored-page.com/](https://monitored-page.com/)",
     "facts": [
       { "name": "Keyword",    "value": "your keyword" },
       { "name": "Event",      "value": "appears"      },
       { "name": "Match Type", "value": "contains"     },
       { "name": "Time",       "value": "${ts}" }
     ]
+  }],
+  "potentialAction": [{
+    "@type": "OpenUri",
+    "name":  "Open Page",
+    "targets": [{ "os": "default", "uri": "https://monitored-page.com/" }]
   }]
 }`,
     [WEBHOOK_FORMAT.SLACK]: `{

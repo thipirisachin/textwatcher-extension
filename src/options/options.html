@@ -483,14 +483,19 @@
   "summary":  "TextWatcher: \"your keyword\" appeared",
   "sections": [{
     "activityTitle":    "🟢 Keyword \"your keyword\" appeared",
-    "activitySubtitle": "https://monitored-page.com/",
-    "activityText":     "Page: Page Title",
+    "activitySubtitle": "Page Title",
+    "activityText":     "[https://monitored-page.com/](https://monitored-page.com/)",
     "facts": [
       { "name": "Keyword",    "value": "your keyword" },
       { "name": "Event",      "value": "appears"      },
       { "name": "Match Type", "value": "contains"     },
       { "name": "Time",       "value": "2026-03-15T14:00:00+02:00" }
     ]
+  }],
+  "potentialAction": [{
+    "@type": "OpenUri",
+    "name":  "Open Page",
+    "targets": [{ "os": "default", "uri": "https://monitored-page.com/" }]
   }]
 }</pre>
           </details>

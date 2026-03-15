@@ -400,14 +400,19 @@ function buildWebhookPayload(cfg, payload) {
         summary:    `TextWatcher: "${payload.keyword}" ${eventLabel}`,
         sections: [{
           activityTitle:    `${emoji} Keyword "${payload.keyword}" ${eventLabel}`,
-          activitySubtitle: url,
-          activityText:     title ? `Page: ${title}` : '',
+          activitySubtitle: title || url,
+          activityText:     `[${url}](${url})`,
           facts: [
             { name: 'Keyword',    value: payload.keyword   },
             { name: 'Event',      value: payload.event     },
             { name: 'Match Type', value: payload.matchType },
             { name: 'Time',       value: ts                },
           ],
+        }],
+        potentialAction: [{
+          '@type': 'OpenUri',
+          name:    'Open Page',
+          targets: [{ os: 'default', uri: url }],
         }],
       });
 
