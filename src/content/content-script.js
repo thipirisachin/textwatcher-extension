@@ -338,18 +338,27 @@ function extractPageText(roots) {
 function runScan() {
   if (!activeKeywords.length) return;
 
+  // Lazily compute full page text once — shared by all unscoped keywords.
+  // Scoped keywords get their own targeted walk; on selector failure they
+  // fall back to the shared full-page result, also computed only once.
+  let _fullPageText = null;
+  const getFullPageText = () => {
+    if (_fullPageText === null) _fullPageText = extractPageText(null);
+    return _fullPageText;
+  };
+
   for (const keyword of activeKeywords) {
-    // Resolve scope: if a CSS selector is set, find all matching elements.
-    // Fall back to full page if selector is empty or matches nothing.
-    let roots = null;
+    let pageText;
     if (keyword.scopeSelector) {
       try {
         const els = Array.from(document.querySelectorAll(keyword.scopeSelector));
-        if (els.length) roots = els;
-      } catch (_) { /* invalid selector -- fall back to full page */ }
+        pageText = els.length ? extractPageText(els) : getFullPageText();
+      } catch (_) {
+        pageText = getFullPageText();
+      }
+    } else {
+      pageText = getFullPageText();
     }
-
-    const pageText = extractPageText(roots);
     const isPresent = matchesKeyword(pageText, keyword.text, keyword.matchType);
     const wasBefore = lastPresence.has(keyword.id)
       ? lastPresence.get(keyword.id)

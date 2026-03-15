@@ -132,15 +132,17 @@ export async function saveUrls(urls) {
 /**
  * Add a single URL rule. Silently rejects exact duplicates (same pattern + matchType).
  * @param {UrlRule} rule
+ * @returns {Promise<boolean>} true if added, false if rejected as duplicate
  */
 export async function addUrl(rule) {
   const list = await getUrls();
   const isDuplicate = list.some(
     (u) => u.pattern === rule.pattern && u.matchType === rule.matchType
   );
-  if (isDuplicate) return;
+  if (isDuplicate) return false;
   list.push({ ...rule, id: generateId() });
   await saveUrls(list);
+  return true;
 }
 
 /**
@@ -184,6 +186,22 @@ export async function saveHistorySnapshot(label = '') {
     getUrls(),
     getHistory(),
   ]);
+
+  // Don't save an empty setup — nothing useful to restore
+  if (keywords.length === 0 && urls.length === 0) return null;
+
+  // Deduplicate: don't save if an identical setup already exists.
+  // Fingerprint covers only the fields that affect monitoring behaviour;
+  // label, id, enabled state are intentionally excluded.
+  const fingerprint = (kws, us) => JSON.stringify({
+    k: kws.map((k) => ({ t: k.text, m: k.matchType, s: k.scopeSelector || '', aa: k.alertAppear, ad: k.alertDisappear }))
+          .sort((a, b) => a.t.localeCompare(b.t) || a.m.localeCompare(b.m)),
+    u: us.map((u) => ({ p: u.pattern, m: u.matchType }))
+         .sort((a, b) => a.p.localeCompare(b.p)),
+  });
+
+  const currentPrint = fingerprint(keywords, urls);
+  if (history.some((h) => fingerprint(h.keywords, h.urls) === currentPrint)) return null;
 
   const entry = {
     id:        generateId(),
@@ -275,11 +293,11 @@ export async function setOnboarded() {
 // ─── Utility ─────────────────────────────────────────────────────────────────
 
 /**
- * Generate a short unique ID (no crypto dependency).
+ * Generate a cryptographically random unique ID.
  * @returns {string}
  */
 export function generateId() {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  return crypto.randomUUID();
 }
 
 /**

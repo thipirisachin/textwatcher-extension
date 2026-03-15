@@ -41,8 +41,10 @@ const urlCount          = qs('#urlCount');
 const alertCount        = qs('#alertCount');
 const alertBadge        = qs('#alertBadge');
 const alertList         = qs('#alertList');
+const alertMoreBtn      = qs('#alertMoreBtn');
 const historyList       = qs('#historyList');
 const historyBadge      = qs('#historyBadge');
+const historyMoreBtn    = qs('#historyMoreBtn');
 const openOptionsBtn    = qs('#openOptionsBtn');
 const saveSnapshotBtn   = qs('#saveSnapshotBtn');
 
@@ -123,6 +125,7 @@ async function renderAlerts() {
 
   if (alerts.length === 0) {
     alertList.innerHTML = '<li class="alert-list__empty">No alerts yet — monitoring will log events here.</li>';
+    alertMoreBtn.classList.add('hidden');
     return;
   }
 
@@ -144,6 +147,7 @@ async function renderAlerts() {
     `;
     alertList.appendChild(li);
   });
+  alertMoreBtn.classList.toggle('hidden', alerts.length <= 3);
 }
 
 // ─── History (Saved Setups) ───────────────────────────────────────────────────
@@ -153,11 +157,12 @@ async function renderHistory() {
 
   if (history.length === 0) {
     historyList.innerHTML = '<li class="history-list__empty">No saved setups yet.</li>';
+    historyMoreBtn.classList.add('hidden');
     return;
   }
 
   historyList.innerHTML = '';
-  history.forEach((entry) => {
+  history.slice(0, 3).forEach((entry) => {
     const li = document.createElement('li');
     li.className = 'history-item';
     li.dataset.id = entry.id;
@@ -173,12 +178,20 @@ async function renderHistory() {
         <div class="history-item__sub">${escapeHtml(kwdSummary)} · ${urlSummary} · ${timeAgo(entry.timestamp)}</div>
       </div>
       <div class="history-item__actions">
-        <button class="btn--icon restore" data-action="restore" data-id="${entry.id}" title="Restore this setup">↩</button>
-        <button class="btn--icon delete"  data-action="delete"  data-id="${entry.id}" title="Delete">✕</button>
+        <button class="btn--icon restore" data-action="restore" data-id="${entry.id}" title="Restore this setup"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg></button>
+        <button class="btn--icon delete"  data-action="delete"  data-id="${entry.id}" title="Delete"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
     `;
     historyList.appendChild(li);
   });
+  historyMoreBtn.classList.toggle('hidden', history.length <= 3);
+}
+
+// ─── Open Options at Section ──────────────────────────────────────────────────
+
+async function openOptionsAt(section) {
+  await chrome.storage.local.set({ tw_open_section: section });
+  chrome.runtime.openOptionsPage();
 }
 
 // ─── Event Bindings ───────────────────────────────────────────────────────────
@@ -240,6 +253,15 @@ function bindEvents() {
     }
   });
 
+  // Summary card navigation
+  qs('#cardKeywords').addEventListener('click', () => openOptionsAt('keywords'));
+  qs('#cardUrls').addEventListener('click',     () => openOptionsAt('urls'));
+  qs('#cardAlerts').addEventListener('click',   () => openOptionsAt('activity'));
+
+  // "View all" More buttons
+  alertMoreBtn.addEventListener('click',   () => openOptionsAt('activity'));
+  historyMoreBtn.addEventListener('click', () => openOptionsAt('history'));
+
   // Open full settings
   openOptionsBtn.addEventListener('click', () => {
     chrome.runtime.openOptionsPage();
@@ -248,7 +270,14 @@ function bindEvents() {
   // Save current setup as snapshot
   saveSnapshotBtn.addEventListener('click', async () => {
     const label = `Setup ${new Date().toLocaleString()}`;
-    await saveHistorySnapshot(label);
+    const saved = await saveHistorySnapshot(label);
+    if (saved === null) {
+      const [kws, us] = await Promise.all([getKeywords(), getUrls()]);
+      showToast((kws.length === 0 && us.length === 0)
+        ? 'Nothing to save — add keywords or URLs first.'
+        : 'This setup is already saved.');
+      return;
+    }
     await renderHistory();
     await renderCounts();
     showToast('Setup saved!');

@@ -46,9 +46,6 @@ qsa('.nav-link').forEach((link) => {
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 async function init() {
-  // alertOnAppear/alertOnDisappear are now per-keyword only; reset any stale stored false values
-  await saveSettings({ alertOnAppear: true, alertOnDisappear: true });
-
   await Promise.all([
     renderKeywords(),
     renderUrls(),
@@ -68,6 +65,13 @@ async function init() {
   bindSetupEvents();
   bindGlobalToggle();
   listenForChanges();
+
+  // Deep-link: if the popup stored a target section, navigate there and clear.
+  const { tw_open_section: target } = await chrome.storage.local.get('tw_open_section');
+  if (target) {
+    await chrome.storage.local.remove('tw_open_section');
+    showSection(target);
+  }
 }
 
 // ─── Welcome Banner ───────────────────────────────────────────────────────────────
@@ -107,14 +111,54 @@ async function renderSidebarStatus() {
 
 function bindSetupEvents() {
   qs('#testNotifBtn').addEventListener('click', () => {
-    chrome.notifications.create('tw_test_' + Date.now(), {
+    const perm = Notification.permission;
+
+    if (perm === 'denied') {
+      // Browser-level block is detectable and definitive.
+      showToast('Notifications are blocked in Chrome settings.');
+      qs('#notifPermBanner').classList.remove('perm-banner--ok');
+      qs('#notifPermBanner').textContent = '';
+      qs('#notifPermBanner').insertAdjacentHTML('afterbegin',
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
+        ' Notifications are blocked in Chrome. Go to <strong>chrome://settings/content/notifications</strong> and allow notifications for Chrome, then click the test button again.'
+      );
+      qs('#notifPermBanner').classList.remove('hidden');
+      return;
+    }
+
+    // 'granted' or 'default' — attempt to create and let Chrome decide.
+    chrome.notifications.create(`tw_test_${Date.now()}`, {
       type:     'basic',
       iconUrl:  chrome.runtime.getURL('src/icons/icon48.png'),
       title:    'TextWatcher',
       message:  'Notifications are working correctly! \u2713',
       priority: 1,
+    }, () => {
+      if (chrome.runtime.lastError) {
+        // Extension-level failure (rare — e.g. notifications manifest permission missing).
+        showToast('Notification could not be sent — check extension permissions.');
+        qs('#notifPermBanner').classList.remove('perm-banner--ok');
+        qs('#notifPermBanner').textContent = '';
+        qs('#notifPermBanner').insertAdjacentHTML('afterbegin',
+          '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
+          ` Extension error: ${chrome.runtime.lastError.message}`
+        );
+        qs('#notifPermBanner').classList.remove('hidden');
+        return;
+      }
+      // Sent OK at the Chrome level, but OS may still silently swallow it.
+      const osHint = perm === 'default'
+        ? ' If nothing appeared, go to <strong>chrome://settings/content/notifications</strong> and allow Chrome.'
+        : ' If nothing appeared, check <strong>OS notification settings</strong> and make sure Chrome is allowed.';
+      qs('#notifPermBanner').classList.add('perm-banner--ok');
+      showToast('Test notification sent!');
+      qs('#notifPermBanner').textContent = '';
+      qs('#notifPermBanner').insertAdjacentHTML('afterbegin',
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
+        ` Notification sent by Chrome.${osHint}`
+      );
+      qs('#notifPermBanner').classList.remove('hidden');
     });
-    showToast('Test notification sent!');
   });
 
   qs('#setupGoKeywords').addEventListener('click', (e) => {
@@ -522,13 +566,14 @@ async function handleAddUrl() {
     catch (_) { showError(errEl, 'Invalid URL. Example: https://example.com/*'); return; }
   }
 
-  await addUrl({
+  const added = await addUrl({
     pattern,
     matchType,
     label: label || pattern,
     enabled: qs('#urlEnabled').checked,
   });
 
+  if (!added) { showError(errEl, 'This URL rule already exists.'); return; }
   qs('#urlPattern').value = '';
   qs('#urlLabel').value   = '';
   await renderUrls();
@@ -698,8 +743,8 @@ async function renderHistory() {
         </div>
       </div>
       <div class="history-item__actions">
-        <button class="btn--icon" data-action="restore" data-id="${entry.id}">↩ Restore</button>
-        <button class="btn--icon del" data-action="delete" data-id="${entry.id}">✕</button>
+        <button class="btn--icon" data-action="restore" data-id="${entry.id}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg> Restore</button>
+        <button class="btn--icon del" data-action="delete" data-id="${entry.id}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
     `;
     list.appendChild(li);
@@ -709,7 +754,14 @@ async function renderHistory() {
 function bindHistoryEvents() {
   qs('#saveNowBtn').addEventListener('click', async () => {
     const label = qs('#saveLabel').value.trim() || `Setup ${new Date().toLocaleString()}`;
-    await saveHistorySnapshot(label);
+    const saved = await saveHistorySnapshot(label);
+    if (saved === null) {
+      const [kws, us] = await Promise.all([getKeywords(), getUrls()]);
+      showToast((kws.length === 0 && us.length === 0)
+        ? 'Nothing to save — add keywords or URLs first.'
+        : 'This setup is already saved.');
+      return;
+    }
     qs('#saveLabel').value = '';
     await renderHistory();
     showToast('Setup saved!');
@@ -721,11 +773,15 @@ function bindHistoryEvents() {
     const { action, id } = btn.dataset;
 
     if (action === 'restore') {
+      // Fetch entry first so we can show counts in the toast
+      const allHistory = await getHistory();
+      const entry = allHistory.find((h) => h.id === id);
       await restoreHistoryEntry(id);
-      await renderKeywords();
-      await renderUrls();
-      await renderSidebarStatus();
-      showToast('Setup restored!');
+      await Promise.all([renderKeywords(), renderUrls(), renderHistory(), renderSidebarStatus()]);
+      const kCount = entry?.keywords?.length ?? 0;
+      const uCount = entry?.urls?.length ?? 0;
+      showToast(`Restored: ${kCount} keyword${kCount !== 1 ? 's' : ''} · ${uCount} URL${uCount !== 1 ? 's' : ''}`);
+      showSection('keywords');
     }
 
     if (action === 'delete') {

@@ -341,10 +341,17 @@ body {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, background 0.15s;
+  cursor: pointer;
+  font-family: inherit;
 }
 
-.summary-card:hover { border-color: var(--border-2); }
+.summary-card:hover {
+  border-color: var(--accent-lt);
+  background: var(--overlay);
+}
+
+.summary-card:active { transform: translateY(1px); }
 
 .summary-card__count {
   font-size: 26px;
@@ -485,6 +492,29 @@ body {
 .alert-item__body   { min-width: 0; }
 .alert-item__text   { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .alert-item__meta   { font-size: 10px; color: var(--text-3); margin-top: 1px; }
+
+/* ── More / View-all Button ──────────────────────────────────────────── */
+.btn--more {
+  display: block;
+  width: 100%;
+  margin-top: 9px;
+  padding: 7px 0;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--r-xs);
+  color: var(--accent-lt);
+  font-size: 11px;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.2px;
+  transition: all 0.15s;
+}
+
+.btn--more:hover {
+  background: var(--accent-gl);
+  border-color: var(--accent-lt);
+}
 
 /* ── Utilities ───────────────────────────────────────────────────────── */
 .error-msg {
