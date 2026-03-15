@@ -409,7 +409,7 @@ function buildWebhookPayload(cfg, payload) {
           activityImage:    LOGO_DATA_URI,
           activityTitle:    `Keyword "${payload.keyword}" ${eventLabel}`,
           activitySubtitle: title || url,
-          activityText:     `[${url}](${url})`,`
+          activityText:     `[${url}](${url})`,
           facts: [
             { name: 'Keyword',    value: payload.keyword   },
             { name: 'Event',      value: payload.event     },
