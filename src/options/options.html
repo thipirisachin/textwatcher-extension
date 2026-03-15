@@ -197,7 +197,10 @@
           <div class="form-grid">
             <div class="form-field form-field--wide">
               <label class="label">Keyword / Phrase</label>
-              <input type="text" id="kwText" class="input" placeholder="Text to watch for…" maxlength="500" />
+              <div class="input-wrap">
+                <input type="text" id="kwText" class="input" placeholder="Text to watch for…" maxlength="500" />
+                <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
+              </div>
             </div>
             <div class="form-field">
               <label class="label">Match Type</label>
@@ -212,7 +215,10 @@
             </div>
             <div class="form-field form-field--wide">
               <label class="label">Scope — CSS Selector <span class="label__opt">(optional)</span></label>
-              <input type="text" id="kwScope" class="input" placeholder="e.g. #results, .price-box, [data-section=\"live\"]" maxlength="500" />
+              <div class="input-wrap">
+                <input type="text" id="kwScope" class="input" placeholder="e.g. #results, .price-box, [data-section=&quot;live&quot;]" maxlength="500" />
+                <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
+              </div>
               <p class="hint" style="margin-top:5px;">Leave empty to scan the whole page. Tip: right-click an element in DevTools → Copy → Copy selector.</p>
             </div>            <div class="form-field form-field--wide">
               <label class="label">URL Binding <span class="label__opt">(optional)</span></label>
@@ -246,7 +252,10 @@
         <div class="card">
           <h2 class="card__title">Keyword Rules <span class="badge" id="kwBadge">0</span></h2>
           <div class="search-row">
-            <input type="text" id="kwSearch" class="input" placeholder="Filter keywords…" />
+            <div class="input-wrap">
+              <input type="text" id="kwSearch" class="input" placeholder="Filter keywords…" />
+              <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
+            </div>
           </div>
           <ul class="rule-list" id="kwList">
             <li class="rule-list__empty">No keywords yet. Add one above.</li>
@@ -267,7 +276,10 @@
           <div class="form-grid">
             <div class="form-field form-field--wide">
               <label class="label">URL / Pattern</label>
-              <input type="text" id="urlPattern" class="input" placeholder="https://example.com/*" maxlength="500" />
+              <div class="input-wrap">
+                <input type="text" id="urlPattern" class="input" placeholder="https://example.com/*" maxlength="500" />
+                <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
+              </div>
             </div>
             <div class="form-field">
               <label class="label">Match Type</label>
@@ -279,7 +291,10 @@
             </div>
             <div class="form-field form-field--wide">
               <label class="label">Label (optional)</label>
-              <input type="text" id="urlLabel" class="input" placeholder="My site" maxlength="100" />
+              <div class="input-wrap">
+                <input type="text" id="urlLabel" class="input" placeholder="My site" maxlength="100" />
+                <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
+              </div>
             </div>
           </div>
           <div class="url-hint hint" id="urlHint">

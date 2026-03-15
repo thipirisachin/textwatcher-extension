@@ -276,6 +276,17 @@ async function openOptionsAt(section) {
 // ─── Event Bindings ───────────────────────────────────────────────────────────
 
 function bindEvents() {
+  // Clear (×) buttons on all .input-wrap inputs
+  document.querySelectorAll('.input-wrap').forEach((wrap) => {
+    const input = wrap.querySelector('input');
+    const btn   = wrap.querySelector('.input-clear');
+    if (!input || !btn) return;
+    const sync = () => wrap.classList.toggle('has-value', input.value.length > 0);
+    input.addEventListener('input', sync);
+    btn.addEventListener('click', () => { input.value = ''; sync(); input.focus(); });
+    sync();
+  });
+
   // Master toggle
   masterToggle.addEventListener('change', async () => {
     await setEnabled(masterToggle.checked);

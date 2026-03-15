@@ -68,6 +68,7 @@ async function init() {
   bindSetupEvents();
   bindGlobalToggle();
   bindWebhookEvents();
+  bindClearButtons();
   listenForChanges();
 
   // Deep-link: if the popup stored a target section, navigate there and clear.
@@ -200,12 +201,24 @@ function bindSetupEvents() {
     showToast('Monitoring enabled!');
   });
 
-  // Accordion for setup guide steps
+  // Accordion for setup guide steps — single-expand
   document.querySelectorAll('.setup-accordion__hd').forEach((btn) => {
     btn.addEventListener('click', () => {
       const bodyId = btn.dataset.accordion;
       const body   = qs(`#${bodyId}`);
       const open   = btn.getAttribute('aria-expanded') === 'true';
+
+      if (!open) {
+        // Collapse all others first
+        document.querySelectorAll('.setup-accordion__hd').forEach((other) => {
+          if (other === btn) return;
+          other.setAttribute('aria-expanded', 'false');
+          const otherId = other.dataset.accordion;
+          const otherBody = qs(`#${otherId}`);
+          if (otherBody) otherBody.hidden = true;
+        });
+      }
+
       btn.setAttribute('aria-expanded', open ? 'false' : 'true');
       body.hidden = open;
     });
@@ -219,6 +232,20 @@ function bindGlobalToggle() {
     await setEnabled(e.target.checked);
     await renderSidebarStatus();
     showToast(e.target.checked ? 'Monitoring enabled' : 'Monitoring paused');
+  });
+}
+
+// ─── Clear buttons on input-wrap ─────────────────────────────────────────────
+
+function bindClearButtons() {
+  document.querySelectorAll('.input-wrap').forEach((wrap) => {
+    const input = wrap.querySelector('input');
+    const btn   = wrap.querySelector('.input-clear');
+    if (!input || !btn) return;
+    const sync = () => wrap.classList.toggle('has-value', input.value.length > 0);
+    input.addEventListener('input', sync);
+    btn.addEventListener('click', () => { input.value = ''; sync(); input.dispatchEvent(new Event('input')); input.focus(); });
+    sync();
   });
 }
 

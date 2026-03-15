@@ -45,13 +45,16 @@
   <!-- ── Quick Add Keyword ──────────────────────────────────── -->
   <section class="section">
     <h2 class="section__title">Quick Add Keyword</h2>
-    <input
-      type="text"
-      id="quickKeyword"
-      class="input"
-      placeholder="Keyword or phrase…"
-      maxlength="500"
-    />
+    <div class="input-wrap" id="quickKeywordWrap">
+      <input
+        type="text"
+        id="quickKeyword"
+        class="input"
+        placeholder="Keyword or phrase…"
+        maxlength="500"
+      />
+      <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
+    </div>
     <div class="checkbox-row">
       <label class="checkbox-label">
         <input type="checkbox" id="quickAlertAppear" checked />
@@ -74,13 +77,16 @@
         <option value="regex">Regex</option>
       </select>
       <p class="advanced-label">Page scope (CSS selector)</p>
-      <input
-        type="text"
-        id="quickScope"
-        class="input"
-        placeholder="#results, .product-list, …"
-        maxlength="500"
-      />
+      <div class="input-wrap">
+        <input
+          type="text"
+          id="quickScope"
+          class="input"
+          placeholder="#results, .product-list, …"
+          maxlength="500"
+        />
+        <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
+      </div>
       <p class="advanced-hint">Leave blank to scan the whole page.</p>
       <p class="advanced-label" style="margin-top:10px;">URL binding</p>
       <div id="quickUrlBinding" class="popup-url-binding">
@@ -95,13 +101,16 @@
   <section class="section">
     <h2 class="section__title">Quick Add URL</h2>
     <div class="input-row">
-      <input
-        type="text"
-        id="quickUrl"
-        class="input"
-        placeholder="https://example.com/*"
-        maxlength="500"
-      />
+      <div class="input-wrap" style="flex:1;">
+        <input
+          type="text"
+          id="quickUrl"
+          class="input"
+          placeholder="https://example.com/*"
+          maxlength="500"
+        />
+        <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
+      </div>
       <select id="quickUrlMatchType" class="select select--compact">
         <option value="wildcard">Wildcard</option>
         <option value="exact">Exact URL</option>

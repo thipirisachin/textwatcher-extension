@@ -243,17 +243,18 @@ body {
 
 .input::placeholder { color: var(--text-3); }
 
-/* Custom select — hide native arrow, show SVG chevron */
+/* Custom select — flat pill, no box */
 .select {
   height: 32px;
-  padding: 0 28px 0 9px;
-  background: var(--surface-2)
+  padding: 0 26px 0 9px;
+  background: transparent
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238b949e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")
-    no-repeat right 8px center;
+    no-repeat right 6px center;
   appearance: none;
   -webkit-appearance: none;
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
+  border: none;
+  border-bottom: 1.5px solid var(--border-2);
+  border-radius: 0;
   color: var(--text);
   font-size: 12px;
   font-family: inherit;
@@ -262,7 +263,7 @@ body {
   transition: border-color 0.15s;
 }
 
-.select:focus { border-color: var(--accent-lt); box-shadow: 0 0 0 3px var(--accent-gl); }
+.select:focus { border-bottom-color: var(--accent-lt); }
 .select--compact { flex-shrink: 0; }
 
 .input-row {
@@ -321,19 +322,57 @@ body {
   transform: rotate(45deg);
 }
 
-/* ── Advanced Row (scope selector) ──────────────────────────────────── */
+/* ── Input with clear button ───────────────────────────────────────── */
+.input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-wrap .input { padding-right: 28px; }
+
+.input-clear {
+  position: absolute;
+  right: 6px;
+  background: none;
+  border: none;
+  color: var(--text-3);
+  cursor: pointer;
+  padding: 2px;
+  display: none;
+  line-height: 1;
+  font-size: 14px;
+  transition: color 0.15s;
+}
+
+.input-clear:hover { color: var(--text); }
+.input-wrap:focus-within .input-clear,
+.input-wrap.has-value     .input-clear { display: flex; }
+
+/* ── Tab Context Dot blink ───────────────────────────────────────── */
+@keyframes ctx-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+
+.tab-ctx-bar--watched .tab-ctx-bar__dot {
+  animation: ctx-blink 2.8s ease-in-out infinite;
+}
+
+/* ── Advanced toggle button ───────────────────────────────────────── */
 .btn--link {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  height: 28px;
-  padding: 0 10px;
-  margin-top: 8px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-xs);
-  color: var(--text-2);
-  font-size: 12px;
+  height: 26px;
+  padding: 0 2px;
+  margin-top: 7px;
+  background: none;
+  border: none;
+  border-bottom: 1px dashed var(--border-2);
+  border-radius: 0;
+  color: var(--text-3);
+  font-size: 11px;
   font-family: inherit;
   font-weight: 500;
   cursor: pointer;
@@ -342,11 +381,22 @@ body {
 
 .btn--link:hover {
   color: var(--accent-lt);
-  border-color: var(--accent-lt);
-  background: var(--accent-gl);
+  border-bottom-color: var(--accent-lt);
 }
 
-.advanced-row { margin-top: 8px; }
+/* Advanced options inset panel */
+.advanced-row {
+  margin-top: 6px;
+  background: var(--overlay);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--r-sm);
+  padding: 10px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
 .advanced-row.hidden { display: none; }
 
 /* URL binding inside Advanced drawer */
