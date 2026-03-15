@@ -429,6 +429,7 @@
             <div class="form-field form-field--wide">
               <label class="label" for="webhookUrl">Endpoint URL</label>
               <input type="text" id="webhookUrl" class="input" placeholder="https://your-server.com/webhook" maxlength="500" autocomplete="off" spellcheck="false" />
+              <p class="error-msg hidden" id="webhookUrlError"></p>
               <p class="hint" id="webhookUrlHint" style="margin-top:5px;">Must be <code>https://</code>. <code>http://localhost</code> is also allowed for local testing.</p>
             </div>
             <div class="form-field form-field--wide">

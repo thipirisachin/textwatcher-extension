@@ -929,8 +929,10 @@ function bindWebhookEvents() {
 
   function markDirty() { saveBtn.disabled = false; }
 
+  const urlErrEl = qs('#webhookUrlError');
+
   qs('#webhookEnabled').addEventListener('change', markDirty);
-  qs('#webhookUrl').addEventListener('input', markDirty);
+  qs('#webhookUrl').addEventListener('input', () => { markDirty(); hideError(urlErrEl); });
   qs('#webhookSecret').addEventListener('input', markDirty);
   qs('#webhookFormat').addEventListener('change', () => {
     markDirty();
@@ -963,7 +965,8 @@ function bindWebhookEvents() {
           (u.hostname === 'localhost' || u.hostname === '127.0.0.1');
         if (!isHttps && !isLocalHttp) throw new Error();
       } catch (_) {
-        showToast('Invalid URL. Use https:// or http://localhost.');
+        showError(urlErrEl, 'Invalid URL. Must be https:// or http://localhost.');
+        qs('#webhookUrl').focus();
         return;
       }
     }
@@ -979,6 +982,7 @@ function bindWebhookEvents() {
     // Only overwrite the secret if the user typed a new one
     if (secret) patch.secret = secret;
 
+    hideError(urlErrEl);
     await saveWebhookSettings(patch);
     await renderWebhookSettings(); // re-render to show masked placeholder
     showToast('Webhook settings saved!');
