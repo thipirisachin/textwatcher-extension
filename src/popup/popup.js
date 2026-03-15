@@ -4,7 +4,6 @@
  * Communicates via chrome.storage and chrome.runtime messaging only.
  */
 
-import { STORAGE_KEY, MATCH_TYPE } from '../shared/constants.js';
 import {
   getEnabled, setEnabled,
   getKeywords, addKeyword,
@@ -12,7 +11,8 @@ import {
   getHistory, saveHistorySnapshot, restoreHistoryEntry, removeHistoryEntry,
   getAlertHistory,
 } from '../shared/storage.js';
-import { validateRegex } from '../shared/matcher.js';
+import { STORAGE_KEY, MATCH_TYPE, URL_SCOPE_ALL } from '../shared/constants.js';
+import { validateRegex, matchesUrl } from '../shared/matcher.js';
 import { qs, timeAgo, truncate, escapeHtml, onStorageChange } from '../shared/utils.js';
 
 // ─── SVG Icon Strings ─────────────────────────────────────────────────────────
@@ -39,14 +39,14 @@ const urlError          = qs('#urlError');
 const keywordCount      = qs('#keywordCount');
 const urlCount          = qs('#urlCount');
 const alertCount        = qs('#alertCount');
-const alertBadge        = qs('#alertBadge');
-const alertList         = qs('#alertList');
-const alertMoreBtn      = qs('#alertMoreBtn');
-const historyList       = qs('#historyList');
-const historyBadge      = qs('#historyBadge');
-const historyMoreBtn    = qs('#historyMoreBtn');
 const openOptionsBtn    = qs('#openOptionsBtn');
-const saveSnapshotBtn   = qs('#saveSnapshotBtn');
+
+// ── Tab Context Bar refs (resolved lazily — element may not exist on old DOM)
+const tabCtxBar    = qs('#tabCtxBar');
+const tabCtxDot    = qs('#tabCtxDot');
+const tabCtxText   = qs('#tabCtxText');
+const tabCtxAddBtn = qs('#tabCtxAddBtn');
+const quickUrlBinding = qs('#quickUrlBinding');
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
@@ -58,12 +58,82 @@ async function init() {
 
 async function renderAll() {
   await Promise.all([
+    renderTabContext(),
     renderToggle(),
     renderStatus(),
     renderCounts(),
-    renderHistory(),
-    renderAlerts(),
+    renderPopupUrlBinding(),
   ]);
+}
+
+// ─── URL Binding in Popup Keyword Form ───────────────────────────────────────────────────────────
+
+async function renderPopupUrlBinding() {
+  if (!quickUrlBinding) return;
+  const urls = await getUrls();
+  const active = urls.filter((u) => u.enabled);
+  if (active.length === 0) {
+    quickUrlBinding.innerHTML = '<p class="advanced-hint" style="margin:0">Add URL rules first to bind this keyword to specific pages.</p>';
+    return;
+  }
+  quickUrlBinding.innerHTML = active.map((u) => {
+    const label = truncate(u.label || u.pattern, 38);
+    return `<label class="popup-url-binding__item">
+      <input type="checkbox" name="quickUrlScope" value="${escapeHtml(u.id)}" />
+      <span>${escapeHtml(label)}</span>
+    </label>`;
+  }).join('');
+}
+
+function readPopupUrlBinding() {
+  if (!quickUrlBinding) return URL_SCOPE_ALL;
+  const checked = Array.from(quickUrlBinding.querySelectorAll('input[name="quickUrlScope"]:checked')).map((cb) => cb.value);
+  return checked.length > 0 ? checked : URL_SCOPE_ALL;
+}
+
+// ─── Tab Context Bar ────────────────────────────────────────────────────────────────────────────────
+
+async function renderTabContext() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tabUrl = tab?.url ?? '';
+
+  // Hide bar for browser-internal pages.
+  if (!tabUrl || /^(chrome|about|edge|moz-extension|chrome-extension):/.test(tabUrl)) {
+    tabCtxBar.style.display = 'none';
+    return;
+  }
+
+  tabCtxBar.style.display = '';
+
+  const enabled = await getEnabled();
+  if (!enabled) {
+    tabCtxBar.className    = 'tab-ctx-bar';
+    tabCtxDot.className    = 'tab-ctx-bar__dot';
+    tabCtxText.textContent = 'Monitoring paused';
+    tabCtxAddBtn.classList.add('hidden');
+    return;
+  }
+
+  const [urls, keywords] = await Promise.all([getUrls(), getKeywords()]);
+  const activeUrls = urls.filter((u) => u.enabled);
+  const matched    = activeUrls.filter((u) => matchesUrl(tabUrl, u.pattern, u.matchType));
+
+  if (matched.length > 0) {
+    const activeKw = keywords.filter((k) => {
+      if (!k.enabled) return false;
+      if (!k.urlScope || k.urlScope === 'all') return true;
+      return k.urlScope.some((uid) => matched.some((u) => u.id === uid));
+    }).length;
+    tabCtxBar.className    = 'tab-ctx-bar tab-ctx-bar--watched';
+    tabCtxDot.className    = 'tab-ctx-bar__dot';
+    tabCtxText.textContent = `Watching this page · ${activeKw} keyword${activeKw !== 1 ? 's' : ''} active`;
+    tabCtxAddBtn.classList.add('hidden');
+  } else {
+    tabCtxBar.className    = 'tab-ctx-bar tab-ctx-bar--unwatched';
+    tabCtxDot.className    = 'tab-ctx-bar__dot';
+    tabCtxText.textContent = "This page isn't monitored";
+    tabCtxAddBtn.classList.remove('hidden');
+  }
 }
 
 // ─── Toggle ───────────────────────────────────────────────────────────────────
@@ -104,17 +174,15 @@ async function renderStatus() {
 }
 
 async function renderCounts() {
-  const [keywords, urls, alerts, history] = await Promise.all([
+  const [keywords, urls, alerts] = await Promise.all([
     getKeywords(),
     getUrls(),
     getAlertHistory(),
-    getHistory(),
   ]);
 
   keywordCount.textContent = keywords.filter((k) => k.enabled).length;
   urlCount.textContent     = urls.filter((u) => u.enabled).length;
   alertCount.textContent   = alerts.length;
-  historyBadge.textContent = history.length;
 }
 
 // ─── Alert History ────────────────────────────────────────────────────────────
@@ -124,7 +192,7 @@ async function renderAlerts() {
   alertBadge.textContent = alerts.length;
 
   if (alerts.length === 0) {
-    alertList.innerHTML = '<li class="alert-list__empty">No alerts yet — monitoring will log events here.</li>';
+    alertList.innerHTML = '<li class="alert-list__empty">No alerts yet. Add a keyword and URL to start watching a page.</li>';
     alertMoreBtn.classList.add('hidden');
     return;
   }
@@ -156,7 +224,7 @@ async function renderHistory() {
   const history = await getHistory();
 
   if (history.length === 0) {
-    historyList.innerHTML = '<li class="history-list__empty">No saved setups yet.</li>';
+    historyList.innerHTML = '<li class="history-list__empty">No saved setups. Use <em>Save Setup</em> below to snapshot your current config.</li>';
     historyMoreBtn.classList.add('hidden');
     return;
   }
@@ -197,6 +265,17 @@ async function openOptionsAt(section) {
 // ─── Event Bindings ───────────────────────────────────────────────────────────
 
 function bindEvents() {
+  // Clear (×) buttons on all .input-wrap inputs
+  document.querySelectorAll('.input-wrap').forEach((wrap) => {
+    const input = wrap.querySelector('input');
+    const btn   = wrap.querySelector('.input-clear');
+    if (!input || !btn) return;
+    const sync = () => wrap.classList.toggle('has-value', input.value.length > 0);
+    input.addEventListener('input', sync);
+    btn.addEventListener('click', () => { input.value = ''; sync(); input.focus(); });
+    sync();
+  });
+
   // Master toggle
   masterToggle.addEventListener('change', async () => {
     await setEnabled(masterToggle.checked);
@@ -206,10 +285,10 @@ function bindEvents() {
 
   // Advanced toggle (scope selector)
   qs('#advancedToggleBtn').addEventListener('click', () => {
-    const row = qs('#advancedRow');
-    const btn = qs('#advancedToggleBtn');
-    const open = !row.classList.contains('hidden');
-    row.classList.toggle('hidden', open);
+    const wrap = qs('#advancedRowWrap');
+    const btn  = qs('#advancedToggleBtn');
+    const open = wrap.classList.contains('open');
+    wrap.classList.toggle('open', !open);
     btn.innerHTML = (open ? SVG_CHEVRON_RIGHT : SVG_CHEVRON_DOWN) + ' Advanced';
   });
 
@@ -234,54 +313,33 @@ function bindEvents() {
     }
   });
 
-  // History actions (delegated)
-  historyList.addEventListener('click', async (e) => {
-    const btn = e.target.closest('[data-action]');
-    if (!btn) return;
-    const { action, id } = btn.dataset;
-
-    if (action === 'restore') {
-      await restoreHistoryEntry(id);
-      showToast('Setup restored!');
-      await renderAll();
-    }
-
-    if (action === 'delete') {
-      await removeHistoryEntry(id);
-      await renderHistory();
-      await renderCounts();
+  // Tab context bar — "+ Add URL" shortcut
+  tabCtxAddBtn.addEventListener('click', async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.url && !tab.url.startsWith('chrome') && !tab.url.startsWith('about')) {
+      try {
+        const { hostname } = new URL(tab.url);
+        quickUrl.value          = hostname;
+        quickUrlMatchType.value = 'domain';
+        quickUrlLabel.value     = tab.title || '';
+      } catch (_) {
+        quickUrl.value = tab.url;
+      }
+      quickUrl.focus();
+      quickUrl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   });
+
+  // History actions (delegated) - removed (list no longer in popup)
 
   // Summary card navigation
   qs('#cardKeywords').addEventListener('click', () => openOptionsAt('keywords'));
   qs('#cardUrls').addEventListener('click',     () => openOptionsAt('urls'));
   qs('#cardAlerts').addEventListener('click',   () => openOptionsAt('activity'));
 
-  // "View all" More buttons
-  alertMoreBtn.addEventListener('click',   () => openOptionsAt('activity'));
-  historyMoreBtn.addEventListener('click', () => openOptionsAt('history'));
-
-  // Open full settings
-  openOptionsBtn.addEventListener('click', () => {
-    chrome.runtime.openOptionsPage();
-  });
-
-  // Save current setup as snapshot
-  saveSnapshotBtn.addEventListener('click', async () => {
-    const label = `Setup ${new Date().toLocaleString()}`;
-    const saved = await saveHistorySnapshot(label);
-    if (saved === null) {
-      const [kws, us] = await Promise.all([getKeywords(), getUrls()]);
-      showToast((kws.length === 0 && us.length === 0)
-        ? 'Nothing to save — add keywords or URLs first.'
-        : 'This setup is already saved.');
-      return;
-    }
-    await renderHistory();
-    await renderCounts();
-    showToast('Setup saved!');
-  });
+  // Footer nav buttons
+  qs('#navSetups').addEventListener('click',  () => openOptionsAt('history'));
+  openOptionsBtn.addEventListener('click', () => chrome.runtime.openOptionsPage());
 }
 
 // ─── Add Keyword Handler ──────────────────────────────────────────────────────
@@ -311,6 +369,7 @@ async function handleAddKeyword() {
     text,
     matchType,
     scopeSelector,
+    urlScope:       readPopupUrlBinding(),
     enabled:        true,
     alertAppear:    quickAlertAppear.checked,
     alertDisappear: quickAlertDisappear.checked,
@@ -318,6 +377,8 @@ async function handleAddKeyword() {
 
   quickKeyword.value    = '';
   qs('#quickScope').value = '';
+  // Reset URL binding checkboxes
+  quickUrlBinding?.querySelectorAll('input[type="checkbox"]').forEach((cb) => { cb.checked = false; });
   showToast('Keyword added!');
   await renderCounts();
   await renderStatus();

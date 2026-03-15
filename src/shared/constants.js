@@ -103,7 +103,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   enabled:               true,
 
   // Notification frequency
-  notifFrequency:        NOTIF_FREQUENCY.ONCE_PER_PAGE,
+  notifFrequency:        NOTIF_FREQUENCY.EVERY_OCCURRENCE,
   cooldownSeconds:       LIMITS.COOLDOWN_DEFAULT,
 
   // Badge

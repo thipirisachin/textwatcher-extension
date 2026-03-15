@@ -541,7 +541,7 @@ function shouldSendAlert(tabId, keywordId, event, settings) {
  * @param {number} count
  */
 function updateBadgeForTab(tabId, count) {
-  const text  = count > 0 ? String(count) : '';
+  const text  = count > 0 ? '●' : '';
   const color = count > 0 ? BADGE_COLOR.MATCH : BADGE_COLOR.ACTIVE;
 
   chrome.action.setBadgeText({ text, tabId });

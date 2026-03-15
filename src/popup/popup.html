@@ -11,14 +11,15 @@
   <!-- ── Header ─────────────────────────────────────────────── -->
   <header class="header">
     <div class="header__brand">
-      <svg class="header__logo" width="28" height="28" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-label="TextWatcher">
-        <rect x="120" y="100" width="260" height="300" rx="24" fill="#ffffff" stroke="#334155" stroke-width="16"/>
-        <rect x="160" y="170" width="180" height="18" rx="9" fill="#64748B"/>
-        <rect x="160" y="220" width="180" height="18" rx="9" fill="#64748B"/>
-        <rect x="160" y="270" width="120" height="18" rx="9" fill="#64748B"/>
-        <circle cx="360" cy="360" r="70" fill="none" stroke="#06B6D4" stroke-width="14" opacity="0.35"/>
-        <circle cx="360" cy="360" r="45" fill="none" stroke="#06B6D4" stroke-width="14" opacity="0.7"/>
-        <circle cx="360" cy="360" r="12" fill="#06B6D4"/>
+      <svg class="header__logo" width="28" height="28" viewBox="80 70 390 390" xmlns="http://www.w3.org/2000/svg" aria-label="TextWatcher">
+        <rect x="120" y="100" width="260" height="300" rx="24" fill="#7c3aed"/>
+        <rect x="120" y="100" width="260" height="80" rx="24" fill="rgba(255,255,255,0.10)"/>
+        <rect x="158" y="170" width="182" height="18" rx="9" fill="rgba(255,255,255,0.80)"/>
+        <rect x="158" y="212" width="182" height="18" rx="9" fill="rgba(255,255,255,0.80)"/>
+        <rect x="158" y="254" width="120" height="18" rx="9" fill="rgba(255,255,255,0.50)"/>
+        <circle cx="360" cy="360" r="70" fill="none" stroke="#22d3ee" stroke-width="14" opacity="0.35"/>
+        <circle cx="360" cy="360" r="45" fill="none" stroke="#22d3ee" stroke-width="14" opacity="0.70"/>
+        <circle cx="360" cy="360" r="12" fill="#22d3ee"/>
       </svg>
       <span class="header__title">TextWatcher</span>
     </div>
@@ -34,10 +35,17 @@
     <span class="status-text" id="statusText">Loading…</span>
   </div>
 
+  <!-- ── Tab Context Bar ───────────────────────────────────────── -->
+  <div class="tab-ctx-bar" id="tabCtxBar" aria-live="polite" style="display:none;">
+    <span class="tab-ctx-bar__dot" id="tabCtxDot"></span>
+    <span class="tab-ctx-bar__text" id="tabCtxText"></span>
+    <button class="tab-ctx-bar__cta hidden" id="tabCtxAddBtn">+ Add URL</button>
+  </div>
+
   <!-- ── Quick Add Keyword ──────────────────────────────────── -->
   <section class="section">
     <h2 class="section__title">Quick Add Keyword</h2>
-    <div class="input-row">
+    <div class="input-wrap" id="quickKeywordWrap">
       <input
         type="text"
         id="quickKeyword"
@@ -45,14 +53,7 @@
         placeholder="Keyword or phrase…"
         maxlength="500"
       />
-      <select id="quickMatchType" class="select select--compact">
-        <option value="contains">Contains</option>
-        <option value="exact_nocase">Exact (any case)</option>
-        <option value="exact_case">Exact (case-sensitive)</option>
-        <option value="starts_with">Starts with</option>
-        <option value="ends_with">Ends with</option>
-        <option value="regex">Regex</option>
-      </select>
+      <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
     </div>
     <div class="checkbox-row">
       <label class="checkbox-label">
@@ -64,16 +65,37 @@
         Alert when disappears
       </label>
     </div>
-    <button class="btn btn--link" id="advancedToggleBtn" type="button"><svg id="advChevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg> Advanced</button>
-    <div id="advancedRow" class="advanced-row hidden">
-      <input
-        type="text"
-        id="quickScope"
-        class="input"
-        placeholder="Scope: CSS selector (e.g. #results)"
-        maxlength="500"
-      />
-      <p class="advanced-hint">Leave empty to scan the whole page.</p>
+    <button class="btn--link" id="advancedToggleBtn" type="button"><svg id="advChevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg> Advanced</button>
+    <div id="advancedRowWrap" class="advanced-row-wrap">
+      <div class="advanced-row-inner">
+        <div id="advancedRow" class="advanced-row">
+      <p class="advanced-label">Match type</p>
+      <select id="quickMatchType" class="select" style="width:100%; margin-bottom:10px;">
+        <option value="contains">Contains</option>
+        <option value="exact_nocase">Exact (any case)</option>
+        <option value="exact_case">Exact (case-sensitive)</option>
+        <option value="starts_with">Starts with</option>
+        <option value="ends_with">Ends with</option>
+        <option value="regex">Regex</option>
+      </select>
+      <p class="advanced-label">Page scope (CSS selector)</p>
+      <div class="input-wrap">
+        <input
+          type="text"
+          id="quickScope"
+          class="input"
+          placeholder="#results, .product-list, …"
+          maxlength="500"
+        />
+        <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
+      </div>
+      <p class="advanced-hint">Leave blank to scan the whole page.</p>
+      <p class="advanced-label" style="margin-top:10px;">URL binding</p>
+      <div id="quickUrlBinding" class="popup-url-binding">
+        <p class="advanced-hint">Loading…</p>
+      </div>
+        </div>
+      </div>
     </div>
     <button class="btn btn--primary" id="addKeywordBtn">Add Keyword</button>
     <p class="error-msg hidden" id="keywordError" role="alert"></p>
@@ -83,13 +105,16 @@
   <section class="section">
     <h2 class="section__title">Quick Add URL</h2>
     <div class="input-row">
-      <input
-        type="text"
-        id="quickUrl"
-        class="input"
-        placeholder="https://example.com/*"
-        maxlength="500"
-      />
+      <div class="input-wrap" style="flex:1;">
+        <input
+          type="text"
+          id="quickUrl"
+          class="input"
+          placeholder="https://example.com/*"
+          maxlength="500"
+        />
+        <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
+      </div>
       <select id="quickUrlMatchType" class="select select--compact">
         <option value="wildcard">Wildcard</option>
         <option value="exact">Exact URL</option>
@@ -130,32 +155,10 @@
     </div>
   </section>
 
-  <!-- ── Recent Alerts ─────────────────────────────────────── -->
-  <section class="section" id="alertSection">
-    <h2 class="section__title">
-      Recent Alerts
-      <span class="section__badge" id="alertBadge">0</span>
-    </h2>
-    <ul class="alert-list" id="alertList">
-      <li class="alert-list__empty">No alerts yet — monitoring will log events here.</li>
-    </ul>    <button class="btn--more hidden" id="alertMoreBtn">View all in Full Settings →</button>  </section>
-
-  <!-- ── Recent History ─────────────────────────────────────── -->
-  <section class="section" id="historySection">
-    <h2 class="section__title">
-      Recent Setups
-      <span class="section__badge" id="historyBadge">0</span>
-    </h2>
-    <ul class="history-list" id="historyList">
-      <li class="history-list__empty">No saved setups yet.</li>
-    </ul>
-    <button class="btn--more hidden" id="historyMoreBtn">View all in Full Settings &#8594;</button>
-  </section>
-
   <!-- ── Footer ─────────────────────────────────────────────── -->
   <footer class="footer">
-    <button class="btn btn--ghost" id="openOptionsBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Full Settings</button>
-    <button class="btn btn--ghost" id="saveSnapshotBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Setup</button>
+    <button class="btn btn--ghost" id="navSetups"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Setups</button>
+    <button class="btn btn--ghost" id="openOptionsBtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Settings</button>
   </footer>
 
   <script type="module" src="popup.js"></script>

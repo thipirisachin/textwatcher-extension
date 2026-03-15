@@ -29,12 +29,23 @@ const SVG_EDIT  = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" s
 const sections = ['setup', 'keywords', 'urls', 'notifications', 'activity', 'badge', 'history', 'webhooks', 'privacy'];
 
 function showSection(id) {
-  sections.forEach((s) => {
-    qs(`#section-${s}`)?.classList.toggle('hidden', s !== id);
-  });
-  qsa('.nav-link').forEach((a) => {
-    a.classList.toggle('active', a.dataset.section === id);
-  });
+  const current = document.querySelector('.panel:not(.hidden)');
+  const next = qs(`#section-${id}`);
+
+  const doSwap = () => {
+    sections.forEach((s) => qs(`#section-${s}`)?.classList.toggle('hidden', s !== id));
+    qsa('.nav-link').forEach((a) => a.classList.toggle('active', a.dataset.section === id));
+  };
+
+  if (current && current !== next) {
+    current.classList.add('panel--leaving');
+    setTimeout(() => {
+      current.classList.remove('panel--leaving');
+      doSwap();
+    }, 150);
+  } else {
+    doSwap();
+  }
 }
 
 qsa('.nav-link').forEach((link) => {
@@ -68,6 +79,7 @@ async function init() {
   bindSetupEvents();
   bindGlobalToggle();
   bindWebhookEvents();
+  bindClearButtons();
   listenForChanges();
 
   // Deep-link: if the popup stored a target section, navigate there and clear.
@@ -185,6 +197,11 @@ function bindSetupEvents() {
     showSection('urls');
   });
 
+  qs('#setupGoWebhooks').addEventListener('click', (e) => {
+    e.preventDefault();
+    showSection('webhooks');
+  });
+
   qs('#setupDone').addEventListener('click', async (e) => {
     e.preventDefault();
     await setEnabled(true);
@@ -193,6 +210,28 @@ function bindSetupEvents() {
     await renderSidebarStatus();
     showSection('keywords');
     showToast('Monitoring enabled!');
+  });
+
+  // Accordion for setup guide steps — single-expand with CSS grid-rows animation
+  document.querySelectorAll('.setup-accordion__hd').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const bodyId = btn.dataset.accordion;
+      const wrap   = qs(`#${bodyId}-wrap`);
+      const open   = btn.getAttribute('aria-expanded') === 'true';
+
+      if (!open) {
+        // Collapse all others first
+        document.querySelectorAll('.setup-accordion__hd').forEach((other) => {
+          if (other === btn) return;
+          other.setAttribute('aria-expanded', 'false');
+          const otherWrap = qs(`#${other.dataset.accordion}-wrap`);
+          if (otherWrap) otherWrap.classList.remove('open');
+        });
+      }
+
+      btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+      if (wrap) wrap.classList.toggle('open', !open);
+    });
   });
 }
 
@@ -203,6 +242,20 @@ function bindGlobalToggle() {
     await setEnabled(e.target.checked);
     await renderSidebarStatus();
     showToast(e.target.checked ? 'Monitoring enabled' : 'Monitoring paused');
+  });
+}
+
+// ─── Clear buttons on input-wrap ─────────────────────────────────────────────
+
+function bindClearButtons() {
+  document.querySelectorAll('.input-wrap').forEach((wrap) => {
+    const input = wrap.querySelector('input');
+    const btn   = wrap.querySelector('.input-clear');
+    if (!input || !btn) return;
+    const sync = () => wrap.classList.toggle('has-value', input.value.length > 0);
+    input.addEventListener('input', sync);
+    btn.addEventListener('click', () => { input.value = ''; sync(); input.dispatchEvent(new Event('input')); input.focus(); });
+    sync();
   });
 }
 
