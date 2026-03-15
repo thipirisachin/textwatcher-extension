@@ -338,7 +338,6 @@ function bindEvents() {
   qs('#cardAlerts').addEventListener('click',   () => openOptionsAt('activity'));
 
   // Footer nav buttons
-  qs('#navAlerts').addEventListener('click',  () => openOptionsAt('activity'));
   qs('#navSetups').addEventListener('click',  () => openOptionsAt('history'));
   openOptionsBtn.addEventListener('click', () => chrome.runtime.openOptionsPage());
 }
