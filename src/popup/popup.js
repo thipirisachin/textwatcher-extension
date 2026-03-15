@@ -40,7 +40,6 @@ const keywordCount      = qs('#keywordCount');
 const urlCount          = qs('#urlCount');
 const alertCount        = qs('#alertCount');
 const openOptionsBtn    = qs('#openOptionsBtn');
-const saveSnapshotBtn   = qs('#saveSnapshotBtn');
 
 // ── Tab Context Bar refs (resolved lazily — element may not exist on old DOM)
 const tabCtxBar    = qs('#tabCtxBar');
@@ -338,29 +337,10 @@ function bindEvents() {
   qs('#cardUrls').addEventListener('click',     () => openOptionsAt('urls'));
   qs('#cardAlerts').addEventListener('click',   () => openOptionsAt('activity'));
 
-  // Nav link buttons
+  // Footer nav buttons
   qs('#navAlerts').addEventListener('click',  () => openOptionsAt('activity'));
   qs('#navSetups').addEventListener('click',  () => openOptionsAt('history'));
-
-  // Open full settings
-  openOptionsBtn.addEventListener('click', () => {
-    chrome.runtime.openOptionsPage();
-  });
-
-  // Save current setup as snapshot
-  saveSnapshotBtn.addEventListener('click', async () => {
-    const label = `Setup ${new Date().toLocaleString()}`;
-    const saved = await saveHistorySnapshot(label);
-    if (saved === null) {
-      const [kws, us] = await Promise.all([getKeywords(), getUrls()]);
-      showToast((kws.length === 0 && us.length === 0)
-        ? 'Nothing to save — add keywords or URLs first.'
-        : 'This setup is already saved.');
-      return;
-    }
-    await renderCounts();
-    showToast('Setup saved!');
-  });
+  openOptionsBtn.addEventListener('click', () => chrome.runtime.openOptionsPage());
 }
 
 // ─── Add Keyword Handler ──────────────────────────────────────────────────────
