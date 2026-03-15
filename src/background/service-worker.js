@@ -347,6 +347,10 @@ chrome.notifications.onClicked.addListener(async (notificationId) => {
 
 const WEBHOOK_TIMEOUT_MS = 8000;
 
+// Base64-encoded icon48.png — embedded so webhook platforms (Teams, Slack) can
+// display the TextWatcher logo without requiring a public server.
+const LOGO_DATA_URI = 'data:image/png;base64,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';
+
 /**
  * Validate a webhook URL.
  * Allows https:// for any host and http:// for localhost / 127.0.0.1 only.
@@ -377,7 +381,6 @@ function buildWebhookPayload(cfg, payload) {
   const url        = payload.url      || '';
   const isAppear   = payload.event === ALERT_EVENT.APPEARS;
   const eventLabel = isAppear ? 'appeared' : 'disappeared';
-  const emoji      = isAppear ? '\u{1F7E2}' : '\u{1F534}';
   const tsDate     = new Date(payload.timestamp || Date.now());
   // ISO-8601 with local offset — used in Slack/Telegram/Generic
   const tzOffset   = -tsDate.getTimezoneOffset();
@@ -403,9 +406,10 @@ function buildWebhookPayload(cfg, payload) {
         themeColor: isAppear ? '28a745' : 'dc3545',
         summary:    `TextWatcher: "${payload.keyword}" ${eventLabel}`,
         sections: [{
-          activityTitle:    `${emoji} Keyword "${payload.keyword}" ${eventLabel}`,
+          activityImage:    LOGO_DATA_URI,
+          activityTitle:    `Keyword "${payload.keyword}" ${eventLabel}`,
           activitySubtitle: title || url,
-          activityText:     `[${url}](${url})`,
+          activityText:     `[${url}](${url})`,`
           facts: [
             { name: 'Keyword',    value: payload.keyword   },
             { name: 'Event',      value: payload.event     },
@@ -422,13 +426,15 @@ function buildWebhookPayload(cfg, payload) {
 
     case WEBHOOK_FORMAT.SLACK:
       return JSON.stringify({
-        text: `${emoji} *${payload.keyword}* ${eventLabel} — <${url}|${title || url}>`,
+        icon_url:  LOGO_DATA_URI,
+        username:  'TextWatcher',
+        text: `*${payload.keyword}* ${eventLabel} — <${url}|${title || url}>`,
       });
 
     case WEBHOOK_FORMAT.TELEGRAM:
       return JSON.stringify({
         chat_id:    cfg.telegramChatId || '',
-        text:       `${emoji} *${payload.keyword}* ${eventLabel}\n\u{1F517} ${url}`,
+        text:       `*${payload.keyword}* ${eventLabel}\n${url}`,
         parse_mode: 'Markdown',
       });
 
