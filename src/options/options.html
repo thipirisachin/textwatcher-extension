@@ -1,16 +1,16 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TextWatcher — Settings</title>
+  <title>TextWatcher â€” Settings</title>
   <link rel="stylesheet" href="options.css" />
 </head>
 <body>
 
   <div class="layout">
 
-    <!-- ── Sidebar Nav ───────────────────────────────────── -->
+    <!-- â”€â”€ Sidebar Nav â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
     <nav class="sidebar">
       <div class="sidebar__brand">
         <svg width="32" height="32" viewBox="80 70 390 390" xmlns="http://www.w3.org/2000/svg" aria-label="TextWatcher">
@@ -42,16 +42,16 @@
       </ul>
       <div class="sidebar__status" id="sidebarStatus" aria-live="polite" aria-atomic="true">
         <span class="status-dot" id="sidebarDot"></span>
-        <span id="sidebarStatusText">Loading…</span>
+        <span id="sidebarStatusText">Loadingâ€¦</span>
       </div>
     </nav>
 
-    <!-- ── Main Content ──────────────────────────────────── -->
+    <!-- â”€â”€ Main Content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
     <main class="main">
 
       <div class="toast hidden" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-      <!-- ════ Welcome Banner (first install only) ═════════ -->
+      <!-- â•â•â•â• Welcome Banner (first install only) â•â•â•â•â•â•â•â•â• -->
       <div class="welcome-banner hidden" id="welcomeBanner">
         <div class="welcome-banner__icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg></div>
         <div class="welcome-banner__body">
@@ -62,7 +62,7 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
-      <!-- ════ Setup Guide ════════════════════════════════ -->
+      <!-- â•â•â•â• Setup Guide â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
       <section class="panel hidden" id="section-setup">
         <div class="panel__header">
           <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg> Setup Guide</h1>
@@ -76,19 +76,23 @@
             <h2 class="card__title" style="margin:0;flex:1">Allow Notifications</h2>
             <svg class="setup-accordion__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
-          <div class="setup-accordion__body" id="step1" hidden>
-            <p class="hint" style="margin-top:8px;">TextWatcher delivers alerts via OS notifications. Chrome must be permitted to show them at the <strong>system</strong> level &mdash; browser permission alone is not enough on some machines.</p>
-            <div class="setup-os-block">
-              <div class="setup-os-block__row">
-                <strong>Windows 10 / 11</strong>
-                <p>Settings &rarr; System &rarr; Notifications &rarr; <em>Google Chrome</em> &rarr; switch ON</p>
-              </div>
-              <div class="setup-os-block__row">
-                <strong>macOS</strong>
-                <p>System Settings &rarr; Notifications &rarr; <em>Google Chrome</em> &rarr; Allow Notifications</p>
+          <div class="setup-accordion__body-wrap" id="step1-wrap">
+            <div class="setup-accordion__body-inner">
+              <div class="setup-accordion__body">
+                <p class="hint" style="margin-top:8px;">TextWatcher delivers alerts via OS notifications. Chrome must be permitted to show them at the <strong>system</strong> level &mdash; browser permission alone is not enough on some machines.</p>
+                <div class="setup-os-block">
+                  <div class="setup-os-block__row">
+                    <strong>Windows 10 / 11</strong>
+                    <p>Settings &rarr; System &rarr; Notifications &rarr; <em>Google Chrome</em> &rarr; switch ON</p>
+                  </div>
+                  <div class="setup-os-block__row">
+                    <strong>macOS</strong>
+                    <p>System Settings &rarr; Notifications &rarr; <em>Google Chrome</em> &rarr; Allow Notifications</p>
+                  </div>
+                </div>
+                <button class="btn btn--ghost" id="testNotifBtn" style="margin-top:14px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Test Notification</button>
               </div>
             </div>
-            <button class="btn btn--ghost" id="testNotifBtn" style="margin-top:14px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Test Notification</button>
           </div>
         </div>
 
@@ -99,19 +103,23 @@
             <h2 class="card__title" style="margin:0;flex:1">Add a Keyword</h2>
             <svg class="setup-accordion__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
-          <div class="setup-accordion__body" id="step2" hidden>
-            <p class="hint" style="margin-top:8px;">Define the text TextWatcher looks for. Each keyword fires its own alert independently and has its own match type.</p>
-            <table class="setup-table">
-              <thead><tr><th>Match Type</th><th>Behaviour</th><th>Example</th></tr></thead>
-              <tbody>
-                <tr><td>Contains</td><td>Text exists anywhere on the page</td><td><code>price drop</code></td></tr>
-                <tr><td>Exact (case-insensitive)</td><td>Exact phrase, any casing</td><td><code>In Stock</code></td></tr>
-                <tr><td>Starts / Ends with</td><td>Node text starts or ends with this value</td><td><code>Sale:</code></td></tr>
-                <tr><td>Regex</td><td>Full regular expression</td><td><code>\$\d+\.\d{2}</code></td></tr>
-              </tbody>
-            </table>
-            <p class="hint" style="margin-top:10px;"><strong>Scope selector</strong> &mdash; restrict matching to a specific element (e.g. <code>#price-box</code>). Leave blank to scan the whole page.</p>
-            <button class="btn btn--primary" id="setupGoKeywords" style="margin-top:14px;">Go to Keywords &rarr;</button>
+          <div class="setup-accordion__body-wrap" id="step2-wrap">
+            <div class="setup-accordion__body-inner">
+              <div class="setup-accordion__body">
+                <p class="hint" style="margin-top:8px;">Define the text TextWatcher looks for. Each keyword fires its own alert independently and has its own match type.</p>
+                <table class="setup-table">
+                  <thead><tr><th>Match Type</th><th>Behaviour</th><th>Example</th></tr></thead>
+                  <tbody>
+                    <tr><td>Contains</td><td>Text exists anywhere on the page</td><td><code>price drop</code></td></tr>
+                    <tr><td>Exact (case-insensitive)</td><td>Exact phrase, any casing</td><td><code>In Stock</code></td></tr>
+                    <tr><td>Starts / Ends with</td><td>Node text starts or ends with this value</td><td><code>Sale:</code></td></tr>
+                    <tr><td>Regex</td><td>Full regular expression</td><td><code>\$\d+\.\d{2}</code></td></tr>
+                  </tbody>
+                </table>
+                <p class="hint" style="margin-top:10px;"><strong>Scope selector</strong> &mdash; restrict matching to a specific element (e.g. <code>#price-box</code>). Leave blank to scan the whole page.</p>
+                <button class="btn btn--primary" id="setupGoKeywords" style="margin-top:14px;">Go to Keywords &rarr;</button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -122,24 +130,28 @@
             <h2 class="card__title" style="margin:0;flex:1">Set Your URLs</h2>
             <svg class="setup-accordion__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
-          <div class="setup-accordion__body" id="step3" hidden>
-            <p class="hint" style="margin-top:8px;">Tell TextWatcher which pages to monitor. Without a URL rule no pages are scanned, regardless of your keywords.</p>
-            <div class="setup-os-block">
-              <div class="setup-os-block__row">
-                <strong>Wildcard</strong>
-                <p><code>https://example.com/*</code> &mdash; matches every page on example.com</p>
-              </div>
-              <div class="setup-os-block__row">
-                <strong>Domain-wide</strong>
-                <p>Matches the given domain and all its subdomains</p>
-              </div>
-              <div class="setup-os-block__row">
-                <strong>Exact</strong>
-                <p>Only one specific URL &mdash; useful for single-page monitoring</p>
+          <div class="setup-accordion__body-wrap" id="step3-wrap">
+            <div class="setup-accordion__body-inner">
+              <div class="setup-accordion__body">
+                <p class="hint" style="margin-top:8px;">Tell TextWatcher which pages to monitor. Without a URL rule no pages are scanned, regardless of your keywords.</p>
+                <div class="setup-os-block">
+                  <div class="setup-os-block__row">
+                    <strong>Wildcard</strong>
+                    <p><code>https://example.com/*</code> &mdash; matches every page on example.com</p>
+                  </div>
+                  <div class="setup-os-block__row">
+                    <strong>Domain-wide</strong>
+                    <p>Matches the given domain and all its subdomains</p>
+                  </div>
+                  <div class="setup-os-block__row">
+                    <strong>Exact</strong>
+                    <p>Only one specific URL &mdash; useful for single-page monitoring</p>
+                  </div>
+                </div>
+                <p class="hint" style="margin-top:10px;"><strong>Tip:</strong> Use <em>Use Current Tab</em> in the popup to fill in the URL of the page you&rsquo;re currently viewing automatically.</p>
+                <button class="btn btn--primary" id="setupGoUrls" style="margin-top:14px;">Go to URLs &rarr;</button>
               </div>
             </div>
-            <p class="hint" style="margin-top:10px;"><strong>Tip:</strong> Use <em>Use Current Tab</em> in the popup to fill in the URL of the page you&rsquo;re currently viewing automatically.</p>
-            <button class="btn btn--primary" id="setupGoUrls" style="margin-top:14px;">Go to URLs &rarr;</button>
           </div>
         </div>
 
@@ -150,23 +162,27 @@
             <h2 class="card__title" style="margin:0;flex:1">Set Up Webhooks <span class="setup-card__opt">optional</span></h2>
             <svg class="setup-accordion__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
-          <div class="setup-accordion__body" id="step4" hidden>
-            <p class="hint" style="margin-top:8px;">Webhooks let TextWatcher POST a JSON payload to any URL each time an alert fires &mdash; useful for Slack, Teams, Telegram, or custom automations.</p>
-            <div class="setup-os-block">
-              <div class="setup-os-block__row">
-                <strong>Slack / Teams</strong>
-                <p>Create an Incoming Webhook in your workspace and paste the URL. Choose the matching format in Webhooks settings.</p>
-              </div>
-              <div class="setup-os-block__row">
-                <strong>Telegram</strong>
-                <p>Create a bot via @BotFather, copy the token, and add your chat ID in the Webhooks page.</p>
-              </div>
-              <div class="setup-os-block__row">
-                <strong>Generic</strong>
-                <p>Any endpoint that accepts a POST with a JSON body. Use the <em>Generic</em> format for full control over the payload.</p>
+          <div class="setup-accordion__body-wrap" id="step4-wrap">
+            <div class="setup-accordion__body-inner">
+              <div class="setup-accordion__body">
+                <p class="hint" style="margin-top:8px;">Webhooks let TextWatcher POST a JSON payload to any URL each time an alert fires &mdash; useful for Slack, Teams, Telegram, or custom automations.</p>
+                <div class="setup-os-block">
+                  <div class="setup-os-block__row">
+                    <strong>Slack / Teams</strong>
+                    <p>Create an Incoming Webhook in your workspace and paste the URL. Choose the matching format in Webhooks settings.</p>
+                  </div>
+                  <div class="setup-os-block__row">
+                    <strong>Telegram</strong>
+                    <p>Create a bot via @BotFather, copy the token, and add your chat ID in the Webhooks page.</p>
+                  </div>
+                  <div class="setup-os-block__row">
+                    <strong>Generic</strong>
+                    <p>Any endpoint that accepts a POST with a JSON body. Use the <em>Generic</em> format for full control over the payload.</p>
+                  </div>
+                </div>
+                <button class="btn btn--primary" id="setupGoWebhooks" style="margin-top:14px;">Go to Webhooks &rarr;</button>
               </div>
             </div>
-            <button class="btn btn--primary" id="setupGoWebhooks" style="margin-top:14px;">Go to Webhooks &rarr;</button>
           </div>
         </div>
 
@@ -177,14 +193,18 @@
             <h2 class="card__title" style="margin:0;flex:1">Enable Monitoring</h2>
             <svg class="setup-accordion__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
-          <div class="setup-accordion__body" id="step5" hidden>
-            <p class="hint" style="margin-top:8px;">Flip the toggle at the top of the sidebar to activate TextWatcher. The status dot turns green when monitoring is live.</p>
-            <p class="hint" style="margin-top:6px;">You can pause at any time &mdash; your keywords and URL rules stay intact.</p>
-            <button class="btn btn--primary" id="setupDone" style="margin-top:14px;">Enable &amp; Go to Keywords &rarr;</button>
+          <div class="setup-accordion__body-wrap" id="step5-wrap">
+            <div class="setup-accordion__body-inner">
+              <div class="setup-accordion__body">
+                <p class="hint" style="margin-top:8px;">Flip the toggle at the top of the sidebar to activate TextWatcher. The status dot turns green when monitoring is live.</p>
+                <p class="hint" style="margin-top:6px;">You can pause at any time &mdash; your keywords and URL rules stay intact.</p>
+                <button class="btn btn--primary" id="setupDone" style="margin-top:14px;">Enable &amp; Go to Keywords &rarr;</button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
-      <!-- ════ Keywords ════════════════════════════════════ -->
+      <!-- â•â•â•â• Keywords â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
       <section class="panel" id="section-keywords">
         <div class="panel__header">
           <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg> Keywords</h1>
@@ -198,7 +218,7 @@
             <div class="form-field form-field--wide">
               <label class="label">Keyword / Phrase</label>
               <div class="input-wrap">
-                <input type="text" id="kwText" class="input" placeholder="Text to watch for…" maxlength="500" />
+                <input type="text" id="kwText" class="input" placeholder="Text to watch forâ€¦" maxlength="500" />
                 <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
               </div>
             </div>
@@ -214,12 +234,12 @@
               </select>
             </div>
             <div class="form-field form-field--wide">
-              <label class="label">Scope — CSS Selector <span class="label__opt">(optional)</span></label>
+              <label class="label">Scope â€” CSS Selector <span class="label__opt">(optional)</span></label>
               <div class="input-wrap">
                 <input type="text" id="kwScope" class="input" placeholder="e.g. #results, .price-box, [data-section=&quot;live&quot;]" maxlength="500" />
                 <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
               </div>
-              <p class="hint" style="margin-top:5px;">Leave empty to scan the whole page. Tip: right-click an element in DevTools → Copy → Copy selector.</p>
+              <p class="hint" style="margin-top:5px;">Leave empty to scan the whole page. Tip: right-click an element in DevTools â†’ Copy â†’ Copy selector.</p>
             </div>            <div class="form-field form-field--wide">
               <label class="label">URL Binding <span class="label__opt">(optional)</span></label>
               <div class="url-binding-select" id="kwUrlBinding">
@@ -253,7 +273,7 @@
           <h2 class="card__title">Keyword Rules <span class="badge" id="kwBadge">0</span></h2>
           <div class="search-row">
             <div class="input-wrap">
-              <input type="text" id="kwSearch" class="input" placeholder="Filter keywords…" />
+              <input type="text" id="kwSearch" class="input" placeholder="Filter keywordsâ€¦" />
               <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
             </div>
           </div>
@@ -263,7 +283,7 @@
         </div>
       </section>
 
-      <!-- ════ URLs ══════════════════════════════════════════ -->
+      <!-- â•â•â•â• URLs â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
       <section class="panel hidden" id="section-urls">
         <div class="panel__header">
           <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> URLs</h1>
@@ -331,7 +351,7 @@
         </div>
       </section>
 
-      <!-- ════ Notifications ════════════════════════════════ -->
+      <!-- â•â•â•â• Notifications â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
       <section class="panel hidden" id="section-notifications">
         <div class="panel__header">
           <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Notifications</h1>
@@ -402,11 +422,11 @@
           <button class="btn btn--primary" id="saveNotifBtn" disabled>Save Settings</button>
         </div>
       </section>
-      <!-- ════ Activity (Alert Log) ════════════════════════════ -->
+      <!-- â•â•â•â• Activity (Alert Log) â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
       <section class="panel hidden" id="section-activity">
         <div class="panel__header">
           <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Alert Log</h1>
-          <p class="panel__desc">Every notification that fired — keyword, event type, URL, and timestamp. Last 50 entries.</p>
+          <p class="panel__desc">Every notification that fired â€” keyword, event type, URL, and timestamp. Last 50 entries.</p>
         </div>
         <div class="card">
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
@@ -418,7 +438,7 @@
           </ul>
         </div>
       </section>
-      <!-- ════ Badge & Icon ══════════════════════════════════ -->
+      <!-- â•â•â•â• Badge & Icon â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
       <section class="panel hidden" id="section-badge">
         <div class="panel__header">
           <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Badge &amp; Icon</h1>
@@ -451,7 +471,7 @@
         </div>
       </section>
 
-      <!-- ════ History ══════════════════════════════════════ -->
+      <!-- â•â•â•â• History â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
       <section class="panel hidden" id="section-history">
         <div class="panel__header">
           <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Saved Setups</h1>
@@ -472,7 +492,7 @@
         </div>
       </section>
 
-      <!-- ════ Webhooks ════════════════════════════════════ -->
+      <!-- â•â•â•â• Webhooks â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
       <section class="panel hidden" id="section-webhooks">
         <div class="panel__header">
           <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Webhooks</h1>
@@ -549,7 +569,7 @@
   "themeColor": "28a745",
   "summary":  "TextWatcher: \"your keyword\" appeared",
   "sections": [{
-    "activityTitle":    "🟢 Keyword \"your keyword\" appeared",
+    "activityTitle":    "ðŸŸ¢ Keyword \"your keyword\" appeared",
     "activitySubtitle": "Page Title",
     "activityText":     "[https://monitored-page.com/](https://monitored-page.com/)",
     "facts": [
@@ -580,7 +600,7 @@
         </div>
       </section>
 
-      <!-- ════ Privacy ════════════════════════════════════ -->
+      <!-- â•â•â•â• Privacy â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
       <section class="panel hidden" id="section-privacy">
         <div class="panel__header">
           <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg> Privacy</h1>

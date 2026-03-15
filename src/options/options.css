@@ -152,6 +152,24 @@ html, body { height: 100%; background: var(--clr-bg); }
 
 .panel.hidden { display: none; }
 
+/* Section enter / leave animations */
+@keyframes panel-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes panel-out {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-6px); }
+}
+
+.panel:not(.hidden) {
+  animation: panel-in 0.22s ease-out both;
+}
+.panel--leaving {
+  animation: panel-out 0.15s ease-in both;
+  pointer-events: none;
+}
+
 /* ── Cards ───────────────────────────────────────────────────────────── */
 .card {
   background: var(--clr-surface);
@@ -980,7 +998,24 @@ code {
   transform: rotate(180deg);
 }
 
-.setup-accordion__body { padding-top: 4px; }
+.setup-accordion__body { padding-top: 8px; }
+
+/* Smooth accordion using grid-template-rows trick */
+.setup-accordion__body-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.setup-accordion__body-wrap.open {
+  grid-template-rows: 1fr;
+}
+
+.setup-accordion__body-inner {
+  min-height: 0;
+  overflow: hidden;
+}
 
 .setup-card__opt {
   font-size: 10px;
