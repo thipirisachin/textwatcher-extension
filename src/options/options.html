@@ -473,7 +473,8 @@
         </div>
 
         <div class="card">
-          <h2 class="card__title">Payload Preview</h2>
+          <details class="payload-preview-details">
+            <summary class="payload-preview-summary">Payload Preview</summary>
           <pre class="webhook-payload-preview" id="webhookPayloadPreview">{
   "@type":    "MessageCard",
   "@context": "http://schema.org/extensions",
@@ -491,6 +492,7 @@
     ]
   }]
 }</pre>
+          </details>
         </div>
 
         <div class="card">
@@ -532,7 +534,7 @@
               <svg class="privacy-item__icon privacy-item__icon--warn" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
               <div>
                 <strong>Webhook: alert data leaves your device</strong>
-                <p>When a webhook is enabled, each alert sends a JSON payload to your configured endpoint containing the keyword, the page URL, the event type (appeared/disappeared), and the timestamp. Page content is never included. Delivery uses HTTPS &mdash; or HTTP to localhost only for local testing.</p>
+                <p>When a webhook is enabled, each alert sends a payload to your configured endpoint containing the keyword, page URL, event type, and timestamp. In <em>Generic JSON</em> mode a short text snippet near the keyword match is also included. Teams, Slack, and Telegram formats send metadata only. Delivery uses HTTPS &mdash; or HTTP to localhost only for local testing.</p>
               </div>
             </div>
             <div class="privacy-item">
@@ -546,7 +548,7 @@
               <svg class="privacy-item__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
               <div>
                 <strong>Page content never transmitted</strong>
-                <p>Text matching runs entirely in the content script inside your browser. Full page content and matched text excerpts are never sent anywhere &mdash; not even via webhook.</p>
+                <p>Text matching runs entirely in the content script inside your browser. Full page content is never stored or sent. If you use the Generic JSON webhook format, a short text snippet surrounding the match is included in the payload &mdash; all other formats (Teams, Slack, Telegram) send metadata only.</p>
               </div>
             </div>
           </div>
@@ -569,6 +571,10 @@
             <div class="privacy-item">
               <svg class="privacy-item__icon privacy-item__icon--muted" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               <div><strong>tabs</strong><p>Read the active tab URL (for the &ldquo;Use Current Tab&rdquo; button) and focus the source tab when you click a notification.</p></div>
+            </div>
+            <div class="privacy-item">
+              <svg class="privacy-item__icon privacy-item__icon--muted" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div><strong>host_permissions: &lt;all_urls&gt;</strong><p>Allows the content script to be injected into any tab you&rsquo;re monitoring, and allows the service worker to POST to any webhook URL you configure. The extension only acts on tabs matching your URL rules.</p></div>
             </div>
           </div>
         </div>

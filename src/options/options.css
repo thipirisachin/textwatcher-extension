@@ -967,6 +967,33 @@ code {
   padding: 0 10px;
 }
 
+.payload-preview-details {
+  margin-top: 0;
+}
+.payload-preview-summary {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--clr-text);
+  cursor: pointer;
+  user-select: none;
+  padding: 4px 0;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.payload-preview-summary::-webkit-details-marker { display: none; }
+.payload-preview-summary::before {
+  content: '▶';
+  font-size: 10px;
+  color: var(--clr-muted);
+  transition: transform 0.15s ease;
+  display: inline-block;
+}
+.payload-preview-details[open] .payload-preview-summary::before {
+  transform: rotate(90deg);
+}
+
 .webhook-payload-preview {
   background: var(--clr-surface-2);
   border: 1px solid var(--clr-border);
