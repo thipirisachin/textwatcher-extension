@@ -379,17 +379,21 @@ function buildWebhookPayload(cfg, payload) {
   const eventLabel = isAppear ? 'appeared' : 'disappeared';
   const emoji      = isAppear ? '\u{1F7E2}' : '\u{1F534}';
   const tsDate     = new Date(payload.timestamp || Date.now());
-  // ISO-8601 with local offset (e.g. 2026-03-15T14:32:00+01:00)
+  // ISO-8601 with local offset — used in Slack/Telegram/Generic
   const tzOffset   = -tsDate.getTimezoneOffset();
   const sign       = tzOffset >= 0 ? '+' : '-';
   const pad        = n => String(Math.floor(Math.abs(n))).padStart(2, '0');
-  const ts         = tsDate.getFullYear()
+  const tsIso      = tsDate.getFullYear()
     + '-' + pad(tsDate.getMonth() + 1)
     + '-' + pad(tsDate.getDate())
     + 'T' + pad(tsDate.getHours())
     + ':' + pad(tsDate.getMinutes())
     + ':' + pad(tsDate.getSeconds())
     + sign + pad(tzOffset / 60) + ':' + pad(tzOffset % 60);
+  // Human-readable local string for Teams facts — avoids Teams auto-reformatting ISO dates
+  const tsLocal    = tsDate.toLocaleString(undefined, {
+    dateStyle: 'medium', timeStyle: 'long',
+  });
 
   switch (cfg.format) {
     case WEBHOOK_FORMAT.TEAMS:
@@ -406,7 +410,7 @@ function buildWebhookPayload(cfg, payload) {
             { name: 'Keyword',    value: payload.keyword   },
             { name: 'Event',      value: payload.event     },
             { name: 'Match Type', value: payload.matchType },
-            { name: 'Time',       value: ts                },
+            { name: 'Time',       value: tsLocal              },
           ],
         }],
         potentialAction: [{
@@ -436,7 +440,7 @@ function buildWebhookPayload(cfg, payload) {
         url:       payload.url,
         title:     payload.title   || '',
         snippet:   payload.snippet || null,
-        timestamp: ts,
+        timestamp: tsIso,
         timestamp_ms: payload.timestamp || Date.now(),
         source:    'TextWatcher',
       });
