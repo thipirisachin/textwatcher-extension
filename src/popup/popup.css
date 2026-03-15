@@ -399,7 +399,23 @@ body {
   background: var(--accent-gl);
 }
 
-/* Advanced options — bordered panel below button */
+/* Advanced options — bordered panel below button, animates open/close */
+.advanced-row-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.advanced-row-wrap.open {
+  grid-template-rows: 1fr;
+}
+
+.advanced-row-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
 .advanced-row {
   margin-top: 6px;
   display: flex;

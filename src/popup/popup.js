@@ -296,10 +296,10 @@ function bindEvents() {
 
   // Advanced toggle (scope selector)
   qs('#advancedToggleBtn').addEventListener('click', () => {
-    const row = qs('#advancedRow');
-    const btn = qs('#advancedToggleBtn');
-    const open = !row.classList.contains('hidden');
-    row.classList.toggle('hidden', open);
+    const wrap = qs('#advancedRowWrap');
+    const btn  = qs('#advancedToggleBtn');
+    const open = wrap.classList.contains('open');
+    wrap.classList.toggle('open', !open);
     btn.innerHTML = (open ? SVG_CHEVRON_RIGHT : SVG_CHEVRON_DOWN) + ' Advanced';
   });
 
