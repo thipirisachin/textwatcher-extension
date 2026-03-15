@@ -232,7 +232,7 @@ function buildUrlScopeTags(kw, urls) {
 async function buildUrlBindingChecklist(currentScope, urls) {
   const active = urls.filter((u) => u.enabled);
   if (active.length === 0) {
-    return '<p class="hint" style="margin:4px 0;">No URL rules defined yet.</p>';
+    return `<p class="hint" style="margin:4px 0;">No URL rules defined yet. <a class="link" href="#" data-nav="urls">Add URL rules</a> first, then bind keywords to them.</p>`;
   }
   const isAll = !currentScope || currentScope === URL_SCOPE_ALL || !Array.isArray(currentScope);
   const selected = isAll ? [] : currentScope;
@@ -340,8 +340,18 @@ function bindKeywordEvents() {
     renderKeywords(e.target.value);
   });
 
+  // "Add URL rules" nav link inside the binding widget (add form)
+  qs('#kwUrlBinding').addEventListener('click', (e) => {
+    const a = e.target.closest('a[data-nav]');
+    if (a) { e.preventDefault(); showSection(a.dataset.nav); }
+  });
+
   // List actions (delegated)
   qs('#kwList').addEventListener('click', async (e) => {
+    // "Add URL rules" nav link inside inline edit binding widget
+    const navLink = e.target.closest('a[data-nav]');
+    if (navLink) { e.preventDefault(); showSection(navLink.dataset.nav); return; }
+
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
     const { action, id } = btn.dataset;
