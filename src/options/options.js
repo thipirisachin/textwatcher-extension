@@ -707,7 +707,8 @@ async function renderHistory() {
 function bindHistoryEvents() {
   qs('#saveNowBtn').addEventListener('click', async () => {
     const label = qs('#saveLabel').value.trim() || `Setup ${new Date().toLocaleString()}`;
-    await saveHistorySnapshot(label);
+    const saved = await saveHistorySnapshot(label);
+    if (!saved) { showToast('Nothing to save — add keywords or URLs first.'); return; }
     qs('#saveLabel').value = '';
     await renderHistory();
     showToast('Setup saved!');

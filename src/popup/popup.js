@@ -248,7 +248,8 @@ function bindEvents() {
   // Save current setup as snapshot
   saveSnapshotBtn.addEventListener('click', async () => {
     const label = `Setup ${new Date().toLocaleString()}`;
-    await saveHistorySnapshot(label);
+    const saved = await saveHistorySnapshot(label);
+    if (!saved) { showToast('Nothing to save — add keywords or URLs first.'); return; }
     await renderHistory();
     await renderCounts();
     showToast('Setup saved!');

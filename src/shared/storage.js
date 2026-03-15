@@ -187,6 +187,9 @@ export async function saveHistorySnapshot(label = '') {
     getHistory(),
   ]);
 
+  // Don't save an empty setup — nothing useful to restore
+  if (keywords.length === 0 && urls.length === 0) return null;
+
   const entry = {
     id:        generateId(),
     label:     label || `Setup ${new Date().toLocaleString()}`,
