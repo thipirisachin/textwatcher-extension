@@ -12,7 +12,7 @@ import {
   getHistory, saveHistorySnapshot, restoreHistoryEntry, removeHistoryEntry,
   getAlertHistory,
 } from '../shared/storage.js';
-import { validateRegex } from '../shared/matcher.js';
+import { validateRegex, matchesUrl } from '../shared/matcher.js';
 import { qs, timeAgo, truncate, escapeHtml, onStorageChange } from '../shared/utils.js';
 
 // ─── SVG Icon Strings ─────────────────────────────────────────────────────────
@@ -48,6 +48,12 @@ const historyMoreBtn    = qs('#historyMoreBtn');
 const openOptionsBtn    = qs('#openOptionsBtn');
 const saveSnapshotBtn   = qs('#saveSnapshotBtn');
 
+// ── Tab Context Bar refs (resolved lazily — element may not exist on old DOM)
+const tabCtxBar    = qs('#tabCtxBar');
+const tabCtxDot    = qs('#tabCtxDot');
+const tabCtxText   = qs('#tabCtxText');
+const tabCtxAddBtn = qs('#tabCtxAddBtn');
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 async function init() {
@@ -58,12 +64,58 @@ async function init() {
 
 async function renderAll() {
   await Promise.all([
+    renderTabContext(),
     renderToggle(),
     renderStatus(),
     renderCounts(),
     renderHistory(),
     renderAlerts(),
   ]);
+}
+
+// ─── Tab Context Bar ────────────────────────────────────────────────────────────────────────────────
+
+async function renderTabContext() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tabUrl = tab?.url ?? '';
+
+  // Hide bar for browser-internal pages.
+  if (!tabUrl || /^(chrome|about|edge|moz-extension|chrome-extension):/.test(tabUrl)) {
+    tabCtxBar.style.display = 'none';
+    return;
+  }
+
+  tabCtxBar.style.display = '';
+
+  const enabled = await getEnabled();
+  if (!enabled) {
+    tabCtxBar.className    = 'tab-ctx-bar';
+    tabCtxDot.className    = 'tab-ctx-bar__dot';
+    tabCtxText.textContent = 'Monitoring paused';
+    tabCtxAddBtn.classList.add('hidden');
+    return;
+  }
+
+  const [urls, keywords] = await Promise.all([getUrls(), getKeywords()]);
+  const activeUrls = urls.filter((u) => u.enabled);
+  const matched    = activeUrls.filter((u) => matchesUrl(tabUrl, u.pattern, u.matchType));
+
+  if (matched.length > 0) {
+    const activeKw = keywords.filter((k) => {
+      if (!k.enabled) return false;
+      if (!k.urlScope || k.urlScope === 'all') return true;
+      return k.urlScope.some((uid) => matched.some((u) => u.id === uid));
+    }).length;
+    tabCtxBar.className    = 'tab-ctx-bar tab-ctx-bar--watched';
+    tabCtxDot.className    = 'tab-ctx-bar__dot';
+    tabCtxText.textContent = `Watching this page · ${activeKw} keyword${activeKw !== 1 ? 's' : ''} active`;
+    tabCtxAddBtn.classList.add('hidden');
+  } else {
+    tabCtxBar.className    = 'tab-ctx-bar tab-ctx-bar--unwatched';
+    tabCtxDot.className    = 'tab-ctx-bar__dot';
+    tabCtxText.textContent = "This page isn't monitored";
+    tabCtxAddBtn.classList.remove('hidden');
+  }
 }
 
 // ─── Toggle ───────────────────────────────────────────────────────────────────
@@ -124,7 +176,7 @@ async function renderAlerts() {
   alertBadge.textContent = alerts.length;
 
   if (alerts.length === 0) {
-    alertList.innerHTML = '<li class="alert-list__empty">No alerts yet — monitoring will log events here.</li>';
+    alertList.innerHTML = '<li class="alert-list__empty">No alerts yet. Add a keyword and URL to start watching a page.</li>';
     alertMoreBtn.classList.add('hidden');
     return;
   }
@@ -156,7 +208,7 @@ async function renderHistory() {
   const history = await getHistory();
 
   if (history.length === 0) {
-    historyList.innerHTML = '<li class="history-list__empty">No saved setups yet.</li>';
+    historyList.innerHTML = '<li class="history-list__empty">No saved setups. Use <em>Save Setup</em> below to snapshot your current config.</li>';
     historyMoreBtn.classList.add('hidden');
     return;
   }
@@ -231,6 +283,23 @@ function bindEvents() {
     if (tab?.url && !tab.url.startsWith('chrome') && !tab.url.startsWith('about')) {
       quickUrl.value      = tab.url;
       quickUrlLabel.value = tab.title || '';
+    }
+  });
+
+  // Tab context bar — "+ Add URL" shortcut
+  tabCtxAddBtn.addEventListener('click', async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.url && !tab.url.startsWith('chrome') && !tab.url.startsWith('about')) {
+      try {
+        const { hostname } = new URL(tab.url);
+        quickUrl.value          = hostname;
+        quickUrlMatchType.value = 'domain';
+        quickUrlLabel.value     = tab.title || '';
+      } catch (_) {
+        quickUrl.value = tab.url;
+      }
+      quickUrl.focus();
+      quickUrl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   });
 

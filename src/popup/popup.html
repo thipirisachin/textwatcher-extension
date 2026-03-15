@@ -34,26 +34,23 @@
     <span class="status-text" id="statusText">Loading…</span>
   </div>
 
+  <!-- ── Tab Context Bar ───────────────────────────────────────── -->
+  <div class="tab-ctx-bar" id="tabCtxBar" aria-live="polite" style="display:none;">
+    <span class="tab-ctx-bar__dot" id="tabCtxDot"></span>
+    <span class="tab-ctx-bar__text" id="tabCtxText"></span>
+    <button class="tab-ctx-bar__cta hidden" id="tabCtxAddBtn">+ Add URL</button>
+  </div>
+
   <!-- ── Quick Add Keyword ──────────────────────────────────── -->
   <section class="section">
     <h2 class="section__title">Quick Add Keyword</h2>
-    <div class="input-row">
-      <input
-        type="text"
-        id="quickKeyword"
-        class="input"
-        placeholder="Keyword or phrase…"
-        maxlength="500"
-      />
-      <select id="quickMatchType" class="select select--compact">
-        <option value="contains">Contains</option>
-        <option value="exact_nocase">Exact (any case)</option>
-        <option value="exact_case">Exact (case-sensitive)</option>
-        <option value="starts_with">Starts with</option>
-        <option value="ends_with">Ends with</option>
-        <option value="regex">Regex</option>
-      </select>
-    </div>
+    <input
+      type="text"
+      id="quickKeyword"
+      class="input"
+      placeholder="Keyword or phrase…"
+      maxlength="500"
+    />
     <div class="checkbox-row">
       <label class="checkbox-label">
         <input type="checkbox" id="quickAlertAppear" checked />
@@ -66,14 +63,24 @@
     </div>
     <button class="btn btn--link" id="advancedToggleBtn" type="button"><svg id="advChevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg> Advanced</button>
     <div id="advancedRow" class="advanced-row hidden">
+      <p class="advanced-label">Match type</p>
+      <select id="quickMatchType" class="select" style="width:100%; margin-bottom:10px;">
+        <option value="contains">Contains</option>
+        <option value="exact_nocase">Exact (any case)</option>
+        <option value="exact_case">Exact (case-sensitive)</option>
+        <option value="starts_with">Starts with</option>
+        <option value="ends_with">Ends with</option>
+        <option value="regex">Regex</option>
+      </select>
+      <p class="advanced-label">Page scope (CSS selector)</p>
       <input
         type="text"
         id="quickScope"
         class="input"
-        placeholder="Scope: CSS selector (e.g. #results)"
+        placeholder="#results, .product-list, …"
         maxlength="500"
       />
-      <p class="advanced-hint">Leave empty to scan the whole page.</p>
+      <p class="advanced-hint">Leave blank to scan the whole page.</p>
     </div>
     <button class="btn btn--primary" id="addKeywordBtn">Add Keyword</button>
     <p class="error-msg hidden" id="keywordError" role="alert"></p>
@@ -137,7 +144,7 @@
       <span class="section__badge" id="alertBadge">0</span>
     </h2>
     <ul class="alert-list" id="alertList">
-      <li class="alert-list__empty">No alerts yet — monitoring will log events here.</li>
+      <li class="alert-list__empty">No alerts yet. Add a keyword and URL to start watching a page.</li>
     </ul>    <button class="btn--more hidden" id="alertMoreBtn">View all in Full Settings →</button>  </section>
 
   <!-- ── Recent History ─────────────────────────────────────── -->
@@ -147,7 +154,7 @@
       <span class="section__badge" id="historyBadge">0</span>
     </h2>
     <ul class="history-list" id="historyList">
-      <li class="history-list__empty">No saved setups yet.</li>
+      <li class="history-list__empty">No saved setups. Use <em>Save Setup</em> below to snapshot your current config.</li>
     </ul>
     <button class="btn--more hidden" id="historyMoreBtn">View all in Full Settings &#8594;</button>
   </section>
