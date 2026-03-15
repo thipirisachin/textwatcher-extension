@@ -373,20 +373,13 @@ body {
 }
 
 /* ── Advanced toggle button ───────────────────────────────────────── */
-.advanced-wrap {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin-top: 8px;
-}
-
 .btn--link {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   height: 26px;
   padding: 0 2px;
-  flex-shrink: 0;
+  margin-top: 7px;
   background: none;
   border: none;
   border-bottom: 1px dashed var(--border-2);
@@ -404,13 +397,12 @@ body {
   border-bottom-color: var(--accent-lt);
 }
 
-/* Advanced options — fills space to the right of the button */
+/* Advanced options — seamless inline fields */
 .advanced-row {
-  flex: 1;
+  margin-top: 6px;
   display: flex;
   flex-direction: column;
   gap: 9px;
-  min-width: 0;
 }
 
 .advanced-row.hidden { display: none; }

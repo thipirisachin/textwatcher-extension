@@ -65,34 +65,32 @@
         Alert when disappears
       </label>
     </div>
-    <div class="advanced-wrap">
-      <button class="btn btn--link" id="advancedToggleBtn" type="button"><svg id="advChevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg> Advanced</button>
-      <div id="advancedRow" class="advanced-row hidden">
-        <p class="advanced-label">Match type</p>
-        <select id="quickMatchType" class="select" style="width:100%;">
-          <option value="contains">Contains</option>
-          <option value="exact_nocase">Exact (any case)</option>
-          <option value="exact_case">Exact (case-sensitive)</option>
-          <option value="starts_with">Starts with</option>
-          <option value="ends_with">Ends with</option>
-          <option value="regex">Regex</option>
-        </select>
-        <p class="advanced-label">Page scope (CSS selector)</p>
-        <div class="input-wrap">
-          <input
-            type="text"
-            id="quickScope"
-            class="input"
-            placeholder="#results, .product-list, …"
-            maxlength="500"
-          />
-          <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
-        </div>
-        <p class="advanced-hint">Leave blank to scan the whole page.</p>
-        <p class="advanced-label">URL binding</p>
-        <div id="quickUrlBinding" class="popup-url-binding">
-          <p class="advanced-hint">Loading…</p>
-        </div>
+    <button class="btn btn--link" id="advancedToggleBtn" type="button"><svg id="advChevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg> Advanced</button>
+    <div id="advancedRow" class="advanced-row hidden">
+      <p class="advanced-label">Match type</p>
+      <select id="quickMatchType" class="select" style="width:100%; margin-bottom:10px;">
+        <option value="contains">Contains</option>
+        <option value="exact_nocase">Exact (any case)</option>
+        <option value="exact_case">Exact (case-sensitive)</option>
+        <option value="starts_with">Starts with</option>
+        <option value="ends_with">Ends with</option>
+        <option value="regex">Regex</option>
+      </select>
+      <p class="advanced-label">Page scope (CSS selector)</p>
+      <div class="input-wrap">
+        <input
+          type="text"
+          id="quickScope"
+          class="input"
+          placeholder="#results, .product-list, …"
+          maxlength="500"
+        />
+        <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
+      </div>
+      <p class="advanced-hint">Leave blank to scan the whole page.</p>
+      <p class="advanced-label" style="margin-top:10px;">URL binding</p>
+      <div id="quickUrlBinding" class="popup-url-binding">
+        <p class="advanced-hint">Loading…</p>
       </div>
     </div>
     <button class="btn btn--primary" id="addKeywordBtn">Add Keyword</button>
