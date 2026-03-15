@@ -4,7 +4,7 @@
  * Sections: Keywords, URLs, Notifications, Badge & Icon, History
  */
 
-import { MATCH_TYPE, URL_MATCH_TYPE, NOTIF_FREQUENCY, STORAGE_KEY, MSG } from '../shared/constants.js';
+import { MATCH_TYPE, URL_MATCH_TYPE, NOTIF_FREQUENCY, STORAGE_KEY, MSG, WEBHOOK_FORMAT } from '../shared/constants.js';
 import {
   getEnabled, setEnabled,
   getKeywords, saveKeywords, addKeyword, updateKeyword, removeKeyword,
@@ -815,11 +815,69 @@ function listenForChanges() {
 
 // ─── Webhooks ───────────────────────────────────────────────────────────────
 
+// ─── Webhook Payload Previews ────────────────────────────────────────────────
+const WEBHOOK_PAYLOAD_PREVIEWS = {
+  [WEBHOOK_FORMAT.TEAMS]: `{
+  "@type":    "MessageCard",
+  "@context": "http://schema.org/extensions",
+  "themeColor": "28a745",
+  "summary":  "TextWatcher: \\"your keyword\\" appeared",
+  "sections": [{
+    "activityTitle":    "\u{1F7E2} Keyword \\"your keyword\\" appeared",
+    "activitySubtitle": "https://monitored-page.com/",
+    "activityText":     "Page: Page Title",
+    "facts": [
+      { "name": "Keyword",    "value": "your keyword" },
+      { "name": "Event",      "value": "appears"      },
+      { "name": "Match Type", "value": "contains"     },
+      { "name": "Time",       "value": "2026-03-15T12:00:00.000Z" }
+    ]
+  }]
+}`,
+  [WEBHOOK_FORMAT.SLACK]: `{
+  "text": "\u{1F7E2} *your keyword* appeared \u2014 <https://monitored-page.com/|Page Title>"
+}`,
+  [WEBHOOK_FORMAT.TELEGRAM]: `{
+  "chat_id":    "-1001234567890",
+  "text":       "\u{1F7E2} *your keyword* appeared\\n\u{1F517} https://monitored-page.com/",
+  "parse_mode": "Markdown"
+}`,
+  [WEBHOOK_FORMAT.GENERIC]: `{
+  "event":     "appears",
+  "keyword":   "your keyword",
+  "matchType": "contains",
+  "url":       "https://monitored-page.com/",
+  "title":     "Page Title",
+  "snippet":   "...surrounding context...",
+  "timestamp": 1710000000000,
+  "source":    "TextWatcher"
+}`,
+};
+
+const TELEGRAM_URL_HINT = 'Set URL to <code>https://api.telegram.org/bot{YOUR_TOKEN}/sendMessage</code>. The Chat ID field below identifies the destination chat.';
+const DEFAULT_URL_HINT  = 'Must be <code>https://</code>. <code>http://localhost</code> is also allowed for local testing.';
+
+// ─── Webhook UI helpers ───────────────────────────────────────────────────────
+function updateWebhookFormatUI(format) {
+  qs('#webhookPayloadPreview').textContent = WEBHOOK_PAYLOAD_PREVIEWS[format] || WEBHOOK_PAYLOAD_PREVIEWS[WEBHOOK_FORMAT.GENERIC];
+  const isTelegram = format === WEBHOOK_FORMAT.TELEGRAM;
+  qs('#webhookTelegramChatIdRow').style.display = isTelegram ? '' : 'none';
+  qs('#webhookUrlHint').innerHTML = isTelegram ? TELEGRAM_URL_HINT : DEFAULT_URL_HINT;
+  if (isTelegram && !qs('#webhookUrl').value) {
+    qs('#webhookUrl').placeholder = 'https://api.telegram.org/bot{TOKEN}/sendMessage';
+  } else if (!isTelegram) {
+    qs('#webhookUrl').placeholder = 'https://your-server.com/webhook';
+  }
+}
+
 async function renderWebhookSettings() {
   const cfg = await getWebhookSettings();
-  qs('#webhookEnabled').checked    = cfg.enabled;
-  qs('#webhookOnAppear').checked   = cfg.onAppear;
+  qs('#webhookEnabled').checked     = cfg.enabled;
+  qs('#webhookOnAppear').checked    = cfg.onAppear;
   qs('#webhookOnDisappear').checked = cfg.onDisappear;
+  qs('#webhookFormat').value        = cfg.format || WEBHOOK_FORMAT.TEAMS;
+  qs('#webhookTelegramChatId').value = cfg.telegramChatId || '';
+  updateWebhookFormatUI(cfg.format || WEBHOOK_FORMAT.TEAMS);
 
   // Show masked placeholder if a secret is saved; never pre-fill the real value
   const secretInput = qs('#webhookSecret');
@@ -844,6 +902,11 @@ function bindWebhookEvents() {
   qs('#webhookEnabled').addEventListener('change', markDirty);
   qs('#webhookUrl').addEventListener('input', markDirty);
   qs('#webhookSecret').addEventListener('input', markDirty);
+  qs('#webhookFormat').addEventListener('change', () => {
+    markDirty();
+    updateWebhookFormatUI(qs('#webhookFormat').value);
+  });
+  qs('#webhookTelegramChatId').addEventListener('input', markDirty);
   qs('#webhookOnAppear').addEventListener('change', markDirty);
   qs('#webhookOnDisappear').addEventListener('change', markDirty);
 
@@ -876,10 +939,12 @@ function bindWebhookEvents() {
     }
 
     const patch = {
-      enabled:      qs('#webhookEnabled').checked,
+      enabled:        qs('#webhookEnabled').checked,
       url,
-      onAppear:     qs('#webhookOnAppear').checked,
-      onDisappear:  qs('#webhookOnDisappear').checked,
+      format:         qs('#webhookFormat').value,
+      telegramChatId: qs('#webhookTelegramChatId').value.trim(),
+      onAppear:       qs('#webhookOnAppear').checked,
+      onDisappear:    qs('#webhookOnDisappear').checked,
     };
     // Only overwrite the secret if the user typed a new one
     if (secret) patch.secret = secret;

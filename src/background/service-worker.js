@@ -11,7 +11,7 @@
  *  - Cooldown tracking to prevent notification spam
  */
 
-import { MSG, BADGE_COLOR, NOTIF_FREQUENCY, ALERT_EVENT, STORAGE_KEY } from '../shared/constants.js';
+import { MSG, BADGE_COLOR, NOTIF_FREQUENCY, ALERT_EVENT, STORAGE_KEY, WEBHOOK_FORMAT } from '../shared/constants.js';
 import { getKeywords, getUrls, getSettings, getEnabled, addAlertEvent,
          getOnboarded, getWebhookSettings } from '../shared/storage.js';
 import { matchesUrl } from '../shared/matcher.js';
@@ -367,6 +367,66 @@ function isAllowedWebhookUrl(urlStr) {
 }
 
 /**
+ * Shape the request body according to the configured payload format.
+ * @param {object} cfg  Webhook settings from storage
+ * @param {object} payload  Internal alert payload
+ * @returns {string}  JSON string ready to POST
+ */
+function buildWebhookPayload(cfg, payload) {
+  const title      = payload.title    || '';
+  const url        = payload.url      || '';
+  const isAppear   = payload.event === ALERT_EVENT.APPEARS;
+  const eventLabel = isAppear ? 'appeared' : 'disappeared';
+  const emoji      = isAppear ? '\u{1F7E2}' : '\u{1F534}';
+  const ts         = new Date(payload.timestamp || Date.now()).toISOString();
+
+  switch (cfg.format) {
+    case WEBHOOK_FORMAT.TEAMS:
+      return JSON.stringify({
+        '@type':    'MessageCard',
+        '@context': 'http://schema.org/extensions',
+        themeColor: isAppear ? '28a745' : 'dc3545',
+        summary:    `TextWatcher: "${payload.keyword}" ${eventLabel}`,
+        sections: [{
+          activityTitle:    `${emoji} Keyword "${payload.keyword}" ${eventLabel}`,
+          activitySubtitle: url,
+          activityText:     title ? `Page: ${title}` : '',
+          facts: [
+            { name: 'Keyword',    value: payload.keyword   },
+            { name: 'Event',      value: payload.event     },
+            { name: 'Match Type', value: payload.matchType },
+            { name: 'Time',       value: ts                },
+          ],
+        }],
+      });
+
+    case WEBHOOK_FORMAT.SLACK:
+      return JSON.stringify({
+        text: `${emoji} *${payload.keyword}* ${eventLabel} — <${url}|${title || url}>`,
+      });
+
+    case WEBHOOK_FORMAT.TELEGRAM:
+      return JSON.stringify({
+        chat_id:    cfg.telegramChatId || '',
+        text:       `${emoji} *${payload.keyword}* ${eventLabel}\n\u{1F517} ${url}`,
+        parse_mode: 'Markdown',
+      });
+
+    default: // WEBHOOK_FORMAT.GENERIC
+      return JSON.stringify({
+        event:     payload.event,
+        keyword:   payload.keyword,
+        matchType: payload.matchType,
+        url:       payload.url,
+        title:     payload.title   || '',
+        snippet:   payload.snippet || null,
+        timestamp: payload.timestamp || Date.now(),
+        source:    'TextWatcher',
+      });
+  }
+}
+
+/**
  * POST an alert payload to the configured webhook URL.
  * Completely isolated — a failure here must never affect notifications or badge.
  *
@@ -394,16 +454,7 @@ async function fireWebhook(payload, opts = {}) {
     return { sent: false, error: 'Invalid or disallowed webhook URL.' };
   }
 
-  const body = JSON.stringify({
-    event:     payload.event,
-    keyword:   payload.keyword,
-    matchType: payload.matchType,
-    url:       payload.url,
-    title:     payload.title     || '',
-    snippet:   payload.snippet   || null,
-    timestamp: Date.now(),
-    source:    'TextWatcher',
-  });
+  const body = buildWebhookPayload(cfg, { ...payload, timestamp: payload.timestamp || Date.now() });
 
   const headers = {
     'Content-Type': 'application/json',

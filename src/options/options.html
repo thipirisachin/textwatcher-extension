@@ -409,7 +409,7 @@
       <section class="panel hidden" id="section-webhooks">
         <div class="panel__header">
           <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Webhooks</h1>
-          <p class="panel__desc">Send an HTTP POST to your own endpoint whenever a keyword alert fires. Useful for Slack, Discord, Zapier, or your own server.</p>
+          <p class="panel__desc">Send an HTTP POST to your own endpoint whenever a keyword alert fires. Works with Teams, Slack, Discord, Telegram, and custom servers.</p>
         </div>
 
         <div class="card">
@@ -427,9 +427,24 @@
 
           <div class="form-grid" style="margin-top:16px;">
             <div class="form-field form-field--wide">
-              <label class="label">Endpoint URL</label>
+              <label class="label" for="webhookUrl">Endpoint URL</label>
               <input type="url" id="webhookUrl" class="input" placeholder="https://your-server.com/webhook" maxlength="500" />
-              <p class="hint" style="margin-top:5px;">Must be <code>https://</code>. <code>http://localhost</code> is also allowed for local testing.</p>
+              <p class="hint" id="webhookUrlHint" style="margin-top:5px;">Must be <code>https://</code>. <code>http://localhost</code> is also allowed for local testing.</p>
+            </div>
+            <div class="form-field form-field--wide">
+              <label class="label" for="webhookFormat">Payload Format</label>
+              <select id="webhookFormat" class="input">
+                <option value="teams">Microsoft Teams</option>
+                <option value="slack">Slack / Discord</option>
+                <option value="telegram">Telegram</option>
+                <option value="generic">Generic JSON</option>
+              </select>
+              <p class="hint" style="margin-top:5px;">Shapes the request body to match your platform&rsquo;s incoming webhook format.</p>
+            </div>
+            <div class="form-field form-field--wide" id="webhookTelegramChatIdRow" style="display:none;">
+              <label class="label" for="webhookTelegramChatId">Telegram Chat ID</label>
+              <input type="text" id="webhookTelegramChatId" class="input" placeholder="e.g. -1001234567890 or @channelname" maxlength="100" />
+              <p class="hint" style="margin-top:5px;">The numeric ID of your chat or group, or <code>@username</code> for public channels. Find it via <code>@userinfobot</code>.</p>
             </div>
             <div class="form-field form-field--wide">
               <label class="label">Secret <span class="label__opt">(optional)</span></label>
@@ -460,14 +475,21 @@
         <div class="card">
           <h2 class="card__title">Payload Preview</h2>
           <pre class="webhook-payload-preview" id="webhookPayloadPreview">{
-  "event":     "appears",
-  "keyword":   "your keyword",
-  "matchType": "contains",
-  "url":       "https://monitored-page.com/",
-  "title":     "Page Title",
-  "snippet":   "...surrounding context...",
-  "timestamp": 1710000000000,
-  "source":    "TextWatcher"
+  "@type":    "MessageCard",
+  "@context": "http://schema.org/extensions",
+  "themeColor": "28a745",
+  "summary":  "TextWatcher: \"your keyword\" appeared",
+  "sections": [{
+    "activityTitle":    "🟢 Keyword \"your keyword\" appeared",
+    "activitySubtitle": "https://monitored-page.com/",
+    "activityText":     "Page: Page Title",
+    "facts": [
+      { "name": "Keyword",    "value": "your keyword" },
+      { "name": "Event",      "value": "appears"      },
+      { "name": "Match Type", "value": "contains"     },
+      { "name": "Time",       "value": "2026-03-15T12:00:00.000Z" }
+    ]
+  }]
 }</pre>
         </div>
 
@@ -487,7 +509,7 @@
       <section class="panel hidden" id="section-privacy">
         <div class="panel__header">
           <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg> Privacy</h1>
-          <p class="panel__desc">TextWatcher is 100% local. No data ever leaves your browser.</p>
+          <p class="panel__desc">By default, all data stays on your device. If you enable a webhook, alert data is sent to your configured endpoint.</p>
         </div>
         <div class="card">
           <h2 class="card__title">Data &amp; Storage</h2>
@@ -502,8 +524,15 @@
             <div class="privacy-item">
               <svg class="privacy-item__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
               <div>
-                <strong>No network requests (unless webhook is enabled)</strong>
-                <p>The extension makes zero outbound network requests by default. If you configure a webhook, alert data is sent to your chosen endpoint only &mdash; no analytics, no telemetry, no third parties.</p>
+                <strong>No network requests by default</strong>
+                <p>The extension makes zero outbound network requests unless you configure a webhook. No analytics, no telemetry, no third parties &mdash; ever.</p>
+              </div>
+            </div>
+            <div class="privacy-item" id="privacyWebhookItem">
+              <svg class="privacy-item__icon privacy-item__icon--warn" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <div>
+                <strong>Webhook: alert data leaves your device</strong>
+                <p>When a webhook is enabled, each alert sends a JSON payload to your configured endpoint containing the keyword, the page URL, the event type (appeared/disappeared), and the timestamp. Page content is never included. Delivery uses HTTPS &mdash; or HTTP to localhost only for local testing.</p>
               </div>
             </div>
             <div class="privacy-item">
@@ -517,7 +546,7 @@
               <svg class="privacy-item__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
               <div>
                 <strong>Page content never transmitted</strong>
-                <p>Text matching runs entirely in the content script inside your browser. Matched text is never sent anywhere.</p>
+                <p>Text matching runs entirely in the content script inside your browser. Full page content and matched text excerpts are never sent anywhere &mdash; not even via webhook.</p>
               </div>
             </div>
           </div>

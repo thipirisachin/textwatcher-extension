@@ -701,6 +701,7 @@ html, body { height: 100%; background: var(--clr-bg); }
 }
 
 .privacy-item__icon--muted { color: var(--clr-muted); }
+.privacy-item__icon--warn  { color: #d29922; }
 
 .privacy-item strong {
   display: block;

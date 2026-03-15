@@ -62,13 +62,23 @@ export const MSG = Object.freeze({
   TEST_WEBHOOK:      'test_webhook',     // Options page → SW: fire a test payload
 });
 
+// ─── Webhook Payload Formats ──────────────────────────────────────────────────
+export const WEBHOOK_FORMAT = Object.freeze({
+  TEAMS:    'teams',
+  SLACK:    'slack',
+  TELEGRAM: 'telegram',
+  GENERIC:  'generic',
+});
+
 // ─── Default Webhook Settings ─────────────────────────────────────────────────
 export const DEFAULT_WEBHOOK = Object.freeze({
-  enabled:      false,
-  url:          '',
-  secret:       '',   // Sent as X-TextWatcher-Secret header
-  onAppear:     true,
-  onDisappear:  true,
+  enabled:        false,
+  url:            '',
+  secret:         '',   // Sent as X-TextWatcher-Secret header
+  format:         'teams',
+  telegramChatId: '',
+  onAppear:       true,
+  onDisappear:    true,
 });
 
 // ─── Limits ──────────────────────────────────────────────────────────────────
