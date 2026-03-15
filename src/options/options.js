@@ -111,20 +111,19 @@ async function renderSidebarStatus() {
 
 function bindSetupEvents() {
   qs('#testNotifBtn').addEventListener('click', () => {
-    chrome.notifications.getPermissionLevel((level) => {
-      if (level !== 'granted') {
-        showToast('OS notifications are blocked. Check your system notification settings.');
+    chrome.notifications.create(`tw_test_${Date.now()}`, {
+      type:     'basic',
+      iconUrl:  chrome.runtime.getURL('src/icons/icon48.png'),
+      title:    'TextWatcher',
+      message:  'Notifications are working correctly! \u2713',
+      priority: 1,
+    }, () => {
+      if (chrome.runtime.lastError) {
+        showToast('Notification blocked — check Chrome or OS notification settings.');
         qs('#notifPermBanner').classList.remove('hidden');
-        return;
+      } else {
+        showToast('Test notification sent!');
       }
-      chrome.notifications.create('tw_test_' + Date.now(), {
-        type:     'basic',
-        iconUrl:  chrome.runtime.getURL('src/icons/icon48.png'),
-        title:    'TextWatcher',
-        message:  'Notifications are working correctly! \u2713',
-        priority: 1,
-      });
-      showToast('Test notification sent!');
     });
   });
 

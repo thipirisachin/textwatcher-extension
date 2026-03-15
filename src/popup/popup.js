@@ -189,8 +189,8 @@ async function renderHistory() {
 
 // ─── Open Options at Section ──────────────────────────────────────────────────
 
-function openOptionsAt(section) {
-  chrome.storage.local.set({ tw_open_section: section });
+async function openOptionsAt(section) {
+  await chrome.storage.local.set({ tw_open_section: section });
   chrome.runtime.openOptionsPage();
 }
 

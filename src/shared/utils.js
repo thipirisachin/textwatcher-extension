@@ -85,8 +85,8 @@ export const MATCH_TYPE_LABEL = {
 
 export const URL_MATCH_TYPE_LABEL = {
   exact:    'Exact URL',
-  wildcard: 'Wildcard (e.g. https://example.com/*)',
-  domain:   'Domain-wide (e.g. *.example.com)',
+  wildcard: 'Wildcard',
+  domain:   'Domain-wide',
 };
 
 // ─── DOM Helpers (safe for content script use) ───────────────────────────────
