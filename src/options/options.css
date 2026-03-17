@@ -5,25 +5,25 @@
 
 :root {
   /* Surfaces */
-  --clr-bg:       #0d1117;
-  --clr-surface:  #161b22;
-  --clr-surface2: #21262d;
-  --overlay:      #1c2128;
+  --clr-bg:       #1a1e2e;
+  --clr-surface:  #21263a;
+  --clr-surface2: #2a3048;
+  --overlay:      #1e2235;
 
   /* Borders */
-  --clr-border:   #30363d;
-  --border-2:     #3d444d;
+  --clr-border:   #333d5c;
+  --border-2:     #404d70;
 
   /* Text */
   --clr-text:  #f0f6fc;
   --clr-muted: #8b949e;
   --text-3:    #656d76;
 
-  /* Accent – violet */
-  --clr-accent:     #7c3aed;
-  --clr-accent-hov: #6d28d9;
-  --accent-lt:      #a78bfa;
-  --accent-gl:      rgba(124, 58, 237, 0.18);
+  /* Accent – GitHub blue */
+  --clr-accent:     #3388ff;
+  --clr-accent-hov: #1a6fd4;
+  --accent-lt:      #3388ff;
+  --accent-gl:      rgba(51, 136, 255, 0.18);
 
   /* Semantic */
   --clr-green:  #3fb950;

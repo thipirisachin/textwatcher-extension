@@ -403,7 +403,7 @@ function buildWebhookPayload(cfg, payload) {
       return JSON.stringify({
         '@type':    'MessageCard',
         '@context': 'http://schema.org/extensions',
-        themeColor: isAppear ? '28a745' : 'dc3545',
+        themeColor: isAppear ? '3388ff' : 'dc3545',
         summary:    `TextWatcher: "${payload.keyword}" ${eventLabel}`,
         sections: [{
           activityImage:    LOGO_DATA_URI,

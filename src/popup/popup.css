@@ -5,25 +5,25 @@
 
 :root {
   /* Surfaces */
-  --bg:        #0d1117;
-  --surface:   #161b22;
-  --surface-2: #21262d;
-  --overlay:   #1c2128;
+  --bg:        #1a1e2e;
+  --surface:   #21263a;
+  --surface-2: #2a3048;
+  --overlay:   #1e2235;
 
   /* Borders */
-  --border:    #30363d;
-  --border-2:  #3d444d;
+  --border:    #333d5c;
+  --border-2:  #404d70;
 
   /* Text */
   --text:      #f0f6fc;
   --text-2:    #8b949e;
   --text-3:    #656d76;
 
-  /* Accent – violet */
-  --accent:    #7c3aed;
-  --accent-h:  #6d28d9;
-  --accent-lt: #a78bfa;
-  --accent-gl: rgba(124, 58, 237, 0.20);
+  /* Accent – GitHub blue */
+  --accent:    #3388ff;
+  --accent-h:  #1a6fd4;
+  --accent-lt: #3388ff;
+  --accent-gl: rgba(51, 136, 255, 0.18);
 
   /* Semantic */
   --green:    #3fb950;

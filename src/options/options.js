@@ -985,7 +985,7 @@ function buildPayloadPreviews() {
     [WEBHOOK_FORMAT.TEAMS]: `{
   "@type":    "MessageCard",
   "@context": "http://schema.org/extensions",
-  "themeColor": "28a745",
+  "themeColor": "3388ff",
   "summary":  "TextWatcher: \\"your keyword\\" appeared",
   "sections": [{
     "activityTitle":    "\u{1F7E2} Keyword \\"your keyword\\" appeared",

@@ -36,7 +36,7 @@ export const NOTIF_FREQUENCY = Object.freeze({
 
 // ─── Badge State ─────────────────────────────────────────────────────────────
 export const BADGE_COLOR = Object.freeze({
-  ACTIVE:            '#22c55e',          // Green — monitoring, no match
+  ACTIVE:            '#3388ff',          // Blue  — monitoring, no match
   MATCH:             '#ef4444',          // Red   — match found
   INACTIVE:          '#6b7280',          // Gray  — extension paused
 });
