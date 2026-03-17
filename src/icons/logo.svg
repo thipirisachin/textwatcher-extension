@@ -1,7 +1,7 @@
 <svg width="512" height="512" viewBox="80 70 390 390" xmlns="http://www.w3.org/2000/svg">
 
-  <!-- Document (violet — reads on both light and dark backgrounds) -->
-  <rect x="120" y="100" width="260" height="300" rx="24" fill="#7c3aed"/>
+  <!-- Document (blue — reads on both light and dark backgrounds) -->
+  <rect x="120" y="100" width="260" height="300" rx="24" fill="#3388ff"/>
 
   <!-- Subtle top-highlight to give the card depth -->
   <rect x="120" y="100" width="260" height="80" rx="24" fill="rgba(255,255,255,0.10)"/>
@@ -11,9 +11,9 @@
   <rect x="158" y="212" width="182" height="18" rx="9" fill="rgba(255,255,255,0.80)"/>
   <rect x="158" y="254" width="120" height="18" rx="9" fill="rgba(255,255,255,0.50)"/>
 
-  <!-- Radar (cyan) -->
-  <circle cx="360" cy="360" r="70" fill="none" stroke="#22d3ee" stroke-width="14" opacity="0.35"/>
-  <circle cx="360" cy="360" r="45" fill="none" stroke="#22d3ee" stroke-width="14" opacity="0.70"/>
-  <circle cx="360" cy="360" r="12" fill="#22d3ee"/>
+  <!-- Radar (bright sky blue) -->
+  <circle cx="360" cy="360" r="70" fill="none" stroke="#93ddff" stroke-width="14" opacity="0.35"/>
+  <circle cx="360" cy="360" r="45" fill="none" stroke="#93ddff" stroke-width="14" opacity="0.70"/>
+  <circle cx="360" cy="360" r="12" fill="#93ddff"/>
 
 </svg>
