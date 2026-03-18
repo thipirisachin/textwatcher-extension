@@ -75,9 +75,9 @@ export function timeAgo(timestamp) {
  * Keeps UI and logic decoupled.
  */
 export const MATCH_TYPE_LABEL = {
-  exact_case:   'Exact (case-sensitive)',
-  exact_nocase: 'Exact (case-insensitive)',
-  contains:     'Contains',
+  exact_case:   'Contains (case-sensitive)',   // substring search, case-sensitive
+  exact_nocase: 'Contains (case-insensitive)', // substring search, case-insensitive
+  contains:     'Contains',                    // alias for exact_nocase (case-insensitive)
   starts_with:  'Starts with',
   ends_with:    'Ends with',
   regex:        'Regex',

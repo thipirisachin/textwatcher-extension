@@ -669,9 +669,20 @@ function bindUrlEvents() {
       const errEl     = form?.querySelector('[data-role="edit-error"]');
 
       if (!pattern) { showError(errEl, 'Pattern cannot be empty.'); return; }
-      if (matchType !== URL_MATCH_TYPE.DOMAIN) {
-        try { new URL(pattern.replace(/\*/g, 'x')); }
-        catch (_) { showError(errEl, 'Invalid URL format (e.g. https://example.com/*)'); return; }
+      if (matchType === URL_MATCH_TYPE.DOMAIN) {
+        const stripped = pattern.replace(/^\*\./, '');
+        if (/[:/]/.test(stripped)) {
+          showError(errEl, 'Domain should be a hostname only, e.g. example.com');
+          return;
+        }
+      } else {
+        try {
+          const parsed = new URL(pattern.replace(/\*/g, 'x'));
+          if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+            showError(errEl, 'Only http:// and https:// URLs are supported.');
+            return;
+          }
+        } catch (_) { showError(errEl, 'Invalid URL format (e.g. https://example.com/*)'); return; }
       }
 
       await updateUrl(editId, { pattern, matchType, label: label || pattern });
@@ -711,9 +722,20 @@ async function handleAddUrl() {
 
   if (!pattern) { showError(errEl, 'Please enter a URL or pattern.'); return; }
 
-  if (matchType !== URL_MATCH_TYPE.DOMAIN) {
-    try { new URL(pattern.replace(/\*/g, 'x')); }
-    catch (_) { showError(errEl, 'Invalid URL. Example: https://example.com/*'); return; }
+  if (matchType === URL_MATCH_TYPE.DOMAIN) {
+    const stripped = pattern.replace(/^\*\./, '');
+    if (/[:/]/.test(stripped)) {
+      showError(errEl, 'Domain should be a hostname only, e.g. example.com');
+      return;
+    }
+  } else {
+    try {
+      const parsed = new URL(pattern.replace(/\*/g, 'x'));
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+        showError(errEl, 'Only http:// and https:// URLs are supported.');
+        return;
+      }
+    } catch (_) { showError(errEl, 'Invalid URL. Example: https://example.com/*'); return; }
   }
 
   const added = await addUrl({

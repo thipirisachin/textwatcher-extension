@@ -8,7 +8,6 @@ import {
   getEnabled, setEnabled,
   getKeywords, addKeyword,
   getUrls, addUrl,
-  getHistory, saveHistorySnapshot, restoreHistoryEntry, removeHistoryEntry,
   getAlertHistory,
 } from '../shared/storage.js';
 import { STORAGE_KEY, MATCH_TYPE, URL_SCOPE_ALL } from '../shared/constants.js';
@@ -185,76 +184,6 @@ async function renderCounts() {
   alertCount.textContent   = alerts.length;
 }
 
-// ─── Alert History ────────────────────────────────────────────────────────────
-
-async function renderAlerts() {
-  const alerts = await getAlertHistory();
-  alertBadge.textContent = alerts.length;
-
-  if (alerts.length === 0) {
-    alertList.innerHTML = '<li class="alert-list__empty">No alerts yet. Add a keyword and URL to start watching a page.</li>';
-    alertMoreBtn.classList.add('hidden');
-    return;
-  }
-
-  alertList.innerHTML = '';
-  alerts.slice(0, 3).forEach((entry) => {
-    const li = document.createElement('li');
-    li.className = 'alert-item';
-    const isAppear = entry.event === 'appears';
-    const time = new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    let host = entry.url;
-    try { host = new URL(entry.url).hostname; } catch (_) { /* keep raw */ }
-
-    li.innerHTML = `
-      <span class="alert-item__dot alert-item__dot--${isAppear ? 'appear' : 'disappear'}"></span>
-      <div class="alert-item__body">
-        <div class="alert-item__text">&quot;${escapeHtml(truncate(entry.keyword, 28))}&quot; ${isAppear ? 'appeared' : 'gone'}</div>
-        <div class="alert-item__meta">${escapeHtml(host)} &middot; ${time}</div>
-      </div>
-    `;
-    alertList.appendChild(li);
-  });
-  alertMoreBtn.classList.toggle('hidden', alerts.length <= 3);
-}
-
-// ─── History (Saved Setups) ───────────────────────────────────────────────────
-
-async function renderHistory() {
-  const history = await getHistory();
-
-  if (history.length === 0) {
-    historyList.innerHTML = '<li class="history-list__empty">No saved setups. Use <em>Save Setup</em> below to snapshot your current config.</li>';
-    historyMoreBtn.classList.add('hidden');
-    return;
-  }
-
-  historyList.innerHTML = '';
-  history.slice(0, 3).forEach((entry) => {
-    const li = document.createElement('li');
-    li.className = 'history-item';
-    li.dataset.id = entry.id;
-
-    const kwdSummary = entry.keywords.length > 0
-      ? entry.keywords.slice(0, 3).map((k) => `"${truncate(k.text, 20)}"`).join(', ')
-      : 'No keywords';
-    const urlSummary = `${entry.urls.length} URL${entry.urls.length !== 1 ? 's' : ''}`;
-
-    li.innerHTML = `
-      <div class="history-item__meta">
-        <div class="history-item__label">${escapeHtml(entry.label)}</div>
-        <div class="history-item__sub">${escapeHtml(kwdSummary)} · ${urlSummary} · ${timeAgo(entry.timestamp)}</div>
-      </div>
-      <div class="history-item__actions">
-        <button class="btn--icon restore" data-action="restore" data-id="${entry.id}" title="Restore this setup"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg></button>
-        <button class="btn--icon delete"  data-action="delete"  data-id="${entry.id}" title="Delete"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-      </div>
-    `;
-    historyList.appendChild(li);
-  });
-  historyMoreBtn.classList.toggle('hidden', history.length <= 3);
-}
-
 // ─── Open Options at Section ──────────────────────────────────────────────────
 
 async function openOptionsAt(section) {
@@ -398,11 +327,21 @@ async function handleAddUrl() {
     return;
   }
 
-  // Basic URL validation for exact/wildcard types
-  if (matchType !== 'domain') {
+  // Validate scheme for all match types. `domain` skips URL parsing but must
+  // still be a plain hostname — block javascript:, data:, and other dangerous schemes.
+  if (matchType === 'domain') {
+    const stripped = pattern.replace(/^\*\./, '');
+    if (/[:/]/.test(stripped)) {
+      showError(urlError, 'Domain should be a hostname only, e.g. example.com');
+      return;
+    }
+  } else {
     try {
-      // For wildcard, replace * with a valid char before parsing
-      new URL(pattern.replace(/\*/g, 'x'));
+      const parsed = new URL(pattern.replace(/\*/g, 'x'));
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+        showError(urlError, 'Only http:// and https:// URLs are supported.');
+        return;
+      }
     } catch (_) {
       showError(urlError, 'Invalid URL format. Example: https://example.com/*');
       return;
@@ -449,9 +388,12 @@ function hideError(el) {
 
 let toastTimer = null;
 function showToast(msg) {
-  // Reuse status bar as toast
-  const prev = statusText.textContent;
-  statusText.innerHTML = `${SVG_CHECK} ${msg}`;
+  // Reuse status bar as toast. Build DOM safely — never interpolate msg into innerHTML.
+  const icon = document.createElement('span');
+  icon.innerHTML = SVG_CHECK; // SVG is a trusted compile-time constant
+  statusText.textContent = '';
+  statusText.appendChild(icon);
+  statusText.appendChild(document.createTextNode(' ' + msg));
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
     renderStatus();

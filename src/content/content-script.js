@@ -36,9 +36,7 @@ const MSG = Object.freeze({
   TEXT_APPEARED:    'text_appeared',
   TEXT_DISAPPEARED: 'text_disappeared',
   GET_STATE:        'get_state',
-  STATE_UPDATE:     'state_update',
   RELOAD_RULES:     'reload_rules',
-  TAB_MATCHED:      'tab_matched',
 });
 
 const MATCH_TYPE = Object.freeze({
@@ -58,6 +56,13 @@ const ALERT_EVENT = Object.freeze({
 const LIMITS = Object.freeze({
   DEBOUNCE_MS:   50,   // MutationObserver debounce window (ms)
   SNIPPET_CHARS: 80,   // Context characters either side of a match
+});
+
+// Inlined subset of NOTIF_FREQUENCY (shared/constants.js) — keep in sync.
+const NOTIF_FREQUENCY = Object.freeze({
+  ONCE_PER_PAGE:    'once_per_page',
+  EVERY_OCCURRENCE: 'every_occurrence',
+  COOLDOWN:         'cooldown',
 });
 
 // =============================================================================
@@ -446,7 +451,7 @@ function maybeAlert(keyword, event, pageText) {
 
   // once_per_page frequency gate
   const alerted = alertedThisLoad.get(keyword.id) || { appeared: false, disappeared: false };
-  if (settings.notifFrequency === 'once_per_page') {
+  if (settings.notifFrequency === NOTIF_FREQUENCY.ONCE_PER_PAGE) {
     if (event === ALERT_EVENT.APPEARS    && alerted.appeared)    return;
     if (event === ALERT_EVENT.DISAPPEARS && alerted.disappeared) return;
   }

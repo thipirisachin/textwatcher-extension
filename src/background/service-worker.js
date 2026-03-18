@@ -23,38 +23,50 @@ const cooldownMap = new Map();
 
 // ─── Notification Batcher ─────────────────────────────────────────────────────
 // Groups alerts that arrive within BATCH_WINDOW_MS into a single notification.
-// Key: tabId  Value: { timer, events: [...], url, tabId }
-const BATCH_WINDOW_MS = 1000;
-const pendingBatches  = new Map();
+// Key: tabId  Value: { timer, deadline, events: [...], url, tabId, settings }
+const BATCH_WINDOW_MS   = 1000;
+const BATCH_MAX_WAIT_MS = 5000; // Hard ceiling — never delay a notification beyond this
+const pendingBatches    = new Map();
 
 /**
  * Queue an alert event for batched notification.
- * Resets the 1-second window on each new event for the same tab.
+ * Resets the 1-second window on each new event for the same tab,
+ * but enforces a hard 5-second maximum so busy pages can't defer forever.
  */
 function queueNotification(opts) {
-  const { tabId } = opts;
+  const { tabId, settings } = opts;
   let batch = pendingBatches.get(tabId);
 
   if (batch) {
     clearTimeout(batch.timer);
   } else {
-    batch = { events: [], tabId };
+    batch = { events: [], tabId, settings, deadline: Date.now() + BATCH_MAX_WAIT_MS };
     pendingBatches.set(tabId, batch);
   }
 
   batch.events.push(opts);
+
+  // Respect the hard deadline — if we're past it, flush immediately.
+  const remaining = batch.deadline - Date.now();
+  if (remaining <= 0) {
+    pendingBatches.delete(tabId);
+    flushBatch(batch);
+    return;
+  }
+
   batch.timer = setTimeout(() => {
     pendingBatches.delete(tabId);
     flushBatch(batch);
-  }, BATCH_WINDOW_MS);
+  }, Math.min(BATCH_WINDOW_MS, remaining));
 }
 
 /**
  * Fire the consolidated notification for a completed batch.
+ * Settings are passed in from the batch (captured at queue time) to avoid
+ * a redundant storage read 1 second after the alert was already processed.
  */
-async function flushBatch({ tabId, events }) {
-  const settings = await getSettings();
-  const count    = events.length;
+async function flushBatch({ tabId, events, settings }) {
+  const count = events.length;
 
   if (count === 1) {
     // Single event — original detailed format
@@ -254,6 +266,7 @@ async function handleAlertMessage(tabId, event, message, settings) {
     matchType: message.matchType,
     url:       message.url,
     snippet:   isAppear ? message.snippet : null,
+    settings,
   });
 
   // Fire webhook in parallel with the alert log write — both are awaited so
@@ -332,8 +345,10 @@ async function fireNotification({ tabId, event, keyword, matchType, url, snippet
 chrome.notifications.onClicked.addListener(async (notificationId) => {
   chrome.notifications.clear(notificationId);
   if (!notificationId.startsWith('tw:')) return;
-  const tabId = parseInt(notificationId.split(':')[1], 10);
-  if (!tabId || isNaN(tabId)) return;
+  const parts = notificationId.split(':');
+  if (parts.length < 3) return;
+  const tabId = Number(parts[1]);
+  if (!Number.isInteger(tabId) || tabId <= 0) return;
   try {
     const tab = await chrome.tabs.get(tabId);
     await chrome.tabs.update(tabId, { active: true });

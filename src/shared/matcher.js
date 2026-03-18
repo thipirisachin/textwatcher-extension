@@ -70,12 +70,33 @@ export function findMatchPositions(haystack, needle, matchType) {
     return positions;
   }
 
-  const searchStr = [MATCH_TYPE.EXACT_CASE].includes(matchType)
-    ? haystack
-    : haystack.toLowerCase();
-  const searchNeedle = [MATCH_TYPE.EXACT_CASE].includes(matchType)
-    ? needle
-    : needle.toLowerCase();
+  // STARTS_WITH: match is anchored to the start of trimmed text.
+  if (matchType === MATCH_TYPE.STARTS_WITH) {
+    const trimmed      = haystack.trimStart();
+    const trimmedLower = trimmed.toLowerCase();
+    const needleLower  = needle.toLowerCase();
+    if (trimmedLower.startsWith(needleLower)) {
+      const offset = haystack.length - trimmed.length; // chars stripped by trimStart
+      positions.push({ index: offset, length: needle.length });
+    }
+    return positions;
+  }
+
+  // ENDS_WITH: match is anchored to the end of trimmed text.
+  if (matchType === MATCH_TYPE.ENDS_WITH) {
+    const trimmed      = haystack.trimEnd();
+    const trimmedLower = trimmed.toLowerCase();
+    const needleLower  = needle.toLowerCase();
+    if (trimmedLower.endsWith(needleLower)) {
+      positions.push({ index: trimmed.length - needle.length, length: needle.length });
+    }
+    return positions;
+  }
+
+  // EXACT_CASE / EXACT_NOCASE / CONTAINS: substring scan.
+  const caseSensitive = matchType === MATCH_TYPE.EXACT_CASE;
+  const searchStr    = caseSensitive ? haystack       : haystack.toLowerCase();
+  const searchNeedle = caseSensitive ? needle         : needle.toLowerCase();
 
   let start = 0;
   while (true) {
