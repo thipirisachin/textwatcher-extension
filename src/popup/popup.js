@@ -738,10 +738,16 @@ async function handleAddKeyword() {
   }
   const alertNameEl = qs('#alertName');
   if (alertNameEl) alertNameEl.value = '';
+
+  // Clear all preview / sample elements regardless of mode
   const preview = qs('#matchPreview');
   const samples = qs('#matchSamples');
   if (preview) preview.style.display = 'none';
   if (samples) samples.innerHTML = '';
+  const txtPreview = qs('#textMatchPreview');
+  const txtSamples = qs('#textMatchSamples');
+  if (txtPreview) txtPreview.style.display = 'none';
+  if (txtSamples) txtSamples.innerHTML = '';
 
   urlBindingBar?.querySelectorAll('input[type="checkbox"]').forEach((cb) => { cb.checked = false; });
 
