@@ -52,7 +52,7 @@ const urlBindingBar = qs('#urlBindingBar');
 // 'row'  = Watch a table row (MODE B)
 let currentMode = 'text';
 
-// Row selector auto-detected by "Detect rows from page" — invisible to user
+// Row selector auto-detected silently on init / mode switch
 let detectedRowSelector = null;
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
@@ -61,6 +61,7 @@ async function init() {
   await renderAll();
   bindEvents();
   listenForStorageChanges();
+  autoDetectRows(); // silent — no await needed
 }
 
 async function renderAll() {
@@ -234,8 +235,8 @@ function setMode(mode) {
   // Reset row state when switching away from row mode
   if (!isRow) {
     detectedRowSelector = null;
-    const ds = qs('#detectStatus');
-    if (ds) ds.style.display = 'none';
+  } else {
+    autoDetectRows(); // re-detect when switching to row mode
   }
 
   // Hide preview when switching modes
@@ -245,39 +246,21 @@ function setMode(mode) {
   if (samples) samples.innerHTML = '';
 }
 
-// ─── Detect Rows from Page ────────────────────────────────────────────────────
+// ─── Silent Row Auto-Detection ───────────────────────────────────────────────
+// Called on popup open and whenever switching to row mode.
+// Updates detectedRowSelector quietly; triggers preview if columns have values.
 
-async function handleDetectRows() {
-  const detectStatus = qs('#detectStatus');
-  if (!detectStatus) return;
-
-  detectStatus.style.display = '';
-  detectStatus.className     = 'detect-status off';
-  detectStatus.textContent   = 'Detecting…';
-  detectedRowSelector        = null;
-
+async function autoDetectRows() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.id) {
-    detectStatus.className   = 'detect-status off';
-    detectStatus.textContent = 'Not monitoring this page — add a URL rule first';
-    return;
-  }
+  if (!tab?.id) return;
 
   const res = await new Promise((resolve) => {
     chrome.tabs.sendMessage(tab.id, { type: MSG.DETECT_ROWS },
       (r) => resolve(chrome.runtime.lastError ? null : r));
   });
 
-  if (!res) {
-    detectStatus.className   = 'detect-status off';
-    detectStatus.textContent = 'Not monitoring this page — add a URL rule first';
-  } else if (res.error || !res.selector) {
-    detectStatus.className   = 'detect-status none';
-    detectStatus.textContent = 'No table found on this page';
-  } else {
-    detectedRowSelector      = res.selector;
-    detectStatus.className   = 'detect-status ok';
-    detectStatus.textContent = `Found ${res.count} row${res.count !== 1 ? 's' : ''} ✓`;
+  if (res?.selector) {
+    detectedRowSelector = res.selector;
     debouncedPreview();
   }
 }
@@ -378,7 +361,7 @@ async function handleAddKeyword() {
       return;
     }
     if (!rowSelector) {
-      showError(keywordError, 'Click "Detect rows from page" first.');
+      showError(keywordError, 'No table detected on this page — add a URL rule and reload the tab first.');
       return;
     }
   } else {
@@ -399,10 +382,13 @@ async function handleAddKeyword() {
     }
   }
 
+  const alertName = qs('#alertName')?.value.trim() ?? '';
+
   await addKeyword({
     text,
     matchType,
-    scopeSelector: '',
+    label:          alertName || text,
+    scopeSelector:  '',
     rowSelector,
     urlScope:       readUrlBinding(),
     enabled:        true,
@@ -416,11 +402,11 @@ async function handleAddKeyword() {
       const el = qs(id); if (el) el.value = '';
     });
     detectedRowSelector = null;
-    const ds = qs('#detectStatus');
-    if (ds) ds.style.display = 'none';
   } else {
     quickKeyword.value = '';
   }
+  const alertNameEl = qs('#alertName');
+  if (alertNameEl) alertNameEl.value = '';
   const preview = qs('#matchPreview');
   const samples = qs('#matchSamples');
   if (preview) preview.style.display = 'none';
@@ -517,9 +503,6 @@ function bindEvents() {
   ['#builderCol1', '#builderCol2', '#builderCol3'].forEach((id) => {
     qs(id)?.addEventListener('input', debouncedPreview);
   });
-
-  // Detect rows button
-  qs('#detectRowsBtn')?.addEventListener('click', handleDetectRows);
 
   // Add URL
   addUrlBtn.addEventListener('click', handleAddUrl);

@@ -92,13 +92,17 @@
         </div>
       </div>
       <p class="advanced-hint" style="margin-top:5px;">Enter partial text from each column that identifies the row. Leave unused columns blank.</p>
-
-      <button class="btn btn--ghost btn--sm" id="detectRowsBtn" type="button" style="margin-top:8px;">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.79"/></svg>
-        Detect rows from page
-      </button>
-      <p class="detect-status" id="detectStatus" style="display:none" aria-live="polite"></p>
     </div>
+
+    <!-- ── Shared: alert name ─────────────────────────────── -->
+    <input
+      type="text"
+      id="alertName"
+      class="input"
+      placeholder="Alert name (shown in notification)"
+      maxlength="100"
+      style="margin-top:10px;"
+    />
 
     <!-- ── Shared: alert checkboxes ───────────────────────── -->
     <div class="checkbox-row" style="margin-top:10px;">
