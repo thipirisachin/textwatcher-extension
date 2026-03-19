@@ -296,10 +296,12 @@
 <div class="card tbl-card">
   <h2>Table — row-scoped matching test</h2>
   <p class="tbl-desc">
-    Four rows sharing the same branch and fixture. Rows differ only by
-    <b>SERVERNAME</b> and <b>BROWSERNAME</b>. Use the per-row buttons to add/remove
-    individual rows from the DOM and verify the extension detects appear/disappear.
-    Use the regex cheat sheet below to target a single specific row.
+    Seven rows across three servers and two fixtures. Rows 1–4 share the same
+    branch and fixture; rows 5–7 add <b>prerel_2tenant</b> and <b>rel_2tenant</b>
+    server names that overlap in fixture text — reproducing the real
+    cross-row contamination scenario (issue&nbsp;#57).<br>
+    Use the per-row buttons to add/remove rows. Use the regex cheat sheet below to
+    target exactly one row.
   </p>
 
   <div class="tbl-controls">
@@ -364,42 +366,8 @@
       <div class="apcol-1 ap-tablecell" data-columnid="BROWSERNAME">chrome</div>
       <div class="apcol-1 ap-tablecell" style="padding:6px"><button class="r row-toggle-btn" id="tbtn3" onclick="toggleRow(3)">Remove</button></div>
     </div>
-  </div>
-</div>
-
-<!-- =================== CROSS-ROW CONTAMINATION TEST =================== -->
-<div class="card tbl-card">
-  <h2>Table — cross-row contamination test (issue #57)</h2>
-  <p class="tbl-desc">
-    Reproduces the real bug: <b>rel_2tenant</b> and <b>prerel_2tenant</b> both run
-    <em>Business Builder — All data types</em> simultaneously. A Regex keyword
-    <code>rel_2tenant.*Business Builder</code> <em>without</em> a rowSelector
-    <b>will NOT fire a disappear alert</b> when one row leaves — because the other
-    row keeps the text alive on the page.<br><br>
-    Use <b>Watch a table row</b> mode with Detect rows + the patterns below to see
-    the correct per-row behaviour.
-  </p>
-
-  <div class="tbl-controls">
-    <button class="b" id="crcAutoBtn" onclick="startCrcAuto()">&#10227; Auto-cycle prerel row 1 (10 s)</button>
-    <button class="s" id="crcStopBtn" onclick="stopCrcAuto()">&#10005; Stop</button>
-    <span id="crcTick" style="font-size:0.8rem;color:#64748b;line-height:2.2"></span>
-  </div>
-
-  <div class="ap-table" id="crcTable">
-    <!-- header -->
-    <div class="ap-row ap-header" style="grid-template-columns:repeat(7,1fr) 90px">
-      <div class="apcol-1">SERVERNAME</div>
-      <div class="apcol-1">AUTO_BRANCH</div>
-      <div class="apcol-1">FIXTURENAME</div>
-      <div class="apcol-1">TESTNAME</div>
-      <div class="apcol-1">STARTTIME</div>
-      <div class="apcol-1">USERNUMBER</div>
-      <div class="apcol-1">BROWSERNAME</div>
-      <div class="apcol-1">ACTION</div>
-    </div>
-    <!-- Row A — prerel_2tenant / Business Builder / chrome  (matches same fixture as Row B) -->
-    <div class="ap-row ap-tablerow1" id="crow0" style="grid-template-columns:repeat(7,1fr) 90px">
+    <!-- Row 5 — prerel_2tenant / Business Builder / chrome  ← monitor this -->
+    <div class="ap-row ap-tablerow1" id="trow4" style="grid-template-columns:repeat(7,1fr) 90px">
       <div class="apcol-1 ap-tablecell" data-columnid="SERVERNAME">prerel_2tenant</div>
       <div class="apcol-1 ap-tablecell" data-columnid="AUTO_BRANCH">master-hc-prerel-2tenant</div>
       <div class="apcol-1 ap-tablecell" data-columnid="FIXTURENAME">Business Builder - All data types used in input parameters</div>
@@ -407,10 +375,10 @@
       <div class="apcol-1 ap-tablecell" data-columnid="STARTTIME">Wed, 19 Mar 2026 10:00:00 GMT</div>
       <div class="apcol-1 ap-tablecell" data-columnid="USERNUMBER">40</div>
       <div class="apcol-1 ap-tablecell" data-columnid="BROWSERNAME">chrome</div>
-      <div class="apcol-1 ap-tablecell" style="padding:6px"><button class="r row-toggle-btn" id="cbtn0" onclick="toggleCrc(0)">Remove</button></div>
+      <div class="apcol-1 ap-tablecell" style="padding:6px"><button class="r row-toggle-btn" id="tbtn4" onclick="toggleRow(4)">Remove</button></div>
     </div>
-    <!-- Row B — rel_2tenant / Business Builder / chrome  (same fixture as Row A → contamination source) -->
-    <div class="ap-row ap-tablerow0" id="crow1" style="grid-template-columns:repeat(7,1fr) 90px">
+    <!-- Row 6 — rel_2tenant / Business Builder / chrome  ← contamination source for Row 5 -->
+    <div class="ap-row ap-tablerow0" id="trow5" style="grid-template-columns:repeat(7,1fr) 90px">
       <div class="apcol-1 ap-tablecell" data-columnid="SERVERNAME">rel_2tenant</div>
       <div class="apcol-1 ap-tablecell" data-columnid="AUTO_BRANCH">rel-hc-2tenant</div>
       <div class="apcol-1 ap-tablecell" data-columnid="FIXTURENAME">Business Builder - All data types used in input parameters</div>
@@ -418,10 +386,10 @@
       <div class="apcol-1 ap-tablecell" data-columnid="STARTTIME">Wed, 19 Mar 2026 10:01:00 GMT</div>
       <div class="apcol-1 ap-tablecell" data-columnid="USERNUMBER">40</div>
       <div class="apcol-1 ap-tablecell" data-columnid="BROWSERNAME">chrome</div>
-      <div class="apcol-1 ap-tablecell" style="padding:6px"><button class="r row-toggle-btn" id="cbtn1" onclick="toggleCrc(1)">Remove</button></div>
+      <div class="apcol-1 ap-tablecell" style="padding:6px"><button class="r row-toggle-btn" id="tbtn5" onclick="toggleRow(5)">Remove</button></div>
     </div>
-    <!-- Row C — prerel_2tenant / cei03 fixture (unique row, no contamination risk) -->
-    <div class="ap-row ap-tablerow1" id="crow2" style="grid-template-columns:repeat(7,1fr) 90px">
+    <!-- Row 7 — prerel_2tenant / cei03 (unique fixture — no contamination risk) -->
+    <div class="ap-row ap-tablerow1" id="trow6" style="grid-template-columns:repeat(7,1fr) 90px">
       <div class="apcol-1 ap-tablecell" data-columnid="SERVERNAME">prerel_2tenant</div>
       <div class="apcol-1 ap-tablecell" data-columnid="AUTO_BRANCH">master-hc-prerel-2tenant</div>
       <div class="apcol-1 ap-tablecell" data-columnid="FIXTURENAME">cei03 — Space: Bug Hunt</div>
@@ -429,170 +397,70 @@
       <div class="apcol-1 ap-tablecell" data-columnid="STARTTIME">Wed, 19 Mar 2026 10:02:00 GMT</div>
       <div class="apcol-1 ap-tablecell" data-columnid="USERNUMBER">132</div>
       <div class="apcol-1 ap-tablecell" data-columnid="BROWSERNAME">chrome</div>
-      <div class="apcol-1 ap-tablecell" style="padding:6px"><button class="r row-toggle-btn" id="cbtn2" onclick="toggleCrc(2)">Remove</button></div>
-    </div>
-    <!-- Row D — rel_2tenant / Business Builder / edge  (extra contamination source for edge-case testing) -->
-    <div class="ap-row ap-tablerow0" id="crow3" style="grid-template-columns:repeat(7,1fr) 90px">
-      <div class="apcol-1 ap-tablecell" data-columnid="SERVERNAME">rel_2tenant</div>
-      <div class="apcol-1 ap-tablecell" data-columnid="AUTO_BRANCH">rel-hc-2tenant</div>
-      <div class="apcol-1 ap-tablecell" data-columnid="FIXTURENAME">Business Builder - All data types used in input parameters</div>
-      <div class="apcol-1 ap-tablecell" data-columnid="TESTNAME"></div>
-      <div class="apcol-1 ap-tablecell" data-columnid="STARTTIME">Wed, 19 Mar 2026 10:03:00 GMT</div>
-      <div class="apcol-1 ap-tablecell" data-columnid="USERNUMBER">40</div>
-      <div class="apcol-1 ap-tablecell" data-columnid="BROWSERNAME">edge</div>
-      <div class="apcol-1 ap-tablecell" style="padding:6px"><button class="r row-toggle-btn" id="cbtn3" onclick="toggleCrc(3)">Remove</button></div>
+      <div class="apcol-1 ap-tablecell" style="padding:6px"><button class="r row-toggle-btn" id="tbtn6" onclick="toggleRow(6)">Remove</button></div>
     </div>
   </div>
 </div>
 
-<!-- =================== CROSS-ROW CHEAT SHEET =================== -->
 <div class="card regex-card">
-  <h2>Cheat sheet — cross-row contamination table</h2>
+  <h2>Cheat sheet — targeting a specific row</h2>
   <table class="regex-table">
     <thead>
-      <tr>
-        <th>Pattern (Column 1 · Col 2 · Col 3)</th>
-        <th>Targets</th>
-        <th>rowSelector required?</th>
-        <th>Expected behaviour</th>
-      </tr>
+      <tr><th>Pattern (Col 1 · Col 2 · Col 3)</th><th>Targets</th><th>Notes</th></tr>
     </thead>
     <tbody>
       <tr>
-        <td><code>rel_2tenant.*Business Builder</code></td>
-        <td>Rows A <em>and</em> B (and D)</td>
-        <td style="color:#ef4444">NO → BUG</td>
-        <td>Without rowSelector, removing Row A fires nothing — Row B keeps the text alive. <b>Demonstrates issue #57.</b></td>
-      </tr>
-      <tr>
-        <td><code>prerel_2tenant.*Business Builder.*chrome</code></td>
-        <td>Row A only</td>
-        <td style="color:#22c55e">YES → correct</td>
-        <td>With rowSelector + Watch a table row: fires disappear when Row A is removed, even though Row B is still present.</td>
-      </tr>
-      <tr>
-        <td><code>rel_2tenant.*Business Builder.*chrome</code></td>
-        <td>Row B only</td>
-        <td style="color:#22c55e">YES → correct</td>
-        <td>Fires independently of Row A.</td>
-      </tr>
-      <tr>
-        <td><code>prerel_2tenant.*cei03</code></td>
-        <td>Row C only</td>
-        <td style="color:#22c55e">YES → correct</td>
-        <td>Unique text — would work even without rowSelector, but rowSelector is still best practice.</td>
-      </tr>
-      <tr>
-        <td><code>rel_2tenant.*Business Builder.*edge</code></td>
-        <td>Row D only</td>
-        <td style="color:#22c55e">YES → correct</td>
-        <td>Browser column distinguishes from Row B (chrome).</td>
-      </tr>
-    </tbody>
-  </table>
-  <p class="tbl-desc" style="margin-top:12px">
-    <b>Row selector for this table:</b> <code>#crcTable .ap-row:not(.ap-header)</code>
-    &nbsp;·&nbsp;
-    Or click <b>Detect rows from page</b> in the popup — it will find <code>.ap-row:not([class*="header"])</code> automatically.
-  </p>
-</div>
-
-<script>
-(function () {
-  'use strict';
-
-  var crcDetached = {};
-
-  window.toggleCrc = function (idx) {
-    var btn = document.getElementById('cbtn' + idx);
-    var row = document.getElementById('crow' + idx);
-    if (row.parentNode) {
-      crcDetached[idx] = { node: row, parent: row.parentNode, next: row.nextSibling };
-      row.parentNode.removeChild(row);
-      btn.textContent = 'Add';
-      btn.className   = 'g row-toggle-btn';
-    } else {
-      var d = crcDetached[idx];
-      d.parent.insertBefore(d.node, d.next);
-      btn.textContent = 'Remove';
-      btn.className   = 'r row-toggle-btn';
-    }
-  };
-
-  // Auto-cycle Row A (prerel_2tenant / Business Builder / chrome)
-  var crcTimer = null, crcCdTimer = null, crcNextAt = 0;
-
-  window.startCrcAuto = function () {
-    stopCrcAuto();
-    document.getElementById('crcAutoBtn').disabled = true;
-    document.getElementById('crcStopBtn').classList.add('vis');
-    var INTERVAL = 10000;
-
-    function cycle() {
-      toggleCrc(0);
-      crcNextAt = Date.now() + INTERVAL;
-      var r = document.getElementById('crow0');
-      document.getElementById('crcTick').textContent =
-        (r && r.parentNode ? 'prerel row visible' : 'prerel row removed') +
-        ' — rel row still present — next toggle in 10s';
-    }
-
-    cycle();
-    crcTimer   = setInterval(cycle, INTERVAL);
-    crcCdTimer = setInterval(function () {
-      var rem = Math.max(0, Math.ceil((crcNextAt - Date.now()) / 1000));
-      var r   = document.getElementById('crow0');
-      document.getElementById('crcTick').textContent =
-        (r && r.parentNode ? 'prerel row visible' : 'prerel row removed') +
-        ' — rel row still present — next toggle in ' + rem + 's';
-    }, 250);
-  };
-
-  window.stopCrcAuto = function () {
-    clearInterval(crcTimer); clearInterval(crcCdTimer);
-    crcTimer = crcCdTimer = null;
-    document.getElementById('crcAutoBtn').disabled = false;
-    document.getElementById('crcStopBtn').classList.remove('vis');
-    document.getElementById('crcTick').textContent = '';
-  };
-}());
-</script>
-
-
-<div class="card regex-card">
-  <h2>Regex cheat sheet — targeting a specific row</h2>
-  <table class="regex-table">
-    <thead>
-      <tr><th>Pattern</th><th>Targets</th><th>Notes</th></tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><code>master-hc-prerel-2tenant .{0,200}chrome</code></td>
+        <td><code>master-hc-prerel-2tenant.*chrome</code></td>
         <td>Row 1 only</td>
-        <td>Full server sub-string → chrome within 200 chars of extracted text.</td>
+        <td>Full server sub-string → chrome.</td>
       </tr>
       <tr>
-        <td><code>master-hc-prerel-2tenant .{0,200}edge</code></td>
+        <td><code>master-hc-prerel-2tenant.*edge</code></td>
         <td>Row 2 only</td>
         <td>Full server sub-string → edge.</td>
       </tr>
       <tr>
-        <td><code>^(?!.*master-hc-prerel).*rel-2tenant .{0,200}edge</code></td>
+        <td><code>^(?!.*master-hc-prerel).*rel-2tenant.*edge</code></td>
         <td>Row 3 only</td>
         <td>rel-2tenant but NOT master-hc-prerel, then edge.</td>
       </tr>
       <tr>
-        <td><code>^(?!.*master-hc-prerel).*rel-2tenant .{0,200}chrome</code></td>
+        <td><code>^(?!.*master-hc-prerel).*rel-2tenant.*chrome</code></td>
         <td>Row 4 only</td>
         <td>rel-2tenant but NOT master-hc-prerel, then chrome.</td>
       </tr>
       <tr>
         <td><code>CEI03-1840-Migration_InputParameter</code></td>
-        <td>All 4 rows</td>
-        <td>Branch appears in every row — use when any row appearing/disappearing matters.</td>
+        <td>Rows 1–4</td>
+        <td>Branch appears in every original row.</td>
+      </tr>
+      <tr>
+        <td><code>prerel_2tenant.*Business Builder.*chrome</code></td>
+        <td>Row 5 only</td>
+        <td>With rowSelector: fires disappear when Row 5 is removed even though Row 6 (rel_2tenant) is still present — verifies issue&nbsp;#57 fix.</td>
+      </tr>
+      <tr>
+        <td><code>rel_2tenant.*Business Builder.*chrome</code></td>
+        <td>Row 6 only</td>
+        <td>Fires independently of Row 5 (different server prefix).</td>
+      </tr>
+      <tr>
+        <td><code>prerel_2tenant.*cei03</code></td>
+        <td>Row 7 only</td>
+        <td>Unique fixture — no contamination risk. Good smoke-test for rowSelector.</td>
+      </tr>
+      <tr>
+        <td><code>rel_2tenant.*Business Builder</code> <em>(no rowSelector)</em></td>
+        <td>Rows 5 <em>and</em> 6</td>
+        <td style="color:#ef4444">Demonstrates issue&nbsp;#57: removing Row 5 fires no disappear alert because Row 6 keeps the text alive on the page.</td>
       </tr>
     </tbody>
   </table>
+  <p class="tbl-desc" style="margin-top:12px">
+    <b>Row selector:</b> <code>#apTable .ap-row:not(.ap-header)</code>
+    &nbsp;·&nbsp;
+    Or click <b>Detect rows from page</b> in the popup — it auto-finds <code>.ap-row:not([class*="header"])</code>.
+  </p>
 </div>
 
 <!-- =================== DEBUG PANEL =================== -->
