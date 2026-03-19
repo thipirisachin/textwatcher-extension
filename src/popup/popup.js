@@ -12,7 +12,7 @@ import {
 } from '../shared/storage.js';
 import { STORAGE_KEY, MATCH_TYPE, URL_SCOPE_ALL, MSG } from '../shared/constants.js';
 import { validateRegex, matchesUrl } from '../shared/matcher.js';
-import { qs, timeAgo, truncate, escapeHtml, onStorageChange, debounce } from '../shared/utils.js';
+import { qs, truncate, escapeHtml, onStorageChange, debounce } from '../shared/utils.js';
 
 // ─── SVG Icon Strings ─────────────────────────────────────────────────────────
 const SVG_CHECK = '<svg style="vertical-align:middle" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
@@ -22,7 +22,6 @@ const masterToggle        = qs('#masterToggle');
 const statusDot           = qs('#statusDot');
 const statusText          = qs('#statusText');
 const quickKeyword        = qs('#quickKeyword');
-const quickMatchType      = qs('#quickMatchType');
 const quickAlertAppear    = qs('#quickAlertAppear');
 const quickAlertDisappear = qs('#quickAlertDisappear');
 const addKeywordBtn       = qs('#addKeywordBtn');
@@ -50,7 +49,7 @@ const urlBindingBar = qs('#urlBindingBar');
 // ─── Mode state ───────────────────────────────────────────────────────────────
 // 'text' = Watch for text (MODE A)
 // 'row'  = Watch a table row (MODE B)
-let currentMode = 'text';
+let currentMode = 'row';
 
 // Row selector auto-detected silently on init / mode switch
 let detectedRowSelector = null;
@@ -267,6 +266,11 @@ async function autoDetectRows() {
 
 // ─── Live Row Match Preview ───────────────────────────────────────────────────
 
+function getMatchType() {
+  const active = qs('.match-type-btn.active');
+  return active?.dataset.value ?? MATCH_TYPE.CONTAINS;
+}
+
 function getRowPattern() {
   // In row mode: build pattern from Column 1/2/3 builder
   const parts = [
@@ -367,7 +371,7 @@ async function handleAddKeyword() {
   } else {
     // Text mode: standard keyword flow
     text      = quickKeyword.value.trim();
-    matchType = quickMatchType.value;
+    matchType = getMatchType();
 
     if (!text) {
       showError(keywordError, 'Please enter a keyword.');
@@ -502,6 +506,14 @@ function bindEvents() {
   // Builder column inputs → update preview live
   ['#builderCol1', '#builderCol2', '#builderCol3'].forEach((id) => {
     qs(id)?.addEventListener('input', debouncedPreview);
+  });
+
+  // Match type button group (text mode)
+  qs('.match-type-btns')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.match-type-btn');
+    if (!btn) return;
+    qs('.match-type-btn.active')?.classList.remove('active');
+    btn.classList.add('active');
   });
 
   // Add URL

@@ -47,36 +47,32 @@
 
     <!-- Mode switcher -->
     <div class="mode-tabs" role="tablist" aria-label="Rule type">
-      <button class="mode-tab active" id="modeTextBtn" role="tab" aria-selected="true">Watch for text</button>
-      <button class="mode-tab"        id="modeRowBtn"  role="tab" aria-selected="false">Watch a table row</button>
+      <button class="mode-tab"        id="modeTextBtn" role="tab" aria-selected="false">Watch for text</button>
+      <button class="mode-tab active" id="modeRowBtn"  role="tab" aria-selected="true">Watch a table row</button>
     </div>
 
     <!-- ── MODE A: Watch for text ─────────────────────────── -->
-    <div id="textModePanel">
-      <div class="input-row" style="gap:8px; margin-top:10px;">
-        <div class="input-wrap" style="flex:1;" id="quickKeywordWrap">
-          <input
-            type="text"
-            id="quickKeyword"
-            class="input"
-            placeholder="Keyword or phrase…"
-            maxlength="500"
-          />
-          <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
-        </div>
-        <select id="quickMatchType" class="select select--compact" title="Match type">
-          <option value="contains">Contains</option>
-          <option value="exact_nocase">Exact (any case)</option>
-          <option value="exact_case">Exact (case-sensitive)</option>
-          <option value="starts_with">Starts with</option>
-          <option value="ends_with">Ends with</option>
-          <option value="regex">Regex</option>
-        </select>
+    <div id="textModePanel" style="display:none">
+      <div class="input-wrap" style="margin-top:10px;" id="quickKeywordWrap">
+        <input
+          type="text"
+          id="quickKeyword"
+          class="input"
+          placeholder="Keyword or phrase…"
+          maxlength="500"
+        />
+        <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
+      </div>
+      <div class="match-type-btns" role="group" aria-label="Match type" style="margin-top:6px;">
+        <button class="match-type-btn active" data-value="contains"     type="button">Contains</button>
+        <button class="match-type-btn"        data-value="exact_nocase" type="button">Exact</button>
+        <button class="match-type-btn"        data-value="exact_case"   type="button">Case sensitive</button>
+        <button class="match-type-btn"        data-value="regex"        type="button">Regex</button>
       </div>
     </div>
 
     <!-- ── MODE B: Watch a table row ─────────────────────── -->
-    <div id="rowModePanel" style="display:none">
+    <div id="rowModePanel">
       <div class="row-builder-grid" style="margin-top:10px;">
         <div class="row-builder-field">
           <label class="row-builder-field__label" for="builderCol1">Column 1</label>

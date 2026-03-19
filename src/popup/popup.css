@@ -192,6 +192,38 @@ body {
   border-color: var(--accent-lt);
 }
 
+/* ── Match type button group (text mode) ─────────────────────────────────── */
+.match-type-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.match-type-btn {
+  background: none;
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-xs);
+  color: var(--text-2);
+  font-size: 11px;
+  font-family: inherit;
+  font-weight: 600;
+  padding: 3px 9px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.match-type-btn:hover {
+  background: var(--accent-gl);
+  border-color: var(--accent-lt);
+  color: var(--accent-lt);
+}
+
+.match-type-btn.active {
+  background: var(--accent-gl);
+  border-color: var(--accent-lt);
+  color: var(--accent-lt);
+}
+
 /* ── Sections ────────────────────────────────────────────────────────── */
 .section {
   padding: 14px 14px 12px;
