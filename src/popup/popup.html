@@ -42,104 +42,88 @@
     <button class="tab-ctx-bar__cta hidden" id="tabCtxAddBtn">+ Add URL</button>
   </div>
 
-  <!-- ── Quick Add Keyword ──────────────────────────────────── -->
-  <section class="section">
-    <h2 class="section__title">Quick Add Keyword</h2>
-    <div class="input-wrap" id="quickKeywordWrap">
-      <input
-        type="text"
-        id="quickKeyword"
-        class="input"
-        placeholder="Keyword or phrase…"
-        maxlength="500"
-      />
-      <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
+  <!-- ── Add Rule ───────────────────────────────────────────── -->
+  <section class="section" id="addRuleSection">
+
+    <!-- Mode switcher -->
+    <div class="mode-tabs" role="tablist" aria-label="Rule type">
+      <button class="mode-tab active" id="modeTextBtn" role="tab" aria-selected="true">Watch for text</button>
+      <button class="mode-tab"        id="modeRowBtn"  role="tab" aria-selected="false">Watch a table row</button>
     </div>
-    <div class="checkbox-row">
+
+    <!-- ── MODE A: Watch for text ─────────────────────────── -->
+    <div id="textModePanel">
+      <div class="input-row" style="gap:8px; margin-top:10px;">
+        <div class="input-wrap" style="flex:1;" id="quickKeywordWrap">
+          <input
+            type="text"
+            id="quickKeyword"
+            class="input"
+            placeholder="Keyword or phrase…"
+            maxlength="500"
+          />
+          <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
+        </div>
+        <select id="quickMatchType" class="select select--compact" title="Match type">
+          <option value="contains">Contains</option>
+          <option value="exact_nocase">Exact (any case)</option>
+          <option value="exact_case">Exact (case-sensitive)</option>
+          <option value="starts_with">Starts with</option>
+          <option value="ends_with">Ends with</option>
+          <option value="regex">Regex</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- ── MODE B: Watch a table row ─────────────────────── -->
+    <div id="rowModePanel" style="display:none">
+      <div class="row-builder-grid" style="margin-top:10px;">
+        <div class="row-builder-field">
+          <label class="row-builder-field__label" for="builderCol1">Column 1</label>
+          <input type="text" id="builderCol1" class="input" placeholder="e.g. bdc-ga-prerel" maxlength="200" />
+        </div>
+        <div class="row-builder-field">
+          <label class="row-builder-field__label" for="builderCol2">Column 2</label>
+          <input type="text" id="builderCol2" class="input" placeholder="e.g. TC_TF_67" maxlength="200" />
+        </div>
+        <div class="row-builder-field">
+          <label class="row-builder-field__label" for="builderCol3">Column 3</label>
+          <input type="text" id="builderCol3" class="input" placeholder="e.g. chrome" maxlength="200" />
+        </div>
+      </div>
+      <p class="advanced-hint" style="margin-top:5px;">Enter partial text from each column that identifies the row. Leave unused columns blank.</p>
+
+      <button class="btn btn--ghost btn--sm" id="detectRowsBtn" type="button" style="margin-top:8px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.79"/></svg>
+        Detect rows from page
+      </button>
+      <p class="detect-status" id="detectStatus" style="display:none" aria-live="polite"></p>
+    </div>
+
+    <!-- ── Shared: alert checkboxes ───────────────────────── -->
+    <div class="checkbox-row" style="margin-top:10px;">
       <label class="checkbox-label">
         <input type="checkbox" id="quickAlertAppear" checked />
         Alert when appears
       </label>
       <label class="checkbox-label">
-        <input type="checkbox" id="quickAlertDisappear" checked />
+        <input type="checkbox" id="quickAlertDisappear" />
         Alert when disappears
       </label>
     </div>
-    <button class="btn--link" id="advancedToggleBtn" type="button"><svg id="advChevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg> Advanced</button>
-    <div id="advancedRowWrap" class="advanced-row-wrap">
-      <div class="advanced-row-inner">
-        <div id="advancedRow" class="advanced-row">
-      <p class="advanced-label">Match type</p>
-      <select id="quickMatchType" class="select" style="width:100%; margin-bottom:10px;">
-        <option value="contains">Contains</option>
-        <option value="exact_nocase">Exact (any case)</option>
-        <option value="exact_case">Exact (case-sensitive)</option>
-        <option value="starts_with">Starts with</option>
-        <option value="ends_with">Ends with</option>
-        <option value="regex">Regex</option>
-      </select>
-      <p class="advanced-label">Page scope (CSS selector)</p>
-      <div class="input-wrap">
-        <input
-          type="text"
-          id="quickScope"
-          class="input"
-          placeholder="#results, .product-list, …"
-          maxlength="500"
-        />
-        <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
-      </div>
-      <p class="advanced-hint">Leave blank to scan the whole page.</p>
 
-      <!-- ── Row selector + builder ─────────────────────────── -->
-      <p class="advanced-label" style="margin-top:10px;">Row selector (CSS)</p>
-      <div class="input-wrap">
-        <input
-          type="text"
-          id="quickRowSelector"
-          class="input"
-          placeholder=".ap-row:not(.ap-header), tbody tr, …"
-          maxlength="500"
-        />
-        <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
-      </div>
-      <p class="advanced-hint">Scopes matching to individual rows — prevents false alerts when the same value appears in multiple rows. Best used with <strong>Regex</strong>.</p>
+    <!-- ── Shared: URL binding ────────────────────────────── -->
+    <div id="urlBindingBar" class="url-binding-bar"></div>
 
-      <!-- Row match builder + live preview — shown only when a row selector is set -->
-      <div id="rowBuilderSection" style="display:none">
-        <div class="row-builder-card">
-          <p class="advanced-label">Row match builder</p>
-          <div class="row-builder-grid">
-            <div class="row-builder-field">
-              <label class="row-builder-field__label" for="builderServer">Server</label>
-              <input type="text" id="builderServer"      class="input" placeholder="bdc-ga-prerel" maxlength="200" />
-            </div>
-            <div class="row-builder-field">
-              <label class="row-builder-field__label" for="builderTestFixture">Test / Fixture</label>
-              <input type="text" id="builderTestFixture" class="input" placeholder="TC_TF_67"      maxlength="200" />
-            </div>
-            <div class="row-builder-field">
-              <label class="row-builder-field__label" for="builderBrowser">Browser</label>
-              <input type="text" id="builderBrowser"     class="input" placeholder="chrome"        maxlength="200" />
-            </div>
-          </div>
-          <p class="advanced-hint" style="margin-top:4px;">Non-empty fields are joined with <code>.*</code> and set match type to Regex. Edit the pattern above to override.</p>
-        </div>
+    <!-- ── Shared: live match preview (row mode only) ──────── -->
+    <p class="match-preview" id="matchPreview" aria-live="polite" style="display:none"></p>
+    <div class="match-samples" id="matchSamples"></div>
 
-        <!-- Live match preview -->
-        <p class="match-preview" id="matchPreview" aria-live="polite" style="display:none"></p>
-        <div class="match-samples" id="matchSamples"></div>
-      </div>
-
-      <p class="advanced-label" style="margin-top:10px;">URL binding</p>
-      <div id="quickUrlBinding" class="popup-url-binding">
-        <p class="advanced-hint">Loading…</p>
-      </div>
-        </div>
-      </div>
-    </div>
-    <button class="btn btn--primary" id="addKeywordBtn">Add Keyword</button>
+    <!-- ── Shared: success toast + submit ────────────────────── -->
+    <p class="success-toast" id="successToast" style="display:none" aria-live="polite"></p>
+    <button class="btn btn--primary" id="addKeywordBtn" style="margin-top:4px;">Add Keyword</button>
     <p class="error-msg hidden" id="keywordError" role="alert"></p>
+
   </section>
 
   <!-- ── Quick Add URL ──────────────────────────────────────── -->

@@ -38,6 +38,7 @@ const MSG = Object.freeze({
   GET_STATE:        'get_state',
   RELOAD_RULES:     'reload_rules',
   PREVIEW_MATCH:    'preview_match',    // Popup → content script: live row match count
+  DETECT_ROWS:      'detect_rows',      // Popup → content script: auto-detect table row selector
 });
 
 const MATCH_TYPE = Object.freeze({
@@ -329,6 +330,32 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
     return true; // async response
   }
+
+  if (message?.type === MSG.DETECT_ROWS) {
+    // Popup asks the content script to detect the best CSS selector for table rows.
+    // Tries common patterns in priority order; returns the first that finds visible rows.
+    const CANDIDATES = [
+      'tbody tr',
+      '[data-rowid]',
+      '[role="row"]:not([role="rowheader"])',
+      '.ap-row:not([class*="header"])',
+      '[class*="tablerow"]:not([class*="header"])',
+      '[class*="row"]:not([class*="header"]):not(html):not(body)',
+    ];
+    for (const sel of CANDIDATES) {
+      try {
+        const els = Array.from(document.querySelectorAll(sel))
+          .filter(el => el.offsetParent !== null && el.style.visibility !== 'hidden');
+        if (els.length > 0) {
+          sendResponse({ selector: sel, count: els.length });
+          return true;
+        }
+      } catch (_) { continue; }
+    }
+    sendResponse({ error: 'none found' });
+    return true;
+  }
+
   handleBackgroundMessage(message);
 });
 

@@ -15,37 +15,45 @@ import { validateRegex, matchesUrl } from '../shared/matcher.js';
 import { qs, timeAgo, truncate, escapeHtml, onStorageChange, debounce } from '../shared/utils.js';
 
 // ─── SVG Icon Strings ─────────────────────────────────────────────────────────
-const SVG_CHEVRON_RIGHT = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
-const SVG_CHEVRON_DOWN  = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
-const SVG_CHECK         = '<svg style="vertical-align:middle" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+const SVG_CHECK = '<svg style="vertical-align:middle" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 
 // ─── DOM References ───────────────────────────────────────────────────────────
-const masterToggle      = qs('#masterToggle');
-const statusDot         = qs('#statusDot');
-const statusText        = qs('#statusText');
-const quickKeyword      = qs('#quickKeyword');
-const quickMatchType    = qs('#quickMatchType');
-const quickAlertAppear  = qs('#quickAlertAppear');
+const masterToggle        = qs('#masterToggle');
+const statusDot           = qs('#statusDot');
+const statusText          = qs('#statusText');
+const quickKeyword        = qs('#quickKeyword');
+const quickMatchType      = qs('#quickMatchType');
+const quickAlertAppear    = qs('#quickAlertAppear');
 const quickAlertDisappear = qs('#quickAlertDisappear');
-const addKeywordBtn     = qs('#addKeywordBtn');
-const keywordError      = qs('#keywordError');
-const quickUrl          = qs('#quickUrl');
-const quickUrlMatchType = qs('#quickUrlMatchType');
-const quickUrlLabel     = qs('#quickUrlLabel');
-const addUrlBtn         = qs('#addUrlBtn');
-const useCurrentUrlBtn  = qs('#useCurrentUrlBtn');
-const urlError          = qs('#urlError');
-const keywordCount      = qs('#keywordCount');
-const urlCount          = qs('#urlCount');
-const alertCount        = qs('#alertCount');
-const openOptionsBtn    = qs('#openOptionsBtn');
+const addKeywordBtn       = qs('#addKeywordBtn');
+const keywordError        = qs('#keywordError');
+const quickUrl            = qs('#quickUrl');
+const quickUrlMatchType   = qs('#quickUrlMatchType');
+const quickUrlLabel       = qs('#quickUrlLabel');
+const addUrlBtn           = qs('#addUrlBtn');
+const useCurrentUrlBtn    = qs('#useCurrentUrlBtn');
+const urlError            = qs('#urlError');
+const keywordCount        = qs('#keywordCount');
+const urlCount            = qs('#urlCount');
+const alertCount          = qs('#alertCount');
+const openOptionsBtn      = qs('#openOptionsBtn');
 
-// ── Tab Context Bar refs (resolved lazily — element may not exist on old DOM)
+// ── Tab Context Bar
 const tabCtxBar    = qs('#tabCtxBar');
 const tabCtxDot    = qs('#tabCtxDot');
 const tabCtxText   = qs('#tabCtxText');
 const tabCtxAddBtn = qs('#tabCtxAddBtn');
-const quickUrlBinding = qs('#quickUrlBinding');
+
+// ── URL binding bar (new location — outside Advanced)
+const urlBindingBar = qs('#urlBindingBar');
+
+// ─── Mode state ───────────────────────────────────────────────────────────────
+// 'text' = Watch for text (MODE A)
+// 'row'  = Watch a table row (MODE B)
+let currentMode = 'text';
+
+// Row selector auto-detected by "Detect rows from page" — invisible to user
+let detectedRowSelector = null;
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
@@ -61,49 +69,62 @@ async function renderAll() {
     renderToggle(),
     renderStatus(),
     renderCounts(),
-    renderPopupUrlBinding(),
+    renderUrlBindingBar(),
   ]);
 }
 
-// ─── URL Binding in Popup Keyword Form ───────────────────────────────────────────────────────────
+// ─── URL Binding Bar ──────────────────────────────────────────────────────────
 
-async function renderPopupUrlBinding() {
-  if (!quickUrlBinding) return;
+async function renderUrlBindingBar() {
+  if (!urlBindingBar) return;
   const urls = await getUrls();
   const active = urls.filter((u) => u.enabled);
   if (active.length === 0) {
-    quickUrlBinding.innerHTML = '<p class="advanced-hint" style="margin:0">Add URL rules first to bind this keyword to specific pages.</p>';
+    urlBindingBar.innerHTML =
+      '<p class="url-binding-bar__warn">' +
+      '⚠ No URL rules — won\'t monitor any page. ' +
+      '<a href="#" id="scrollToUrl" tabindex="0">Add one below ↓</a>' +
+      '</p>';
+    qs('#scrollToUrl')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      qs('#quickUrl')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      qs('#quickUrl')?.focus();
+    });
     return;
   }
-  quickUrlBinding.innerHTML = active.map((u) => {
-    const label = truncate(u.label || u.pattern, 38);
-    return `<label class="popup-url-binding__item">
+  urlBindingBar.innerHTML = active.map((u) => {
+    const label = truncate(u.label || u.pattern, 36);
+    return `<label class="url-binding-bar__item">
       <input type="checkbox" name="quickUrlScope" value="${escapeHtml(u.id)}" />
       <span>${escapeHtml(label)}</span>
     </label>`;
-  }).join('');
+  }).join('') + `<a class="url-binding-bar__more" href="#" id="moreUrlsLink" tabindex="0">+ more</a>`;
+  qs('#moreUrlsLink')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    openOptionsAt('urls');
+  });
 }
 
-function readPopupUrlBinding() {
-  if (!quickUrlBinding) return URL_SCOPE_ALL;
-  const checked = Array.from(quickUrlBinding.querySelectorAll('input[name="quickUrlScope"]:checked')).map((cb) => cb.value);
+function readUrlBinding() {
+  if (!urlBindingBar) return URL_SCOPE_ALL;
+  const checked = Array.from(
+    urlBindingBar.querySelectorAll('input[name="quickUrlScope"]:checked')
+  ).map((cb) => cb.value);
   return checked.length > 0 ? checked : URL_SCOPE_ALL;
 }
 
-// ─── Tab Context Bar ────────────────────────────────────────────────────────────────────────────────
+// ─── Tab Context Bar ──────────────────────────────────────────────────────────
 
 async function renderTabContext() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const tabUrl = tab?.url ?? '';
 
-  // Hide bar for browser-internal pages.
   if (!tabUrl || /^(chrome|about|edge|moz-extension|chrome-extension):/.test(tabUrl)) {
     tabCtxBar.style.display = 'none';
     return;
   }
 
   tabCtxBar.style.display = '';
-
   const enabled = await getEnabled();
   if (!enabled) {
     tabCtxBar.className    = 'tab-ctx-bar';
@@ -144,7 +165,7 @@ async function renderToggle() {
 }
 
 function updateStatusIndicator(enabled) {
-  statusDot.className = `status-dot status-dot--${enabled ? 'active' : 'inactive'}`;
+  statusDot.className    = `status-dot status-dot--${enabled ? 'active' : 'inactive'}`;
   statusText.textContent = enabled ? 'Monitoring active' : 'Monitoring paused';
 }
 
@@ -152,33 +173,27 @@ function updateStatusIndicator(enabled) {
 
 async function renderStatus() {
   const [enabled, keywords, urls] = await Promise.all([
-    getEnabled(),
-    getKeywords(),
-    getUrls(),
+    getEnabled(), getKeywords(), getUrls(),
   ]);
-
   const activeK = keywords.filter((k) => k.enabled).length;
   const activeU = urls.filter((u) => u.enabled).length;
 
   if (!enabled) {
     statusText.textContent = 'Monitoring paused';
-    statusDot.className = 'status-dot status-dot--inactive';
+    statusDot.className    = 'status-dot status-dot--inactive';
   } else if (activeK === 0 || activeU === 0) {
     statusText.textContent = `Active — add ${activeK === 0 ? 'keywords' : 'URLs'} to begin`;
-    statusDot.className = 'status-dot status-dot--inactive';
+    statusDot.className    = 'status-dot status-dot--inactive';
   } else {
     statusText.textContent = `Monitoring ${activeU} URL${activeU !== 1 ? 's' : ''}, ${activeK} keyword${activeK !== 1 ? 's' : ''}`;
-    statusDot.className = 'status-dot status-dot--active';
+    statusDot.className    = 'status-dot status-dot--active';
   }
 }
 
 async function renderCounts() {
   const [keywords, urls, alerts] = await Promise.all([
-    getKeywords(),
-    getUrls(),
-    getAlertHistory(),
+    getKeywords(), getUrls(), getAlertHistory(),
   ]);
-
   keywordCount.textContent = keywords.filter((k) => k.enabled).length;
   urlCount.textContent     = urls.filter((u) => u.enabled).length;
   alertCount.textContent   = alerts.length;
@@ -189,6 +204,284 @@ async function renderCounts() {
 async function openOptionsAt(section) {
   await chrome.storage.local.set({ tw_open_section: section });
   chrome.runtime.openOptionsPage();
+}
+
+// ─── Mode Switcher ────────────────────────────────────────────────────────────
+
+function setMode(mode) {
+  currentMode = mode;
+
+  const isRow = mode === 'row';
+  qs('#modeTextBtn').classList.toggle('active', !isRow);
+  qs('#modeRowBtn').classList.toggle('active',  isRow);
+  qs('#modeTextBtn').setAttribute('aria-selected', String(!isRow));
+  qs('#modeRowBtn').setAttribute('aria-selected',  String(isRow));
+
+  qs('#textModePanel').style.display = isRow ? 'none' : '';
+  qs('#rowModePanel').style.display  = isRow ? '' : 'none';
+
+  addKeywordBtn.textContent = isRow ? 'Add Rule' : 'Add Keyword';
+
+  // Smart alert defaults per mode
+  if (isRow) {
+    quickAlertAppear.checked    = false;
+    quickAlertDisappear.checked = true;
+  } else {
+    quickAlertAppear.checked    = true;
+    quickAlertDisappear.checked = false;
+  }
+
+  // Reset row state when switching away from row mode
+  if (!isRow) {
+    detectedRowSelector = null;
+    const ds = qs('#detectStatus');
+    if (ds) ds.style.display = 'none';
+  }
+
+  // Hide preview when switching modes
+  const preview = qs('#matchPreview');
+  const samples = qs('#matchSamples');
+  if (preview) preview.style.display = 'none';
+  if (samples) samples.innerHTML = '';
+}
+
+// ─── Detect Rows from Page ────────────────────────────────────────────────────
+
+async function handleDetectRows() {
+  const detectStatus = qs('#detectStatus');
+  if (!detectStatus) return;
+
+  detectStatus.style.display = '';
+  detectStatus.className     = 'detect-status off';
+  detectStatus.textContent   = 'Detecting…';
+  detectedRowSelector        = null;
+
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) {
+    detectStatus.className   = 'detect-status off';
+    detectStatus.textContent = 'Not monitoring this page — add a URL rule first';
+    return;
+  }
+
+  const res = await new Promise((resolve) => {
+    chrome.tabs.sendMessage(tab.id, { type: MSG.DETECT_ROWS },
+      (r) => resolve(chrome.runtime.lastError ? null : r));
+  });
+
+  if (!res) {
+    detectStatus.className   = 'detect-status off';
+    detectStatus.textContent = 'Not monitoring this page — add a URL rule first';
+  } else if (res.error || !res.selector) {
+    detectStatus.className   = 'detect-status none';
+    detectStatus.textContent = 'No table found on this page';
+  } else {
+    detectedRowSelector      = res.selector;
+    detectStatus.className   = 'detect-status ok';
+    detectStatus.textContent = `Found ${res.count} row${res.count !== 1 ? 's' : ''} ✓`;
+    debouncedPreview();
+  }
+}
+
+// ─── Live Row Match Preview ───────────────────────────────────────────────────
+
+function getRowPattern() {
+  // In row mode: build pattern from Column 1/2/3 builder
+  const parts = [
+    qs('#builderCol1')?.value.trim() ?? '',
+    qs('#builderCol2')?.value.trim() ?? '',
+    qs('#builderCol3')?.value.trim() ?? '',
+  ].filter(Boolean);
+  return parts.join('.*');
+}
+
+const debouncedPreview = debounce(async () => {
+  const preview   = qs('#matchPreview');
+  const samplesEl = qs('#matchSamples');
+  if (!preview) return;
+
+  if (currentMode !== 'row') {
+    preview.style.display = 'none';
+    if (samplesEl) samplesEl.innerHTML = '';
+    return;
+  }
+
+  const pattern     = getRowPattern();
+  const rowSelector = detectedRowSelector;
+
+  if (!rowSelector || !pattern) {
+    preview.style.display = 'none';
+    if (samplesEl) samplesEl.innerHTML = '';
+    return;
+  }
+
+  preview.style.display = '';
+  preview.className     = 'match-preview off';
+  preview.textContent   = 'Checking…';
+  if (samplesEl) samplesEl.innerHTML = '';
+
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id) throw new Error('no tab');
+
+    const response = await new Promise((resolve) => {
+      chrome.tabs.sendMessage(
+        tab.id,
+        { type: MSG.PREVIEW_MATCH, pattern, matchType: MATCH_TYPE.REGEX, rowSelector },
+        (res) => resolve(chrome.runtime.lastError ? null : res)
+      );
+    });
+
+    if (!response) {
+      preview.className   = 'match-preview off';
+      preview.textContent = 'Not monitoring this page — add a URL rule first';
+    } else if (response.error) {
+      preview.className   = 'match-preview none';
+      preview.textContent = `⚠ Invalid selector: ${response.error}`;
+    } else if (response.count === 1) {
+      preview.className   = 'match-preview ok';
+      preview.textContent = '✓ 1 unique match — rule will fire for this row only';
+    } else if (response.count > 1) {
+      preview.className   = 'match-preview warn';
+      preview.textContent = `⚠ ${response.count} rows match — add more column values to narrow it down`;
+    } else {
+      preview.className   = 'match-preview none';
+      preview.textContent = `✗ No rows match (${response.total} row${response.total !== 1 ? 's' : ''} checked)`;
+    }
+
+    if (samplesEl && response.samples?.length) {
+      samplesEl.innerHTML =
+        '<span style="font-size:10px;color:var(--text-3);display:block;margin-top:4px;">Matched rows:</span>' +
+        response.samples.map((s) => `<code>${escapeHtml(s)}…</code>`).join('');
+    } else if (samplesEl) {
+      samplesEl.innerHTML = '';
+    }
+  } catch (_) {
+    preview.style.display = 'none';
+  }
+}, 350);
+
+// ─── Add Keyword / Rule Handler ───────────────────────────────────────────────
+
+async function handleAddKeyword() {
+  hideError(keywordError);
+
+  let text, matchType, rowSelector = '';
+
+  if (currentMode === 'row') {
+    // Row mode: pattern built from builder columns, match type always Regex
+    text         = getRowPattern();
+    matchType    = MATCH_TYPE.REGEX;
+    rowSelector  = detectedRowSelector ?? '';
+
+    if (!text) {
+      showError(keywordError, 'Enter at least one column value to identify the row.');
+      return;
+    }
+    if (!rowSelector) {
+      showError(keywordError, 'Click "Detect rows from page" first.');
+      return;
+    }
+  } else {
+    // Text mode: standard keyword flow
+    text      = quickKeyword.value.trim();
+    matchType = quickMatchType.value;
+
+    if (!text) {
+      showError(keywordError, 'Please enter a keyword.');
+      return;
+    }
+    if (matchType === MATCH_TYPE.REGEX) {
+      const { valid, error } = validateRegex(text);
+      if (!valid) {
+        showError(keywordError, `Invalid regex: ${error}`);
+        return;
+      }
+    }
+  }
+
+  await addKeyword({
+    text,
+    matchType,
+    scopeSelector: '',
+    rowSelector,
+    urlScope:       readUrlBinding(),
+    enabled:        true,
+    alertAppear:    quickAlertAppear.checked,
+    alertDisappear: quickAlertDisappear.checked,
+  });
+
+  // Reset form
+  if (currentMode === 'row') {
+    ['#builderCol1', '#builderCol2', '#builderCol3'].forEach((id) => {
+      const el = qs(id); if (el) el.value = '';
+    });
+    detectedRowSelector = null;
+    const ds = qs('#detectStatus');
+    if (ds) ds.style.display = 'none';
+  } else {
+    quickKeyword.value = '';
+  }
+  const preview = qs('#matchPreview');
+  const samples = qs('#matchSamples');
+  if (preview) preview.style.display = 'none';
+  if (samples) samples.innerHTML = '';
+
+  urlBindingBar?.querySelectorAll('input[type="checkbox"]').forEach((cb) => { cb.checked = false; });
+
+  const urls = await getUrls();
+  const boundCount = readUrlBinding() === URL_SCOPE_ALL
+    ? urls.filter((u) => u.enabled).length
+    : (Array.isArray(readUrlBinding()) ? readUrlBinding().length : 0);
+  const pageNote = boundCount > 0
+    ? `watching on ${boundCount} page${boundCount !== 1 ? 's' : ''}`
+    : 'watching on all pages';
+
+  showToast(`✓ Rule saved — ${pageNote}`);
+  await renderCounts();
+  await renderStatus();
+}
+
+// ─── Add URL Handler ──────────────────────────────────────────────────────────
+
+async function handleAddUrl() {
+  const pattern   = quickUrl.value.trim();
+  const matchType = quickUrlMatchType.value;
+  const label     = quickUrlLabel.value.trim();
+
+  hideError(urlError);
+
+  if (!pattern) {
+    showError(urlError, 'Please enter a URL or pattern.');
+    return;
+  }
+
+  if (matchType === 'domain') {
+    const stripped = pattern.replace(/^\*\./, '');
+    if (/[:/]/.test(stripped)) {
+      showError(urlError, 'Domain should be a hostname only, e.g. example.com');
+      return;
+    }
+  } else {
+    try {
+      const parsed = new URL(pattern.replace(/\*/g, 'x'));
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+        showError(urlError, 'Only http:// and https:// URLs are supported.');
+        return;
+      }
+    } catch (_) {
+      showError(urlError, 'Invalid URL format. Example: https://example.com/*');
+      return;
+    }
+  }
+
+  await addUrl({ pattern, matchType, label: label || pattern, enabled: true });
+
+  quickUrl.value      = '';
+  quickUrlLabel.value = '';
+  showToast('✓ URL added');
+  await renderCounts();
+  await renderStatus();
+  await renderUrlBindingBar();
 }
 
 // ─── Event Bindings ───────────────────────────────────────────────────────────
@@ -212,67 +505,27 @@ function bindEvents() {
     await renderStatus();
   });
 
-  // Advanced toggle (scope selector)
-  qs('#advancedToggleBtn').addEventListener('click', () => {
-    const wrap = qs('#advancedRowWrap');
-    const btn  = qs('#advancedToggleBtn');
-    const open = wrap.classList.contains('open');
-    wrap.classList.toggle('open', !open);
-    btn.innerHTML = (open ? SVG_CHEVRON_RIGHT : SVG_CHEVRON_DOWN) + ' Advanced';
-  });
+  // Mode tabs
+  qs('#modeTextBtn').addEventListener('click', () => setMode('text'));
+  qs('#modeRowBtn').addEventListener('click',  () => setMode('row'));
 
-  // Add keyword
+  // Add keyword / rule
   addKeywordBtn.addEventListener('click', handleAddKeyword);
-  quickKeyword.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') handleAddKeyword();
+  quickKeyword?.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAddKeyword(); });
+
+  // Builder column inputs → update preview live
+  ['#builderCol1', '#builderCol2', '#builderCol3'].forEach((id) => {
+    qs(id)?.addEventListener('input', debouncedPreview);
   });
 
-  // ── Row selector: show/hide builder section ──────────────────────────────
-  qs('#quickRowSelector')?.addEventListener('input', () => {
-    const hasSel = (qs('#quickRowSelector')?.value.trim().length ?? 0) > 0;
-    const section = qs('#rowBuilderSection');
-    if (section) section.style.display = hasSel ? '' : 'none';
-    debouncedPreview();
-  });
-
-  // ── Builder inputs → auto-generate pattern field ─────────────────────────
-  let _builderMode = false;
-  ['#builderServer', '#builderTestFixture', '#builderBrowser'].forEach((id) => {
-    qs(id)?.addEventListener('input', () => {
-      const parts = [
-        qs('#builderServer')?.value.trim()      ?? '',
-        qs('#builderTestFixture')?.value.trim() ?? '',
-        qs('#builderBrowser')?.value.trim()     ?? '',
-      ].filter(Boolean);
-      if (parts.length) {
-        _builderMode = true;
-        quickKeyword.value            = parts.join('.*');
-        quickMatchType.value          = 'regex';
-        _builderMode = false;
-      }
-      debouncedPreview();
-    });
-  });
-
-  // Direct edit of pattern → clear builder inputs (manual override)
-  quickKeyword.addEventListener('input', () => {
-    if (!_builderMode) {
-      ['#builderServer', '#builderTestFixture', '#builderBrowser'].forEach((id) => {
-        const el = qs(id); if (el) el.value = '';
-      });
-    }
-    debouncedPreview();
-  });
-
-  qs('#quickMatchType')?.addEventListener('change', debouncedPreview);
+  // Detect rows button
+  qs('#detectRowsBtn')?.addEventListener('click', handleDetectRows);
 
   // Add URL
   addUrlBtn.addEventListener('click', handleAddUrl);
-  quickUrl.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') handleAddUrl();
-  });
+  quickUrl.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAddUrl(); });
 
-  // Fill URL field from current active tab
+  // Fill URL from current tab
   useCurrentUrlBtn.addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab?.url && !tab.url.startsWith('chrome') && !tab.url.startsWith('about')) {
@@ -298,188 +551,14 @@ function bindEvents() {
     }
   });
 
-  // History actions (delegated) - removed (list no longer in popup)
-
   // Summary card navigation
   qs('#cardKeywords').addEventListener('click', () => openOptionsAt('keywords'));
   qs('#cardUrls').addEventListener('click',     () => openOptionsAt('urls'));
   qs('#cardAlerts').addEventListener('click',   () => openOptionsAt('activity'));
 
   // Footer nav buttons
-  qs('#navSetups').addEventListener('click',  () => openOptionsAt('history'));
+  qs('#navSetups').addEventListener('click', () => openOptionsAt('history'));
   openOptionsBtn.addEventListener('click', () => chrome.runtime.openOptionsPage());
-}
-
-// ─── Live Row Match Preview ───────────────────────────────────────────────────
-
-const debouncedPreview = debounce(async () => {
-  const pattern     = quickKeyword.value.trim();
-  const matchType   = quickMatchType.value;
-  const rowSelector = qs('#quickRowSelector')?.value.trim() ?? '';
-  const preview     = qs('#matchPreview');
-  const samplesEl   = qs('#matchSamples');
-
-  if (!preview) return;
-
-  if (!rowSelector || !pattern) {
-    preview.style.display = 'none';
-    if (samplesEl) samplesEl.innerHTML = '';
-    return;
-  }
-
-  preview.style.display = '';
-  preview.className     = 'match-preview off';
-  preview.textContent   = 'Checking…';
-  if (samplesEl) samplesEl.innerHTML = '';
-
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.id) throw new Error('no tab');
-
-    const response = await new Promise((resolve) => {
-      chrome.tabs.sendMessage(
-        tab.id,
-        { type: MSG.PREVIEW_MATCH, pattern, matchType, rowSelector },
-        (res) => resolve(chrome.runtime.lastError ? null : res)
-      );
-    });
-
-    if (!response) {
-      preview.className   = 'match-preview off';
-      preview.textContent = 'Not monitoring this page — add a URL rule first';
-    } else if (response.error) {
-      preview.className   = 'match-preview none';
-      preview.textContent = `⚠ Invalid selector: ${response.error}`;
-    } else if (response.count === 1) {
-      preview.className   = 'match-preview ok';
-      preview.textContent = '✓ 1 unique match — rule will fire for this row only';
-    } else if (response.count > 1) {
-      preview.className   = 'match-preview warn';
-      preview.textContent = `⚠ ${response.count} rows match — add more fields to narrow it down`;
-    } else {
-      preview.className   = 'match-preview none';
-      preview.textContent = `✗ No rows match (${response.total} row${response.total !== 1 ? 's' : ''} checked)`;
-    }
-
-    // Show up to 3 sample row texts so the user knows exactly which rows matched
-    if (samplesEl && response.samples?.length) {
-      samplesEl.innerHTML =
-        '<span style="font-size:10px;color:var(--text-3);display:block;margin-top:4px;">Matched rows:</span>' +
-        response.samples
-          .map((s) => `<code>${escapeHtml(s)}…</code>`)
-          .join('');
-    } else {
-      if (samplesEl) samplesEl.innerHTML = '';
-    }
-  } catch (_) {
-    preview.style.display = 'none';
-  }
-}, 350);
-
-// ─── Add Keyword Handler ──────────────────────────────────────────────────────
-
-async function handleAddKeyword() {
-  const text      = quickKeyword.value.trim();
-  const matchType = quickMatchType.value;
-
-  hideError(keywordError);
-
-  if (!text) {
-    showError(keywordError, 'Please enter a keyword.');
-    return;
-  }
-
-  if (matchType === MATCH_TYPE.REGEX) {
-    const { valid, error } = validateRegex(text);
-    if (!valid) {
-      showError(keywordError, `Invalid regex: ${error}`);
-      return;
-    }
-  }
-
-  const scopeSelector = qs('#quickScope').value.trim();
-  const rowSelector   = qs('#quickRowSelector')?.value.trim() ?? '';
-
-  await addKeyword({
-    text,
-    matchType,
-    scopeSelector,
-    rowSelector,
-    urlScope:       readPopupUrlBinding(),
-    enabled:        true,
-    alertAppear:    quickAlertAppear.checked,
-    alertDisappear: quickAlertDisappear.checked,
-  });
-
-  quickKeyword.value      = '';
-  qs('#quickScope').value   = '';
-  const rowSelectorEl = qs('#quickRowSelector');
-  if (rowSelectorEl) rowSelectorEl.value = '';
-  // Reset builder inputs
-  ['#builderServer', '#builderTestFixture', '#builderBrowser'].forEach(id => {
-    const el = qs(id); if (el) el.value = '';
-  });
-  const rowBuilderSection = qs('#rowBuilderSection');
-  if (rowBuilderSection) rowBuilderSection.style.display = 'none';
-  // Hide match preview
-  const matchPreview = qs('#matchPreview');
-  if (matchPreview) matchPreview.style.display = 'none';
-  const matchSamples = qs('#matchSamples');
-  if (matchSamples) matchSamples.innerHTML = '';
-  // Reset URL binding checkboxes
-  quickUrlBinding?.querySelectorAll('input[type="checkbox"]').forEach((cb) => { cb.checked = false; });
-  showToast('Keyword added!');
-  await renderCounts();
-  await renderStatus();
-}
-
-// ─── Add URL Handler ──────────────────────────────────────────────────────────
-
-async function handleAddUrl() {
-  const pattern   = quickUrl.value.trim();
-  const matchType = quickUrlMatchType.value;
-  const label     = quickUrlLabel.value.trim();
-
-  hideError(urlError);
-
-  if (!pattern) {
-    showError(urlError, 'Please enter a URL or pattern.');
-    return;
-  }
-
-  // Validate scheme for all match types. `domain` skips URL parsing but must
-  // still be a plain hostname — block javascript:, data:, and other dangerous schemes.
-  if (matchType === 'domain') {
-    const stripped = pattern.replace(/^\*\./, '');
-    if (/[:/]/.test(stripped)) {
-      showError(urlError, 'Domain should be a hostname only, e.g. example.com');
-      return;
-    }
-  } else {
-    try {
-      const parsed = new URL(pattern.replace(/\*/g, 'x'));
-      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-        showError(urlError, 'Only http:// and https:// URLs are supported.');
-        return;
-      }
-    } catch (_) {
-      showError(urlError, 'Invalid URL format. Example: https://example.com/*');
-      return;
-    }
-  }
-
-  await addUrl({
-    pattern,
-    matchType,
-    label: label || pattern,
-    enabled: true,
-  });
-
-  quickUrl.value      = '';
-  quickUrlLabel.value = '';
-  showToast('URL added!');
-  await renderCounts();
-  await renderStatus();
 }
 
 // ─── Storage Change Listener ──────────────────────────────────────────────────
@@ -488,9 +567,7 @@ function listenForStorageChanges() {
   onStorageChange(
     [STORAGE_KEY.KEYWORDS, STORAGE_KEY.URLS, STORAGE_KEY.HISTORY,
      STORAGE_KEY.ALERT_HISTORY, STORAGE_KEY.ENABLED],
-    async () => {
-      await renderAll();
-    }
+    async () => { await renderAll(); }
   );
 }
 
@@ -508,18 +585,14 @@ function hideError(el) {
 
 let toastTimer = null;
 function showToast(msg) {
-  // Reuse status bar as toast. Build DOM safely — never interpolate msg into innerHTML.
   const icon = document.createElement('span');
-  icon.innerHTML = SVG_CHECK; // SVG is a trusted compile-time constant
+  icon.innerHTML = SVG_CHECK;
   statusText.textContent = '';
   statusText.appendChild(icon);
   statusText.appendChild(document.createTextNode(' ' + msg));
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    renderStatus();
-  }, 2000);
+  toastTimer = setTimeout(() => { renderStatus(); }, 2500);
 }
-
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 init();
