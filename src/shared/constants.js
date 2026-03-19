@@ -60,6 +60,7 @@ export const MSG = Object.freeze({
   GET_STATE:         'get_state',
   RELOAD_RULES:      'reload_rules',
   TEST_WEBHOOK:      'test_webhook',     // Options page → SW: fire a test payload
+  PREVIEW_MATCH:     'preview_match',    // Popup → content script: live row match count
 });
 
 // ─── Webhook Payload Formats ──────────────────────────────────────────────────

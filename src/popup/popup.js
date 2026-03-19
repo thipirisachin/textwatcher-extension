@@ -10,9 +10,9 @@ import {
   getUrls, addUrl,
   getAlertHistory,
 } from '../shared/storage.js';
-import { STORAGE_KEY, MATCH_TYPE, URL_SCOPE_ALL } from '../shared/constants.js';
+import { STORAGE_KEY, MATCH_TYPE, URL_SCOPE_ALL, MSG } from '../shared/constants.js';
 import { validateRegex, matchesUrl } from '../shared/matcher.js';
-import { qs, timeAgo, truncate, escapeHtml, onStorageChange } from '../shared/utils.js';
+import { qs, timeAgo, truncate, escapeHtml, onStorageChange, debounce } from '../shared/utils.js';
 
 // ─── SVG Icon Strings ─────────────────────────────────────────────────────────
 const SVG_CHEVRON_RIGHT = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
@@ -227,6 +227,45 @@ function bindEvents() {
     if (e.key === 'Enter') handleAddKeyword();
   });
 
+  // ── Row selector: show/hide builder section ──────────────────────────────
+  qs('#quickRowSelector')?.addEventListener('input', () => {
+    const hasSel = (qs('#quickRowSelector')?.value.trim().length ?? 0) > 0;
+    const section = qs('#rowBuilderSection');
+    if (section) section.style.display = hasSel ? '' : 'none';
+    debouncedPreview();
+  });
+
+  // ── Builder inputs → auto-generate pattern field ─────────────────────────
+  let _builderMode = false;
+  ['#builderServer', '#builderTestFixture', '#builderBrowser'].forEach((id) => {
+    qs(id)?.addEventListener('input', () => {
+      const parts = [
+        qs('#builderServer')?.value.trim()      ?? '',
+        qs('#builderTestFixture')?.value.trim() ?? '',
+        qs('#builderBrowser')?.value.trim()     ?? '',
+      ].filter(Boolean);
+      if (parts.length) {
+        _builderMode = true;
+        quickKeyword.value            = parts.join('.*');
+        quickMatchType.value          = 'regex';
+        _builderMode = false;
+      }
+      debouncedPreview();
+    });
+  });
+
+  // Direct edit of pattern → clear builder inputs (manual override)
+  quickKeyword.addEventListener('input', () => {
+    if (!_builderMode) {
+      ['#builderServer', '#builderTestFixture', '#builderBrowser'].forEach((id) => {
+        const el = qs(id); if (el) el.value = '';
+      });
+    }
+    debouncedPreview();
+  });
+
+  qs('#quickMatchType')?.addEventListener('change', debouncedPreview);
+
   // Add URL
   addUrlBtn.addEventListener('click', handleAddUrl);
   quickUrl.addEventListener('keydown', (e) => {
@@ -271,6 +310,68 @@ function bindEvents() {
   openOptionsBtn.addEventListener('click', () => chrome.runtime.openOptionsPage());
 }
 
+// ─── Live Row Match Preview ───────────────────────────────────────────────────
+
+const debouncedPreview = debounce(async () => {
+  const pattern     = quickKeyword.value.trim();
+  const matchType   = quickMatchType.value;
+  const rowSelector = qs('#quickRowSelector')?.value.trim() ?? '';
+  const preview     = qs('#matchPreview');
+  const samplesEl   = qs('#matchSamples');
+
+  if (!preview) return;
+
+  if (!rowSelector || !pattern) {
+    preview.style.display = 'none';
+    if (samplesEl) samplesEl.innerHTML = '';
+    return;
+  }
+
+  preview.style.display = '';
+  preview.className     = 'match-preview off';
+  preview.textContent   = '…';
+  if (samplesEl) samplesEl.innerHTML = '';
+
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id) throw new Error('no tab');
+
+    const response = await new Promise((resolve) => {
+      chrome.tabs.sendMessage(
+        tab.id,
+        { type: MSG.PREVIEW_MATCH, pattern, matchType, rowSelector },
+        (res) => resolve(chrome.runtime.lastError ? null : res)
+      );
+    });
+
+    if (!response) {
+      preview.className   = 'match-preview off';
+      preview.textContent = 'Not monitoring this page — add a URL rule first';
+    } else if (response.error) {
+      preview.className   = 'match-preview none';
+      preview.textContent = `⚠ ${response.error}`;
+    } else if (response.count === 1) {
+      preview.className   = 'match-preview ok';
+      preview.textContent = '✓ 1 unique match';
+    } else if (response.count > 1) {
+      preview.className   = 'match-preview warn';
+      preview.textContent = `⚠ ${response.count} rows match — pattern is not unique`;
+    } else {
+      preview.className   = 'match-preview none';
+      preview.textContent = `✗ No rows match (${response.total} row${response.total !== 1 ? 's' : ''} checked)`;
+    }
+
+    // Show sample row texts so user can see exactly what was matched
+    if (samplesEl && response.samples?.length) {
+      samplesEl.innerHTML = response.samples
+        .map((s) => `<code>${escapeHtml(s)}…</code>`)
+        .join('');
+    }
+  } catch (_) {
+    preview.style.display = 'none';
+  }
+}, 350);
+
 // ─── Add Keyword Handler ──────────────────────────────────────────────────────
 
 async function handleAddKeyword() {
@@ -293,19 +394,34 @@ async function handleAddKeyword() {
   }
 
   const scopeSelector = qs('#quickScope').value.trim();
+  const rowSelector   = qs('#quickRowSelector')?.value.trim() ?? '';
 
   await addKeyword({
     text,
     matchType,
     scopeSelector,
+    rowSelector,
     urlScope:       readPopupUrlBinding(),
     enabled:        true,
     alertAppear:    quickAlertAppear.checked,
     alertDisappear: quickAlertDisappear.checked,
   });
 
-  quickKeyword.value    = '';
-  qs('#quickScope').value = '';
+  quickKeyword.value      = '';
+  qs('#quickScope').value   = '';
+  const rowSelectorEl = qs('#quickRowSelector');
+  if (rowSelectorEl) rowSelectorEl.value = '';
+  // Reset builder inputs
+  ['#builderServer', '#builderTestFixture', '#builderBrowser'].forEach(id => {
+    const el = qs(id); if (el) el.value = '';
+  });
+  const rowBuilderSection = qs('#rowBuilderSection');
+  if (rowBuilderSection) rowBuilderSection.style.display = 'none';
+  // Hide match preview
+  const matchPreview = qs('#matchPreview');
+  if (matchPreview) matchPreview.style.display = 'none';
+  const matchSamples = qs('#matchSamples');
+  if (matchSamples) matchSamples.innerHTML = '';
   // Reset URL binding checkboxes
   quickUrlBinding?.querySelectorAll('input[type="checkbox"]').forEach((cb) => { cb.checked = false; });
   showToast('Keyword added!');

@@ -333,6 +333,7 @@ export function generateId() {
  * @property {string}  text           - The keyword/phrase to match
  * @property {string}  matchType      - One of MATCH_TYPE values
  * @property {string}  scopeSelector  - CSS selector to scope matching (empty = whole page)
+ * @property {string}  [rowSelector]  - CSS selector iterated per-element for row-level matching
  * @property {boolean} enabled        - Whether this rule is active
  * @property {boolean} alertAppear    - Alert when text appears
  * @property {boolean} alertDisappear - Alert when text disappears

@@ -372,7 +372,7 @@ const LOGO_DATA_URI = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAY
  * @param {string} urlStr
  * @returns {boolean}
  */
-function isAllowedWebhookUrl(urlStr) {
+export function isAllowedWebhookUrl(urlStr) {
   try {
     const u = new URL(urlStr);
     if (u.protocol === 'https:') return true;
@@ -391,7 +391,7 @@ function isAllowedWebhookUrl(urlStr) {
  * @param {object} payload  Internal alert payload
  * @returns {string}  JSON string ready to POST
  */
-function buildWebhookPayload(cfg, payload) {
+export function buildWebhookPayload(cfg, payload) {
   const title      = payload.title    || '';
   const url        = payload.url      || '';
   const isAppear   = payload.event === ALERT_EVENT.APPEARS;
@@ -536,7 +536,7 @@ async function fireWebhook(payload, opts = {}) {
  * @param {object} settings
  * @returns {boolean}
  */
-function shouldSendAlert(tabId, keywordId, event, settings) {
+export function shouldSendAlert(tabId, keywordId, event, settings) {
   const freq = settings.notifFrequency || NOTIF_FREQUENCY.ONCE_PER_PAGE;
 
   if (freq === NOTIF_FREQUENCY.EVERY_OCCURRENCE) return true;

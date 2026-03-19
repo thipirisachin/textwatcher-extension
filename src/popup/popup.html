@@ -55,6 +55,8 @@
       />
       <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
     </div>
+    <p class="match-preview" id="matchPreview" aria-live="polite" style="display:none"></p>
+    <div class="match-samples" id="matchSamples"></div>
     <div class="checkbox-row">
       <label class="checkbox-label">
         <input type="checkbox" id="quickAlertAppear" checked />
@@ -90,6 +92,32 @@
         <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
       </div>
       <p class="advanced-hint">Leave blank to scan the whole page.</p>
+
+      <!-- ── Row selector + builder ─────────────────────────── -->
+      <p class="advanced-label" style="margin-top:10px;">Row selector (CSS)</p>
+      <div class="input-wrap">
+        <input
+          type="text"
+          id="quickRowSelector"
+          class="input"
+          placeholder=".ap-row:not(.ap-table-headerrow), tbody tr, …"
+          maxlength="500"
+        />
+        <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
+      </div>
+      <p class="advanced-hint">Match each row independently — eliminates false positives when the same value appears in multiple rows. Use with <strong>Regex</strong> match type.</p>
+
+      <!-- Row match builder — shown only when a row selector is set -->
+      <div id="rowBuilderSection" style="display:none">
+        <p class="advanced-label" style="margin-top:10px;">Row match builder</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:4px;">
+          <input type="text" id="builderServer"      class="input" placeholder="Server…"         maxlength="200" />
+          <input type="text" id="builderTestFixture" class="input" placeholder="Test / Fixture…" maxlength="200" />
+          <input type="text" id="builderBrowser"     class="input" placeholder="Browser…"        maxlength="200" />
+        </div>
+        <p class="advanced-hint">Each non-empty field is joined with <code>.*</code> and sets match type to Regex. Edit the pattern field directly to override.</p>
+      </div>
+
       <p class="advanced-label" style="margin-top:10px;">URL binding</p>
       <div id="quickUrlBinding" class="popup-url-binding">
         <p class="advanced-hint">Loading…</p>

@@ -499,6 +499,27 @@ body {
   margin-top: 5px;
 }
 
+/* ── Match preview indicator (row-selector live feedback) ─────────────── */
+.match-preview {
+  font-size: 11px;
+  font-weight: 600;
+  margin: 4px 0 2px;
+  min-height: 1.2em;
+}
+.match-preview.ok   { color: #22c55e; }   /* exactly 1 match */
+.match-preview.warn { color: #f59e0b; }   /* >1 matches — not unique */
+.match-preview.none { color: #ef4444; }   /* 0 matches */
+.match-preview.off  { color: var(--text-3); }  /* not monitoring */
+
+.match-samples code {
+  display: block;
+  font-size: 10px;
+  color: #7dd3fc;
+  margin-top: 2px;
+  word-break: break-all;
+  white-space: normal;
+}
+
 /* ── Buttons ─────────────────────────────────────────────────────────── */
 .btn {
   display: inline-flex;

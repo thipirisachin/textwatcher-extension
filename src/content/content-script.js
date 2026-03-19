@@ -37,6 +37,7 @@ const MSG = Object.freeze({
   TEXT_DISAPPEARED: 'text_disappeared',
   GET_STATE:        'get_state',
   RELOAD_RULES:     'reload_rules',
+  PREVIEW_MATCH:    'preview_match',    // Popup → content script: live row match count
 });
 
 const MATCH_TYPE = Object.freeze({
@@ -219,6 +220,19 @@ const alertedThisLoad = new Map();
  */
 const lastPresence = new Map();
 
+/**
+ * Pending alert timers — absorb table re-render oscillations.
+ * Key: `${keywordId}:${event}`  Value: setTimeout handle
+ */
+const pendingAlerts = new Map();
+
+/**
+ * Grace period (ms) before an alert fires.
+ * If the opposite transition arrives within this window (e.g. a dashboard
+ * poll that clears and repopulates a table), both are cancelled silently.
+ */
+const ALERT_SETTLE_MS = 1500;
+
 // =============================================================================
 // URL scope filter
 // =============================================================================
@@ -292,7 +306,31 @@ function keywordMatchesCurrentUrl(keyword) {
 // Always register at module scope — outside init() — so RELOAD_RULES messages
 // arrive even when init() returned early (extension disabled or no keywords).
 // Without this, rules added after page load are silently lost on existing tabs.
-chrome.runtime.onMessage.addListener(handleBackgroundMessage);
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === MSG.PREVIEW_MATCH) {
+    // Popup queries how many live rows match a given pattern + row selector.
+    // Reuses the same extractPageText / matchesKeyword path as runScan().
+    const { pattern, matchType, rowSelector } = message;
+    try {
+      const rows = Array.from(document.querySelectorAll(rowSelector))
+        .filter(el => el.offsetParent !== null && el.style.visibility !== 'hidden');
+      const samples = [];
+      let count = 0;
+      for (const row of rows) {
+        const rowText = extractPageText([row]);
+        if (matchesKeyword(rowText, pattern, matchType)) {
+          count++;
+          if (samples.length < 3) samples.push(rowText.slice(0, 100));
+        }
+      }
+      sendResponse({ count, total: rows.length, samples });
+    } catch (_) {
+      sendResponse({ count: 0, total: 0, error: 'Invalid selector' });
+    }
+    return true; // async response
+  }
+  handleBackgroundMessage(message);
+});
 
 // =============================================================================
 // MutationObserver
@@ -334,6 +372,8 @@ function stopObserver() {
     observer.disconnect();
     observer = null;
   }
+  pendingAlerts.forEach((timer) => clearTimeout(timer));
+  pendingAlerts.clear();
 }
 
 // =============================================================================
@@ -396,38 +436,119 @@ function runScan() {
   if (!activeKeywords.length) return;
 
   // Lazily compute full page text once — shared by all unscoped keywords.
-  // Scoped keywords get their own targeted walk; on selector failure they
-  // fall back to the shared full-page result, also computed only once.
   let _fullPageText = null;
   const getFullPageText = () => {
     if (_fullPageText === null) _fullPageText = extractPageText(null);
     return _fullPageText;
   };
 
+  // Precompute row texts keyed by rowSelector — avoids O(K×N) TreeWalker
+  // traversals when multiple keywords share the same selector.
+  const rowTextCache = new Map(); // rowSelector → string[] | null (null = bad selector)
+  const getRowTexts = (sel) => {
+    if (rowTextCache.has(sel)) return rowTextCache.get(sel);
+    try {
+      const texts = Array.from(document.querySelectorAll(sel))
+        .filter(el => el.offsetParent !== null && el.style.visibility !== 'hidden')
+        .map(el => extractPageText([el]));
+      rowTextCache.set(sel, texts);
+      return texts;
+    } catch (_) {
+      rowTextCache.set(sel, null); // cache the failure so we don't retry
+      return null;
+    }
+  };
+
   for (const keyword of activeKeywords) {
-    let pageText;
-    if (keyword.scopeSelector) {
+    let pageText   = '';
+    let matchCount = 0;
+
+    // ── Branch A: row-selector mode ─────────────────────────────────────────
+    if (keyword.rowSelector) {
+      const rowTexts = getRowTexts(keyword.rowSelector);
+      if (rowTexts === null) {
+        // Invalid selector — degrade gracefully to full-page scan
+        pageText   = getFullPageText();
+        matchCount = matchesKeyword(pageText, keyword.text, keyword.matchType) ? 1 : 0;
+        if (!matchCount) pageText = '';
+      } else {
+        let firstMatch = null;
+        for (const rowText of rowTexts) {
+          if (matchesKeyword(rowText, keyword.text, keyword.matchType)) {
+            if (!firstMatch) firstMatch = rowText; // keep for snippet
+            matchCount++;
+          }
+        }
+        pageText = firstMatch ?? '';
+      }
+    }
+    // ── Branch B: scopeSelector mode (unchanged) ─────────────────────────────
+    else if (keyword.scopeSelector) {
       try {
         const els = Array.from(document.querySelectorAll(keyword.scopeSelector));
         pageText = els.length ? extractPageText(els) : getFullPageText();
       } catch (_) {
         pageText = getFullPageText();
       }
-    } else {
-      pageText = getFullPageText();
+      matchCount = matchesKeyword(pageText, keyword.text, keyword.matchType) ? 1 : 0;
     }
-    const isPresent = matchesKeyword(pageText, keyword.text, keyword.matchType);
-    const wasBefore = lastPresence.has(keyword.id)
-      ? lastPresence.get(keyword.id)
-      : null;
+    // ── Branch C: full page (unchanged) ──────────────────────────────────────
+    else {
+      pageText   = getFullPageText();
+      matchCount = matchesKeyword(pageText, keyword.text, keyword.matchType) ? 1 : 0;
+    }
 
-    lastPresence.set(keyword.id, isPresent);
+    // Count-based presence tracking (integer instead of boolean).
+    // Alerts still fire on 0↔N transitions; count enables future partial-drop detection.
+    const prevCount  = lastPresence.has(keyword.id) ? lastPresence.get(keyword.id) : null;
+    lastPresence.set(keyword.id, matchCount);
 
-    if (wasBefore === null) continue; // Baseline pass -- no alerts
+    if (prevCount === null) continue; // Baseline pass — no alerts
 
-    if ( isPresent && !wasBefore) maybeAlert(keyword, ALERT_EVENT.APPEARS,    pageText);
-    if (!isPresent &&  wasBefore) maybeAlert(keyword, ALERT_EVENT.DISAPPEARS, pageText);
+    const wasPresent = prevCount  > 0;
+    const isPresent  = matchCount > 0;
+
+    if ( isPresent && !wasPresent) scheduleAlert(keyword, ALERT_EVENT.APPEARS,    pageText);
+    if (!isPresent &&  wasPresent) scheduleAlert(keyword, ALERT_EVENT.DISAPPEARS, pageText);
   }
+}
+
+// =============================================================================
+// Alert settle window
+// =============================================================================
+
+/**
+ * Schedule an alert with a grace period to absorb table re-render oscillations.
+ *
+ * If the opposite transition (appear ↔ disappear) arrives for the same keyword
+ * within ALERT_SETTLE_MS, both are cancelled — the DOM went away and came back
+ * as part of a polling re-render, not a real state change.
+ *
+ * @param {{id:string,text:string,matchType:string,alertAppear:boolean,alertDisappear:boolean}} keyword
+ * @param {string} event    - ALERT_EVENT value
+ * @param {string} pageText
+ */
+function scheduleAlert(keyword, event, pageText) {
+  const key         = `${keyword.id}:${event}`;
+  const oppositeEvt = event === ALERT_EVENT.APPEARS
+    ? ALERT_EVENT.DISAPPEARS
+    : ALERT_EVENT.APPEARS;
+  const oppositeKey = `${keyword.id}:${oppositeEvt}`;
+
+  // Opposite transition within settle window → oscillation (re-render), cancel both
+  if (pendingAlerts.has(oppositeKey)) {
+    clearTimeout(pendingAlerts.get(oppositeKey));
+    pendingAlerts.delete(oppositeKey);
+    return;
+  }
+
+  // Already scheduled for this direction — don't double-fire
+  if (pendingAlerts.has(key)) return;
+
+  pendingAlerts.set(key, setTimeout(() => {
+    pendingAlerts.delete(key);
+    maybeAlert(keyword, event, pageText);
+  }, ALERT_SETTLE_MS));
 }
 
 // =============================================================================
@@ -500,6 +621,8 @@ function handleBackgroundMessage(message) {
   stopObserver();
   alertedThisLoad.clear();
   lastPresence.clear();
+  pendingAlerts.forEach((timer) => clearTimeout(timer));
+  pendingAlerts.clear();
 
   activeUrls     = (message.urls     || []).filter((u) => u.enabled);
   activeKeywords = (message.keywords || []).filter((k) => k.enabled && keywordMatchesCurrentUrl(k));
