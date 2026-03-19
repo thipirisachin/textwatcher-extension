@@ -674,10 +674,12 @@ async function injectContentScript(tabId) {
       files:  ['src/content/content-script.js'],
     });
   } catch (err) {
-    // Expected on chrome://, restricted pages, or tabs that navigated mid-inject
-    // Log only unexpected errors (not the standard "Cannot access" messages)
-    if (err?.message && !err.message.includes('Cannot access') &&
-        !err.message.includes('No tab with id')) {
+    // Expected on chrome://, restricted pages, or tabs that navigated/closed mid-inject
+    if (err?.message &&
+        !err.message.includes('Cannot access') &&
+        !err.message.includes('No tab with id') &&
+        !err.message.includes('Frame with ID') &&
+        !err.message.includes('was discarded')) {
       console.warn('[TextWatcher] Unexpected inject error:', err.message);
     }
   }
