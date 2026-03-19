@@ -55,8 +55,6 @@
       />
       <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
     </div>
-    <p class="match-preview" id="matchPreview" aria-live="polite" style="display:none"></p>
-    <div class="match-samples" id="matchSamples"></div>
     <div class="checkbox-row">
       <label class="checkbox-label">
         <input type="checkbox" id="quickAlertAppear" checked />
@@ -100,22 +98,37 @@
           type="text"
           id="quickRowSelector"
           class="input"
-          placeholder=".ap-row:not(.ap-table-headerrow), tbody tr, …"
+          placeholder=".ap-row:not(.ap-header), tbody tr, …"
           maxlength="500"
         />
         <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
       </div>
-      <p class="advanced-hint">Match each row independently — eliminates false positives when the same value appears in multiple rows. Use with <strong>Regex</strong> match type.</p>
+      <p class="advanced-hint">Scopes matching to individual rows — prevents false alerts when the same value appears in multiple rows. Best used with <strong>Regex</strong>.</p>
 
-      <!-- Row match builder — shown only when a row selector is set -->
+      <!-- Row match builder + live preview — shown only when a row selector is set -->
       <div id="rowBuilderSection" style="display:none">
-        <p class="advanced-label" style="margin-top:10px;">Row match builder</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:4px;">
-          <input type="text" id="builderServer"      class="input" placeholder="Server…"         maxlength="200" />
-          <input type="text" id="builderTestFixture" class="input" placeholder="Test / Fixture…" maxlength="200" />
-          <input type="text" id="builderBrowser"     class="input" placeholder="Browser…"        maxlength="200" />
+        <div class="row-builder-card">
+          <p class="advanced-label">Row match builder</p>
+          <div class="row-builder-grid">
+            <div class="row-builder-field">
+              <label class="row-builder-field__label" for="builderServer">Server</label>
+              <input type="text" id="builderServer"      class="input" placeholder="bdc-ga-prerel" maxlength="200" />
+            </div>
+            <div class="row-builder-field">
+              <label class="row-builder-field__label" for="builderTestFixture">Test / Fixture</label>
+              <input type="text" id="builderTestFixture" class="input" placeholder="TC_TF_67"      maxlength="200" />
+            </div>
+            <div class="row-builder-field">
+              <label class="row-builder-field__label" for="builderBrowser">Browser</label>
+              <input type="text" id="builderBrowser"     class="input" placeholder="chrome"        maxlength="200" />
+            </div>
+          </div>
+          <p class="advanced-hint" style="margin-top:4px;">Non-empty fields are joined with <code>.*</code> and set match type to Regex. Edit the pattern above to override.</p>
         </div>
-        <p class="advanced-hint">Each non-empty field is joined with <code>.*</code> and sets match type to Regex. Edit the pattern field directly to override.</p>
+
+        <!-- Live match preview -->
+        <p class="match-preview" id="matchPreview" aria-live="polite" style="display:none"></p>
+        <div class="match-samples" id="matchSamples"></div>
       </div>
 
       <p class="advanced-label" style="margin-top:10px;">URL binding</p>

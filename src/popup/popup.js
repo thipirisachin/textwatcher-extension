@@ -329,7 +329,7 @@ const debouncedPreview = debounce(async () => {
 
   preview.style.display = '';
   preview.className     = 'match-preview off';
-  preview.textContent   = '…';
+  preview.textContent   = 'Checking…';
   if (samplesEl) samplesEl.innerHTML = '';
 
   try {
@@ -349,23 +349,27 @@ const debouncedPreview = debounce(async () => {
       preview.textContent = 'Not monitoring this page — add a URL rule first';
     } else if (response.error) {
       preview.className   = 'match-preview none';
-      preview.textContent = `⚠ ${response.error}`;
+      preview.textContent = `⚠ Invalid selector: ${response.error}`;
     } else if (response.count === 1) {
       preview.className   = 'match-preview ok';
-      preview.textContent = '✓ 1 unique match';
+      preview.textContent = '✓ 1 unique match — rule will fire for this row only';
     } else if (response.count > 1) {
       preview.className   = 'match-preview warn';
-      preview.textContent = `⚠ ${response.count} rows match — pattern is not unique`;
+      preview.textContent = `⚠ ${response.count} rows match — add more fields to narrow it down`;
     } else {
       preview.className   = 'match-preview none';
       preview.textContent = `✗ No rows match (${response.total} row${response.total !== 1 ? 's' : ''} checked)`;
     }
 
-    // Show sample row texts so user can see exactly what was matched
+    // Show up to 3 sample row texts so the user knows exactly which rows matched
     if (samplesEl && response.samples?.length) {
-      samplesEl.innerHTML = response.samples
-        .map((s) => `<code>${escapeHtml(s)}…</code>`)
-        .join('');
+      samplesEl.innerHTML =
+        '<span style="font-size:10px;color:var(--text-3);display:block;margin-top:4px;">Matched rows:</span>' +
+        response.samples
+          .map((s) => `<code>${escapeHtml(s)}…</code>`)
+          .join('');
+    } else {
+      if (samplesEl) samplesEl.innerHTML = '';
     }
   } catch (_) {
     preview.style.display = 'none';

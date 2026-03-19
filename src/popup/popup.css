@@ -503,7 +503,7 @@ body {
 .match-preview {
   font-size: 11px;
   font-weight: 600;
-  margin: 4px 0 2px;
+  margin: 6px 0 2px;
   min-height: 1.2em;
 }
 .match-preview.ok   { color: #22c55e; }   /* exactly 1 match */
@@ -511,6 +511,9 @@ body {
 .match-preview.none { color: #ef4444; }   /* 0 matches */
 .match-preview.off  { color: var(--text-3); }  /* not monitoring */
 
+.match-samples {
+  margin-top: 4px;
+}
 .match-samples code {
   display: block;
   font-size: 10px;
@@ -518,6 +521,34 @@ body {
   margin-top: 2px;
   word-break: break-all;
   white-space: normal;
+}
+
+/* ── Row builder card ─────────────────────────────────────────────────── */
+.row-builder-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--r-sm);
+  padding: 8px 10px 6px;
+  margin-top: 8px;
+  margin-bottom: 2px;
+}
+.row-builder-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  margin-top: 6px;
+}
+.row-builder-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.row-builder-field__label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
 }
 
 /* ── Buttons ─────────────────────────────────────────────────────────── */
