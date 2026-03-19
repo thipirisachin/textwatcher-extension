@@ -307,6 +307,10 @@ function keywordMatchesCurrentUrl(keyword) {
 // Always register at module scope — outside init() — so RELOAD_RULES messages
 // arrive even when init() returned early (extension disabled or no keywords).
 // Without this, rules added after page load are silently lost on existing tabs.
+// Guard with try/catch: if the extension context was invalidated (e.g. after
+// an extension reload on an already-live tab), chrome.runtime is undefined and
+// addListener() would throw an uncaught TypeError crashing the whole IIFE.
+try {
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === MSG.PREVIEW_MATCH) {
     // Popup queries how many live rows match a given pattern + row selector.
@@ -358,6 +362,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   handleBackgroundMessage(message);
 });
+} catch (_) {
+  // Extension context invalidated — content script will stop responding to
+  // messages but won't throw an uncaught error on the monitored page.
+}
 
 // =============================================================================
 // MutationObserver
