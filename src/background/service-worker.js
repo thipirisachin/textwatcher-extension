@@ -105,7 +105,7 @@ async function flushBatch({ tabId, events, settings }) {
 
   const parts = [];
   if (appears)    parts.push(`${appears} appeared`);
-  if (disappears) parts.push(`${disappears} gone`);
+  if (disappears) parts.push(`${disappears} disappeared`);
 
   const notifId = `tw:${tabId}:${crypto.randomUUID()}`;
   const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

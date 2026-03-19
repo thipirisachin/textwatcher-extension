@@ -977,9 +977,9 @@ async function renderAlertHistory() {
 
     li.innerHTML = `
       <div class="rule-item__main">
-        <div class="rule-item__text">“${escapeHtml(truncate(entry.keyword, 50))}” ${isAppear ? 'appeared' : 'gone'}</div>
+        <div class="rule-item__text">“${escapeHtml(truncate(entry.keyword, 50))}” ${isAppear ? 'appeared' : 'disappeared'}</div>
         <div class="rule-item__meta">
-          <span class="rule-item__tag ${isAppear ? 'rule-item__tag--appear' : 'rule-item__tag--disappear'}">${isAppear ? '↑ appear' : '↓ gone'}</span>
+          <span class="rule-item__tag ${isAppear ? 'rule-item__tag--appear' : 'rule-item__tag--disappear'}">${isAppear ? '↑ appear' : '↓ disappear'}</span>
           <span class="rule-item__tag rule-item__tag--match">${escapeHtml(matchLabel)}</span>
           <span class="rule-item__tag" title="${escapeHtml(entry.url)}">${escapeHtml(host)}</span>
           <span class="rule-item__tag">${time}</span>

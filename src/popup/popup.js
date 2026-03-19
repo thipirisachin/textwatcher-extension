@@ -415,6 +415,7 @@ function appendColFilter(colName, insertBefore = null) {
     cell.classList.toggle('has-value', input.value.length > 0);
     debouncedPreview();
     updateAlertNamePlaceholder();
+    debouncedSaveFormState();
   });
 
   removeBtn.addEventListener('click', () => {
@@ -467,7 +468,7 @@ function getRowPattern() {
   const parts = Array.from(
     document.querySelectorAll('#colFilterList .col-filter-input')
   ).map((el) => el.value.trim()).filter(Boolean);
-  return parts.join('.*');
+  return parts.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*');
 }
 
 const debouncedPreview = debounce(async () => {
