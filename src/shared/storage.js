@@ -205,7 +205,15 @@ export async function saveHistorySnapshot(label = '') {
   // Computed once and stored with the entry to avoid O(n) recomputation on
   // every subsequent save.
   const computeFingerprint = (kws, us) => JSON.stringify({
-    k: kws.map((k) => ({ t: k.text, m: k.matchType, s: k.scopeSelector || '', aa: k.alertAppear, ad: k.alertDisappear }))
+    k: kws.map((k) => ({
+          t: k.text,
+          m: k.matchType,
+          s: k.scopeSelector || '',
+          aa: k.alertAppear,
+          ad: k.alertDisappear,
+          // Include urlScope so rules differing only by URL binding produce distinct fingerprints
+          u: Array.isArray(k.urlScope) ? [...k.urlScope].sort().join(',') : (k.urlScope || 'all'),
+        }))
           .sort((a, b) => a.t.localeCompare(b.t) || a.m.localeCompare(b.m)),
     u: us.map((u) => ({ p: u.pattern, m: u.matchType }))
          .sort((a, b) => a.p.localeCompare(b.p)),

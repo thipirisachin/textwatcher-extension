@@ -90,16 +90,21 @@ function debounce(fn, delay) {
 // Inlined: safeRegexTest  (shared/matcher.js)
 // =============================================================================
 
+// Maximum allowed regex pattern length — consistent with shared/matcher.js.
+const MAX_REGEX_PATTERN_LENGTH = 300;
+
 /**
  * Test a user-supplied regex pattern against target.
- * Returns false (never throws) on invalid pattern.
+ * Returns false (never throws) on invalid pattern or if pattern exceeds length limit.
  * @param {string} pattern
  * @param {string} target
  * @returns {boolean}
  */
 function safeRegexTest(pattern, target) {
+  if (pattern.length > MAX_REGEX_PATTERN_LENGTH) return false;
   try {
-    return new RegExp(pattern, 'i').test(target);
+    // 'is': i=case-insensitive, s=dotAll so '.' crosses '\n' text-node boundaries
+    return new RegExp(pattern, 'is').test(target);
   } catch (_) {
     return false;
   }
@@ -128,9 +133,15 @@ function matchesKeyword(haystack, needle, matchType) {
     case MATCH_TYPE.CONTAINS_CASE:
       return haystack.includes(needle);
     case MATCH_TYPE.STARTS_WITH:
-      return haystack.trimStart().toLowerCase().startsWith(needle.toLowerCase());
+      // Split on '\n' (the text-node delimiter used by extractPageText) so we test
+      // each visible text element independently, not the entire concatenated page.
+      return haystack.split('\n').some(
+        (seg) => seg.trimStart().toLowerCase().startsWith(needle.toLowerCase())
+      );
     case MATCH_TYPE.ENDS_WITH:
-      return haystack.trimEnd().toLowerCase().endsWith(needle.toLowerCase());
+      return haystack.split('\n').some(
+        (seg) => seg.trimEnd().toLowerCase().endsWith(needle.toLowerCase())
+      );
     case MATCH_TYPE.REGEX:
       return safeRegexTest(needle, haystack);
     default:
@@ -156,7 +167,8 @@ function findMatchPositions(haystack, needle, matchType) {
 
   if (matchType === MATCH_TYPE.REGEX) {
     try {
-      const rx = new RegExp(needle, 'gi');
+      // 'gis': g=all matches, i=case-insensitive, s=dotAll for cross-segment matching
+      const rx = new RegExp(needle, 'gis');
       let m;
       while ((m = rx.exec(haystack)) !== null) {
         positions.push({ index: m.index, length: m[0].length });
@@ -524,7 +536,7 @@ function extractPageText(roots) {
       if (text) parts.push(text);
     }
   }
-  return parts.join(' ');
+  return parts.join('\n');
 }
 
 /**

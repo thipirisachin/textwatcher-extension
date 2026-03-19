@@ -33,10 +33,16 @@ export function matchesKeyword(haystack, needle, matchType) {
       return haystack.includes(needle);
 
     case MATCH_TYPE.STARTS_WITH:
-      return haystack.trimStart().toLowerCase().startsWith(needle.toLowerCase());
+      // Test each text segment individually — the haystack is '\n'-joined text nodes,
+      // so splitting restores per-element boundaries.
+      return haystack.split('\n').some(
+        (seg) => seg.trimStart().toLowerCase().startsWith(needle.toLowerCase())
+      );
 
     case MATCH_TYPE.ENDS_WITH:
-      return haystack.trimEnd().toLowerCase().endsWith(needle.toLowerCase());
+      return haystack.split('\n').some(
+        (seg) => seg.trimEnd().toLowerCase().endsWith(needle.toLowerCase())
+      );
 
     case MATCH_TYPE.REGEX: {
       const result = safeRegexTest(needle, haystack);
@@ -63,11 +69,11 @@ export function findMatchPositions(haystack, needle, matchType) {
 
   if (matchType === MATCH_TYPE.REGEX) {
     try {
-      const rx = new RegExp(needle, 'gi');
+      // 'gis': g=all matches, i=case-insensitive, s=dotAll so '.' crosses text-node boundaries
+      const rx = new RegExp(needle, 'gis');
       let m;
       while ((m = rx.exec(haystack)) !== null) {
         positions.push({ index: m.index, length: m[0].length });
-        if (!rx.global) break;
       }
     } catch (_) { /* invalid regex — silently ignore */ }
     return positions;
@@ -212,9 +218,14 @@ function normalizeUrl(url) {
  * @param {string} target
  * @returns {boolean}
  */
+// Maximum allowed regex pattern length — guards against ReDoS on large page text.
+const MAX_REGEX_PATTERN_LENGTH = 300;
+
 export function safeRegexTest(pattern, target) {
+  if (pattern.length > MAX_REGEX_PATTERN_LENGTH) return false;
   try {
-    const rx = new RegExp(pattern, 'i');
+    // 'is': i=case-insensitive, s=dotAll so '.' crosses '\n' text-node boundaries
+    const rx = new RegExp(pattern, 'is');
     return rx.test(target);
   } catch (_) {
     return false;
@@ -227,6 +238,9 @@ export function safeRegexTest(pattern, target) {
  * @returns {{ valid: boolean, error: string|null }}
  */
 export function validateRegex(pattern) {
+  if (pattern.length > MAX_REGEX_PATTERN_LENGTH) {
+    return { valid: false, error: `Pattern too long (max ${MAX_REGEX_PATTERN_LENGTH} characters).` };
+  }
   try {
     new RegExp(pattern);
     return { valid: true, error: null };

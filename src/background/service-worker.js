@@ -20,6 +20,29 @@ import { truncate, MATCH_TYPE_LABEL } from '../shared/utils.js';
 // Key: `${tabId}:${keywordId}:${event}`, Value: timestamp of last alert
 const cooldownMap = new Map();
 
+/**
+ * Restore cooldown timestamps from session storage so that the cooldown
+ * frequency setting survives MV3 service worker restarts within a browser
+ * session. chrome.storage.session clears on browser close.
+ */
+async function loadCooldownState() {
+  try {
+    const { tw_cooldowns: saved } = await chrome.storage.session.get('tw_cooldowns');
+    if (saved && typeof saved === 'object') {
+      for (const [key, val] of Object.entries(saved)) {
+        cooldownMap.set(key, val);
+      }
+    }
+  } catch (_) { /* session storage unavailable in older contexts */ }
+}
+
+/** Persist current cooldown state (fire-and-forget). */
+function persistCooldownState() {
+  chrome.storage.session
+    .set({ tw_cooldowns: Object.fromEntries(cooldownMap) })
+    .catch(() => {});
+}
+
 // ─── Notification Batcher ─────────────────────────────────────────────────────
 // Groups alerts that arrive within BATCH_WINDOW_MS into a single notification.
 // Key: tabId  Value: { timer, deadline, events: [...], url, tabId, settings }
@@ -84,7 +107,7 @@ async function flushBatch({ tabId, events, settings }) {
   if (appears)    parts.push(`${appears} appeared`);
   if (disappears) parts.push(`${disappears} gone`);
 
-  const notifId = `tw:${tabId}:${Date.now()}`;
+  const notifId = `tw:${tabId}:${crypto.randomUUID()}`;
   const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   chrome.notifications.create(notifId, {
@@ -122,6 +145,7 @@ async function deleteTabMatchCount(tabId) {
 // ─── Startup ──────────────────────────────────────────────────────────────────
 
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
+  await loadCooldownState();
   await injectIntoMatchingTabs();
 
   if (reason === 'install') {
@@ -133,6 +157,7 @@ chrome.runtime.onInstalled.addListener(async ({ reason }) => {
 });
 
 chrome.runtime.onStartup.addListener(async () => {
+  await loadCooldownState();
   await injectIntoMatchingTabs();
 });
 
@@ -164,6 +189,7 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
   for (const key of cooldownMap.keys()) {
     if (key.startsWith(`${tabId}:`)) cooldownMap.delete(key);
   }
+  persistCooldownState();
 });
 
 // ─── Message Handler ──────────────────────────────────────────────────────────
@@ -300,7 +326,7 @@ async function handleAlertMessage(tabId, event, message, settings) {
  */
 async function fireNotification({ tabId, event, keyword, matchType, url, snippet, settings }) {
   const isAppear = event === ALERT_EVENT.APPEARS;
-  const notifId  = `tw:${tabId}:${Date.now()}`;
+  const notifId  = `tw:${tabId}:${crypto.randomUUID()}`;
   const verb     = isAppear ? 'appeared' : 'disappeared';
   const title    = `"${truncate(keyword, 55)}" ${verb}`;
 
@@ -381,6 +407,16 @@ export function isAllowedWebhookUrl(urlStr) {
 }
 
 /**
+ * Escape characters with special meaning in Slack mrkdwn and Telegram Markdown v1.
+ * Prevents keyword or page-title content from injecting formatting into webhook messages.
+ * @param {string} str
+ * @returns {string}
+ */
+function escapeMarkdown(str) {
+  return String(str).replace(/[*_`]/g, '\\$&');
+}
+
+/**
  * Shape the request body according to the configured payload format.
  * @param {object} cfg  Webhook settings from storage
  * @param {object} payload  Internal alert payload
@@ -438,13 +474,16 @@ export function buildWebhookPayload(cfg, payload) {
       return JSON.stringify({
         icon_url:  LOGO_DATA_URI,
         username:  'TextWatcher',
-        text: `*${payload.keyword}* ${eventLabel} — <${url}|${title || url}>`,
+        // Escape keyword to prevent mrkdwn injection (e.g. *bold* in a keyword name)
+        // Escape link-text to prevent <url|text> syntax breakage
+        text: `*${escapeMarkdown(payload.keyword)}* ${eventLabel} — <${url}|${(title || url).replace(/[|<>]/g, ' ')}>`,
       });
 
     case WEBHOOK_FORMAT.TELEGRAM:
       return JSON.stringify({
         chat_id:    cfg.telegramChatId || '',
-        text:       `*${payload.keyword}* ${eventLabel}\n${url}`,
+        // Escape keyword to prevent Markdown v1 injection (e.g. _italic_ in a keyword name)
+        text:       `*${escapeMarkdown(payload.keyword)}* ${eventLabel}\n${url}`,
         parse_mode: 'Markdown',
       });
 
@@ -542,6 +581,7 @@ export function shouldSendAlert(tabId, keywordId, event, settings) {
     const limitMs = (settings.cooldownSeconds || 5) * 1000;
     if (Date.now() - last < limitMs) return false;
     cooldownMap.set(key, Date.now());
+    persistCooldownState();
     return true;
   }
 
