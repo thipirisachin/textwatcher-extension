@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TextWatcher",
-  "version": "1.1.0",
+  "version": "2.1.0",
   "description": "Monitor websites for specific text. Get notified when text appears or disappears. 100% local, no data collection.",
   "author": "TextWatcher",
 

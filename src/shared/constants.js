@@ -8,7 +8,8 @@
 export const MATCH_TYPE = Object.freeze({
   EXACT_CASE:        'exact_case',       // "Hello" matches only "Hello"
   EXACT_NOCASE:      'exact_nocase',     // "Hello" matches "hello", "HELLO"
-  CONTAINS:          'contains',         // "ell" matches "Hello"
+  CONTAINS:          'contains',         // "ell" matches "Hello" (case-insensitive)
+  CONTAINS_CASE:     'contains_case',    // "ell" matches "Hello" (case-sensitive)
   STARTS_WITH:       'starts_with',      // "Hel" matches "Hello World"
   ENDS_WITH:         'ends_with',        // "rld" matches "Hello World"
   REGEX:             'regex',            // Any valid JS regex
@@ -36,7 +37,7 @@ export const NOTIF_FREQUENCY = Object.freeze({
 
 // ─── Badge State ─────────────────────────────────────────────────────────────
 export const BADGE_COLOR = Object.freeze({
-  ACTIVE:            '#22c55e',          // Green — monitoring, no match
+  ACTIVE:            '#3388ff',          // Blue  — monitoring, no match
   MATCH:             '#ef4444',          // Red   — match found
   INACTIVE:          '#6b7280',          // Gray  — extension paused
 });
@@ -60,6 +61,8 @@ export const MSG = Object.freeze({
   GET_STATE:         'get_state',
   RELOAD_RULES:      'reload_rules',
   TEST_WEBHOOK:      'test_webhook',     // Options page → SW: fire a test payload
+  PREVIEW_MATCH:     'preview_match',    // Popup → content script: live row match count
+  DETECT_ROWS:       'detect_rows',      // Popup → content script: auto-detect table row selector
 });
 
 // ─── Webhook Payload Formats ──────────────────────────────────────────────────
@@ -105,9 +108,6 @@ export const DEFAULT_SETTINGS = Object.freeze({
   // Notification frequency
   notifFrequency:        NOTIF_FREQUENCY.EVERY_OCCURRENCE,
   cooldownSeconds:       LIMITS.COOLDOWN_DEFAULT,
-
-  // Badge
-  badgeEnabled:          true,
 
   // Notification content
   showSnippet:           true,

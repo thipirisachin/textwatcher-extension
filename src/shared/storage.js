@@ -83,10 +83,20 @@ export async function saveKeywords(keywords) {
  * Add a single keyword rule.
  * @param {KeywordRule} rule
  */
+/**
+ * Add a single keyword rule. Rejects exact duplicates (same text + matchType).
+ * @param {KeywordRule} rule
+ * @returns {Promise<boolean>} true if added, false if rejected as duplicate
+ */
 export async function addKeyword(rule) {
   const list = await getKeywords();
+  const isDuplicate = list.some(
+    (k) => k.text === rule.text && k.matchType === rule.matchType
+  );
+  if (isDuplicate) return false;
   list.push({ ...rule, id: generateId() });
   await saveKeywords(list);
+  return true;
 }
 
 /**
@@ -190,25 +200,39 @@ export async function saveHistorySnapshot(label = '') {
   // Don't save an empty setup — nothing useful to restore
   if (keywords.length === 0 && urls.length === 0) return null;
 
-  // Deduplicate: don't save if an identical setup already exists.
   // Fingerprint covers only the fields that affect monitoring behaviour;
   // label, id, enabled state are intentionally excluded.
-  const fingerprint = (kws, us) => JSON.stringify({
-    k: kws.map((k) => ({ t: k.text, m: k.matchType, s: k.scopeSelector || '', aa: k.alertAppear, ad: k.alertDisappear }))
+  // Computed once and stored with the entry to avoid O(n) recomputation on
+  // every subsequent save.
+  const computeFingerprint = (kws, us) => JSON.stringify({
+    k: kws.map((k) => ({
+          t: k.text,
+          m: k.matchType,
+          s: k.scopeSelector || '',
+          aa: k.alertAppear,
+          ad: k.alertDisappear,
+          // Include urlScope so rules differing only by URL binding produce distinct fingerprints
+          u: Array.isArray(k.urlScope) ? [...k.urlScope].sort().join(',') : (k.urlScope || 'all'),
+        }))
           .sort((a, b) => a.t.localeCompare(b.t) || a.m.localeCompare(b.m)),
     u: us.map((u) => ({ p: u.pattern, m: u.matchType }))
          .sort((a, b) => a.p.localeCompare(b.p)),
   });
 
-  const currentPrint = fingerprint(keywords, urls);
-  if (history.some((h) => fingerprint(h.keywords, h.urls) === currentPrint)) return null;
+  const currentPrint = computeFingerprint(keywords, urls);
+
+  // Compare against stored fingerprints (O(n) string compare, not O(n) recompute)
+  if (history.some((h) => (h.fingerprint ?? computeFingerprint(h.keywords, h.urls)) === currentPrint)) {
+    return null;
+  }
 
   const entry = {
-    id:        generateId(),
-    label:     label || `Setup ${new Date().toLocaleString()}`,
-    timestamp: Date.now(),
-    keywords:  JSON.parse(JSON.stringify(keywords)),
-    urls:      JSON.parse(JSON.stringify(urls)),
+    id:          generateId(),
+    label:       label || `Setup ${new Date().toLocaleString()}`,
+    timestamp:   Date.now(),
+    fingerprint: currentPrint,
+    keywords:    JSON.parse(JSON.stringify(keywords)),
+    urls:        JSON.parse(JSON.stringify(urls)),
   };
 
   const updated = [entry, ...history].slice(0, LIMITS.MAX_HISTORY);
@@ -218,16 +242,18 @@ export async function saveHistorySnapshot(label = '') {
 
 /**
  * Restore a history entry — overwrites current keywords and urls.
+ * Uses a single storageSet call to avoid two separate storage.onChanged
+ * events that would put content scripts in an inconsistent state temporarily.
  * @param {string} id
  */
 export async function restoreHistoryEntry(id) {
   const history = await getHistory();
   const entry = history.find((h) => h.id === id);
   if (!entry) throw new Error(`History entry ${id} not found`);
-  await Promise.all([
-    saveKeywords(entry.keywords),
-    saveUrls(entry.urls),
-  ]);
+  await storageSet({
+    [STORAGE_KEY.KEYWORDS]: entry.keywords.slice(0, LIMITS.MAX_KEYWORDS),
+    [STORAGE_KEY.URLS]:     entry.urls.slice(0, LIMITS.MAX_URLS),
+  });
 }
 
 /**
@@ -323,8 +349,10 @@ export function generateId() {
  * @typedef {Object} KeywordRule
  * @property {string}  id
  * @property {string}  text           - The keyword/phrase to match
+ * @property {string}  [label]        - Human-readable name shown in notifications (falls back to text)
  * @property {string}  matchType      - One of MATCH_TYPE values
  * @property {string}  scopeSelector  - CSS selector to scope matching (empty = whole page)
+ * @property {string}  [rowSelector]  - CSS selector iterated per-element for row-level matching
  * @property {boolean} enabled        - Whether this rule is active
  * @property {boolean} alertAppear    - Alert when text appears
  * @property {boolean} alertDisappear - Alert when text disappears
@@ -344,6 +372,7 @@ export function generateId() {
  * @property {string}        id
  * @property {string}        label
  * @property {number}        timestamp
+ * @property {string}        [fingerprint] - Cached dedup fingerprint (added in v2)
  * @property {KeywordRule[]} keywords
  * @property {UrlRule[]}     urls
  */

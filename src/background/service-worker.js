@@ -5,13 +5,12 @@
  * Responsibilities:
  *  - Respond to content script GET_STATE requests
  *  - Send browser notifications on text appear/disappear
- *  - Manage badge (count, color)
  *  - Inject content scripts into matching tabs
  *  - Push rule reloads to active tabs when rules change
  *  - Cooldown tracking to prevent notification spam
  */
 
-import { MSG, BADGE_COLOR, NOTIF_FREQUENCY, ALERT_EVENT, STORAGE_KEY, WEBHOOK_FORMAT } from '../shared/constants.js';
+import { MSG, NOTIF_FREQUENCY, ALERT_EVENT, STORAGE_KEY, WEBHOOK_FORMAT, MATCH_TYPE } from '../shared/constants.js';
 import { getKeywords, getUrls, getSettings, getEnabled, addAlertEvent,
          getOnboarded, getWebhookSettings } from '../shared/storage.js';
 import { matchesUrl } from '../shared/matcher.js';
@@ -21,67 +20,112 @@ import { truncate, MATCH_TYPE_LABEL } from '../shared/utils.js';
 // Key: `${tabId}:${keywordId}:${event}`, Value: timestamp of last alert
 const cooldownMap = new Map();
 
+/**
+ * Restore cooldown timestamps from session storage so that the cooldown
+ * frequency setting survives MV3 service worker restarts within a browser
+ * session. chrome.storage.session clears on browser close.
+ */
+async function loadCooldownState() {
+  try {
+    const { tw_cooldowns: saved } = await chrome.storage.session.get('tw_cooldowns');
+    if (saved && typeof saved === 'object') {
+      for (const [key, val] of Object.entries(saved)) {
+        cooldownMap.set(key, val);
+      }
+    }
+  } catch (_) { /* session storage unavailable in older contexts */ }
+}
+
+/** Persist current cooldown state (fire-and-forget). */
+function persistCooldownState() {
+  chrome.storage.session
+    .set({ tw_cooldowns: Object.fromEntries(cooldownMap) })
+    .catch(() => {});
+}
+
 // ─── Notification Batcher ─────────────────────────────────────────────────────
 // Groups alerts that arrive within BATCH_WINDOW_MS into a single notification.
-// Key: tabId  Value: { timer, events: [...], url, tabId }
-const BATCH_WINDOW_MS = 1000;
-const pendingBatches  = new Map();
+// Key: tabId  Value: { timer, deadline, events: [...], tabId, settings }
+//
+// MV3 constraint: pendingBatches is in-memory only. If the service worker is
+// terminated mid-window (Chrome may do this at any time), any queued events
+// are silently lost. This is unavoidable — timers cannot survive SW restarts.
+// cooldownMap IS persisted (chrome.storage.session) so cooldown state is safe.
+//
+// settings are snapshotted at first-event time and reused for all events in
+// the batch. A settings change during the 1-second window takes effect on the
+// next batch. This is an acceptable trade-off vs an extra storage read at flush.
+const BATCH_WINDOW_MS   = 1000;
+const BATCH_MAX_WAIT_MS = 5000; // Hard ceiling — never delay a notification beyond this
+const pendingBatches    = new Map();
 
 /**
  * Queue an alert event for batched notification.
- * Resets the 1-second window on each new event for the same tab.
+ * Resets the 1-second window on each new event for the same tab,
+ * but enforces a hard 5-second maximum so busy pages can't defer forever.
  */
 function queueNotification(opts) {
-  const { tabId } = opts;
+  const { tabId, settings } = opts;
   let batch = pendingBatches.get(tabId);
 
   if (batch) {
     clearTimeout(batch.timer);
   } else {
-    batch = { events: [], tabId };
+    batch = { events: [], tabId, settings, deadline: Date.now() + BATCH_MAX_WAIT_MS };
     pendingBatches.set(tabId, batch);
   }
 
   batch.events.push(opts);
+
+  // Respect the hard deadline — if we're past it, flush immediately.
+  const remaining = batch.deadline - Date.now();
+  if (remaining <= 0) {
+    pendingBatches.delete(tabId);
+    flushBatch(batch);
+    return;
+  }
+
   batch.timer = setTimeout(() => {
     pendingBatches.delete(tabId);
     flushBatch(batch);
-  }, BATCH_WINDOW_MS);
+  }, Math.min(BATCH_WINDOW_MS, remaining));
 }
 
 /**
  * Fire the consolidated notification for a completed batch.
+ * Each alert gets its own line in the message body.
  */
-async function flushBatch({ tabId, events }) {
-  const settings = await getSettings();
-  const count    = events.length;
+async function flushBatch({ tabId, events, settings }) {
+  const count = events.length;
 
   if (count === 1) {
-    // Single event — original detailed format
+    // Single event — full detailed format
     await fireNotification({ ...events[0], settings });
     return;
   }
 
-  // Multiple events — summarise
-  const appears    = events.filter((e) => e.event === ALERT_EVENT.APPEARS).length;
-  const disappears = events.filter((e) => e.event === ALERT_EVENT.DISAPPEARS).length;
+  // Multiple events — one line per alert, appears before disappears
+  const appears    = events.filter((e) => e.event === ALERT_EVENT.APPEARS);
+  const disappears = events.filter((e) => e.event === ALERT_EVENT.DISAPPEARS);
 
   let host = events[0].url;
   try { host = new URL(events[0].url).hostname; } catch (_) { /* keep raw */ }
 
-  const parts = [];
-  if (appears)    parts.push(`${appears} appeared`);
-  if (disappears) parts.push(`${disappears} gone`);
-
-  const notifId = `tw:${tabId}:${Date.now()}`;
+  const notifId = `tw:${tabId}:${crypto.randomUUID()}`;
   const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const lines = [
+    ...appears.map((e)    => `↑ ${truncate(e.keyword, 45)}`),
+    ...disappears.map((e) => `↓ ${truncate(e.keyword, 45)}`),
+    `${host}  ·  ${now}`,
+  ];
 
   chrome.notifications.create(notifId, {
     type:           'basic',
     iconUrl:        chrome.runtime.getURL('src/icons/icon48.png'),
     title:          `TextWatcher — ${count} alerts`,
-    message:        parts.join(', '),
-    contextMessage: `${host}  ·  ${now}`,
+    message:        lines.join('\n'),
+    contextMessage: '',
     priority:       1,
   });
 }
@@ -111,8 +155,8 @@ async function deleteTabMatchCount(tabId) {
 // ─── Startup ──────────────────────────────────────────────────────────────────
 
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
+  await loadCooldownState();
   await injectIntoMatchingTabs();
-  await refreshBadge();
 
   if (reason === 'install') {
     const alreadyOnboarded = await getOnboarded();
@@ -123,8 +167,8 @@ chrome.runtime.onInstalled.addListener(async ({ reason }) => {
 });
 
 chrome.runtime.onStartup.addListener(async () => {
+  await loadCooldownState();
   await injectIntoMatchingTabs();
-  await refreshBadge();
 });
 
 // ─── Tab Events ───────────────────────────────────────────────────────────────
@@ -145,17 +189,27 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     await injectContentScript(tabId);
     // Reset match count for this tab on new page load
     await setTabMatchCount(tabId, 0);
-    updateBadgeForTab(tabId, 0);
   }
 });
 
 // Clean up when tab is closed
 chrome.tabs.onRemoved.addListener(async (tabId) => {
+  // Cancel any pending batched notification — avoids a ghost notification
+  // firing for a tab that no longer exists (the onClicked handler would
+  // silently swallow the chrome.tabs.get error, but the notification would
+  // still appear with nothing to focus when clicked).
+  const batch = pendingBatches.get(tabId);
+  if (batch) {
+    clearTimeout(batch.timer);
+    pendingBatches.delete(tabId);
+  }
+
   await deleteTabMatchCount(tabId);
   // Evict all cooldown entries for this tab to prevent unbounded Map growth
   for (const key of cooldownMap.keys()) {
     if (key.startsWith(`${tabId}:`)) cooldownMap.delete(key);
   }
+  persistCooldownState();
 });
 
 // ─── Message Handler ──────────────────────────────────────────────────────────
@@ -223,7 +277,7 @@ async function handleMessage(message, sender, sendResponse) {
         keyword:   'TextWatcher Test',
         matchType: 'contains',
         url:       'https://textwatcher.test/demo',
-        title:     'TextWatcher — Test Payload',
+        title:     'TextWatcher - Test Payload',
         snippet:   'This is a test payload sent from TextWatcher settings.',
       }, { isTest: true });
       sendResponse(result);
@@ -239,7 +293,7 @@ async function handleMessage(message, sender, sendResponse) {
 
 /**
  * Shared handler for TEXT_APPEARED and TEXT_DISAPPEARED messages.
- * Queues a notification, logs the alert event, and updates the badge.
+ * Queues a notification, logs the alert event, and updates match counts.
  */
 async function handleAlertMessage(tabId, event, message, settings) {
   if (!shouldSendAlert(tabId, message.keywordId, event, settings)) return;
@@ -253,11 +307,17 @@ async function handleAlertMessage(tabId, event, message, settings) {
     keyword:   message.keyword,
     matchType: message.matchType,
     url:       message.url,
-    snippet:   isAppear ? message.snippet : null,
+    pageTitle: message.title,
+    snippet:   message.snippet,   // passed for both appear and disappear
+    settings,
   });
 
   // Fire webhook in parallel with the alert log write — both are awaited so
   // the service worker stays alive for the full duration of both operations.
+  // Note: webhooks fire per-event (not per-batch). If multiple keywords match
+  // simultaneously, multiple webhook calls go out in parallel. Platforms with
+  // strict rate limits (Slack: 1 req/s, Teams: 4 req/s) may throttle on
+  // busy pages with many rules. No retry logic — failures are silent.
   await Promise.all([
     addAlertEvent({
       event,
@@ -282,47 +342,64 @@ async function handleAlertMessage(tabId, event, message, settings) {
   const delta   = isAppear ? 1 : -1;
   const current = Math.max(0, (await getTabMatchCount(tabId)) + delta);
   await setTabMatchCount(tabId, current);
-  if (settings.badgeEnabled) updateBadgeForTab(tabId, current);
 }
 
 /**
  * Fire a browser notification for a single alert event.
- * Title carries the keyword + verb; message holds match type/snippet;
- * contextMessage holds URL + time (displayed in a lighter weight by Chrome).
+ *
+ * Message body layout (top → bottom):
+ *   [snippet]          — appear events only; \n→' · ' for table row cells
+ *   [url  ·  time]     — always present (second-to-last)
+ *   [match type]       — last line; omitted for REGEX (table-mode detail)
+ *
+ * contextMessage holds the page title as supplemental context since the
+ * three lines above already contain everything actionable.
  */
-async function fireNotification({ tabId, event, keyword, matchType, url, snippet, settings }) {
+async function fireNotification({ tabId, event, keyword, matchType, url, pageTitle, snippet, settings }) {
   const isAppear = event === ALERT_EVENT.APPEARS;
-  const notifId  = `tw:${tabId}:${Date.now()}`;
-  const verb     = isAppear ? 'appeared' : 'gone';
-  const title    = `TextWatcher — "${truncate(keyword, 40)}" ${verb}`;
+  const notifId  = `tw:${tabId}:${crypto.randomUUID()}`;
+  const verb     = isAppear ? 'appeared' : 'disappeared';
+  const title    = `${truncate(keyword, 60)} ${verb}`;
 
   const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  // Primary body: match type and/or snippet
-  const bodyParts = [];
-  if (settings.showMatchType && matchType) {
-    bodyParts.push(MATCH_TYPE_LABEL[matchType] || matchType);
-  }
+  const lines = [];
+
+  // 1. Snippet — top of body.
+  //    Appear:    current matched text.
+  //    Disappear: last-seen matched text cached in the content script.
+  //    Replace \n (text-node delimiter) with ' · ' so table row cells read
+  //    as "prerel_2tenant · Business Builder · chrome", not raw newlines.
   if (settings.showSnippet && snippet) {
-    bodyParts.push(truncate(snippet, 100));
+    lines.push(truncate(snippet.replace(/\n+/g, '  ·  ').trim(), 120));
+  } else if (!isAppear && pageTitle) {
+    // No cached snippet for disappear — fall back to page title so the user
+    // knows at least which page the item was on when it vanished.
+    lines.push(truncate(pageTitle, 60));
   }
 
-  // contextMessage: URL path + time (lighter sub-line in Chrome)
-  const ctxParts = [];
+  // 2. URL + time — second-to-last, always shown.
+  let urlDisplay = '';
   if (settings.showUrl && url) {
     try {
       const { hostname, pathname } = new URL(url);
-      ctxParts.push(truncate(hostname + pathname, 55));
-    } catch (_) { ctxParts.push(truncate(url, 55)); }
+      urlDisplay = truncate(hostname + pathname, 55);
+    } catch (_) { urlDisplay = truncate(url, 55); }
   }
-  ctxParts.push(now);
+  lines.push([urlDisplay, now].filter(Boolean).join('  ·  '));
+
+  // 3. Match type — last line. Omit for REGEX: it is an internal implementation
+  //    detail for table-mode rules, not meaningful to the user.
+  if (settings.showMatchType && matchType && matchType !== MATCH_TYPE.REGEX) {
+    lines.push(MATCH_TYPE_LABEL[matchType] || matchType);
+  }
 
   chrome.notifications.create(notifId, {
     type:           'basic',
     iconUrl:        chrome.runtime.getURL('src/icons/icon48.png'),
     title,
-    message:        bodyParts.join('  ·  ') || verb.charAt(0).toUpperCase() + verb.slice(1),
-    contextMessage: ctxParts.join('  ·  '),
+    message:        lines.join('\n'),
+    contextMessage: pageTitle ? truncate(pageTitle, 60) : '',
     priority:       1,
   });
 }
@@ -332,8 +409,10 @@ async function fireNotification({ tabId, event, keyword, matchType, url, snippet
 chrome.notifications.onClicked.addListener(async (notificationId) => {
   chrome.notifications.clear(notificationId);
   if (!notificationId.startsWith('tw:')) return;
-  const tabId = parseInt(notificationId.split(':')[1], 10);
-  if (!tabId || isNaN(tabId)) return;
+  const parts = notificationId.split(':');
+  if (parts.length < 3) return;
+  const tabId = Number(parts[1]);
+  if (!Number.isInteger(tabId) || tabId <= 0) return;
   try {
     const tab = await chrome.tabs.get(tabId);
     await chrome.tabs.update(tabId, { active: true });
@@ -357,7 +436,7 @@ const LOGO_DATA_URI = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAY
  * @param {string} urlStr
  * @returns {boolean}
  */
-function isAllowedWebhookUrl(urlStr) {
+export function isAllowedWebhookUrl(urlStr) {
   try {
     const u = new URL(urlStr);
     if (u.protocol === 'https:') return true;
@@ -371,12 +450,22 @@ function isAllowedWebhookUrl(urlStr) {
 }
 
 /**
+ * Escape characters with special meaning in Slack mrkdwn and Telegram Markdown v1.
+ * Prevents keyword or page-title content from injecting formatting into webhook messages.
+ * @param {string} str
+ * @returns {string}
+ */
+function escapeMarkdown(str) {
+  return String(str).replace(/[*_`]/g, '\\$&');
+}
+
+/**
  * Shape the request body according to the configured payload format.
  * @param {object} cfg  Webhook settings from storage
  * @param {object} payload  Internal alert payload
  * @returns {string}  JSON string ready to POST
  */
-function buildWebhookPayload(cfg, payload) {
+export function buildWebhookPayload(cfg, payload) {
   const title      = payload.title    || '';
   const url        = payload.url      || '';
   const isAppear   = payload.event === ALERT_EVENT.APPEARS;
@@ -403,7 +492,7 @@ function buildWebhookPayload(cfg, payload) {
       return JSON.stringify({
         '@type':    'MessageCard',
         '@context': 'http://schema.org/extensions',
-        themeColor: isAppear ? '28a745' : 'dc3545',
+        themeColor: isAppear ? '3388ff' : 'dc3545',
         summary:    `TextWatcher: "${payload.keyword}" ${eventLabel}`,
         sections: [{
           activityImage:    LOGO_DATA_URI,
@@ -424,19 +513,46 @@ function buildWebhookPayload(cfg, payload) {
         }],
       });
 
-    case WEBHOOK_FORMAT.SLACK:
+    case WEBHOOK_FORMAT.SLACK: {
+      // Main line: bold keyword + verb + linked page title
+      const slackLines = [
+        `*${escapeMarkdown(payload.keyword)}* ${eventLabel} — <${url}|${(title || url).replace(/[|<>]/g, ' ')}>`,
+      ];
+      // Snippet on next line as a blockquote — replace \n with ' · ' for table rows
+      if (payload.snippet) {
+        const cleanSnippet = payload.snippet.replace(/\n+/g, ' · ').trim();
+        slackLines.push(`> ${escapeMarkdown(truncate(cleanSnippet, 200))}`);
+      }
       return JSON.stringify({
-        icon_url:  LOGO_DATA_URI,
-        username:  'TextWatcher',
-        text: `*${payload.keyword}* ${eventLabel} — <${url}|${title || url}>`,
+        icon_url: LOGO_DATA_URI,
+        username: 'TextWatcher',
+        text:     slackLines.join('\n'),
       });
+    }
 
-    case WEBHOOK_FORMAT.TELEGRAM:
+    case WEBHOOK_FORMAT.TELEGRAM: {
+      // Title line: bold keyword + verb
+      const tgLines = [
+        `*${escapeMarkdown(payload.keyword)}* ${eventLabel}`,
+      ];
+      // Page title as a clickable link, or plain URL
+      if (title && title !== url) {
+        tgLines.push(`[${escapeMarkdown(title)}](${url})`);
+      } else {
+        tgLines.push(url);
+      }
+      // Snippet — replace \n with ' · ' for table rows, wrap in italics
+      if (payload.snippet) {
+        const cleanSnippet = payload.snippet.replace(/\n+/g, ' · ').trim();
+        tgLines.push(`_${escapeMarkdown(truncate(cleanSnippet, 200))}_`);
+      }
+      tgLines.push(tsIso);
       return JSON.stringify({
         chat_id:    cfg.telegramChatId || '',
-        text:       `*${payload.keyword}* ${eventLabel}\n${url}`,
+        text:       tgLines.join('\n'),
         parse_mode: 'Markdown',
       });
+    }
 
     default: // WEBHOOK_FORMAT.GENERIC
       return JSON.stringify({
@@ -455,7 +571,7 @@ function buildWebhookPayload(cfg, payload) {
 
 /**
  * POST an alert payload to the configured webhook URL.
- * Completely isolated — a failure here must never affect notifications or badge.
+ * Completely isolated — a failure here must never affect notifications.
  *
  * @param {{ event, keyword, matchType, url, title, snippet }} payload
  * @param {{ isTest?: boolean }} [opts]
@@ -521,7 +637,7 @@ async function fireWebhook(payload, opts = {}) {
  * @param {object} settings
  * @returns {boolean}
  */
-function shouldSendAlert(tabId, keywordId, event, settings) {
+export function shouldSendAlert(tabId, keywordId, event, settings) {
   const freq = settings.notifFrequency || NOTIF_FREQUENCY.ONCE_PER_PAGE;
 
   if (freq === NOTIF_FREQUENCY.EVERY_OCCURRENCE) return true;
@@ -532,44 +648,15 @@ function shouldSendAlert(tabId, keywordId, event, settings) {
     const limitMs = (settings.cooldownSeconds || 5) * 1000;
     if (Date.now() - last < limitMs) return false;
     cooldownMap.set(key, Date.now());
+    persistCooldownState();
     return true;
   }
 
-  // once_per_page: content script handles this gate — background always lets through
+  // once_per_page: gate lives in the content script (maybeAlert), not here.
+  // Gating here too would break the case where the same keyword fires on
+  // two different tabs — each tab has its own content script state, so
+  // the per-page gate correctly allows both tabs to alert independently.
   return true;
-}
-
-// ─── Badge Management ─────────────────────────────────────────────────────────
-
-/**
- * Update the badge for a specific tab.
- * @param {number} tabId
- * @param {number} count
- */
-function updateBadgeForTab(tabId, count) {
-  const text  = count > 0 ? '●' : '';
-  const color = count > 0 ? BADGE_COLOR.MATCH : BADGE_COLOR.ACTIVE;
-
-  chrome.action.setBadgeText({ text, tabId });
-  chrome.action.setBadgeBackgroundColor({ color, tabId });
-}
-
-/**
- * Set badge to inactive (gray) — called when extension is disabled.
- */
-async function refreshBadge() {
-  const enabled = await getEnabled();
-  const settings = await getSettings();
-
-  if (!settings.badgeEnabled) {
-    chrome.action.setBadgeText({ text: '' });
-    return;
-  }
-
-  chrome.action.setBadgeText({ text: enabled ? '' : 'OFF' });
-  chrome.action.setBadgeBackgroundColor({
-    color: enabled ? BADGE_COLOR.ACTIVE : BADGE_COLOR.INACTIVE,
-  });
 }
 
 // ─── Content Script Injection ─────────────────────────────────────────────────
@@ -587,10 +674,12 @@ async function injectContentScript(tabId) {
       files:  ['src/content/content-script.js'],
     });
   } catch (err) {
-    // Expected on chrome://, restricted pages, or tabs that navigated mid-inject
-    // Log only unexpected errors (not the standard "Cannot access" messages)
-    if (err?.message && !err.message.includes('Cannot access') &&
-        !err.message.includes('No tab with id')) {
+    // Expected on chrome://, restricted pages, or tabs that navigated/closed mid-inject
+    if (err?.message &&
+        !err.message.includes('Cannot access') &&
+        !err.message.includes('No tab with id') &&
+        !err.message.includes('Frame with ID') &&
+        !err.message.includes('was discarded')) {
       console.warn('[TextWatcher] Unexpected inject error:', err.message);
     }
   }
@@ -637,8 +726,6 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
 
   const hasRelevant = relevantKeys.some((k) => k in changes);
   if (!hasRelevant) return;
-
-  await refreshBadge();
 
   const [enabled, keywords, urls, settings] = await Promise.all([
     getEnabled(),

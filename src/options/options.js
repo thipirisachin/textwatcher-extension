@@ -26,7 +26,7 @@ const SVG_EDIT  = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" s
 
 // ─── Routing ──────────────────────────────────────────────────────────────────
 
-const sections = ['setup', 'keywords', 'urls', 'notifications', 'activity', 'badge', 'history', 'webhooks', 'privacy'];
+const sections = ['setup', 'keywords', 'urls', 'notifications', 'activity', 'history', 'webhooks', 'privacy'];
 
 function showSection(id) {
   const current = document.querySelector('.panel:not(.hidden)');
@@ -62,7 +62,6 @@ async function init() {
     renderKeywords(),
     renderUrls(),
     renderNotifSettings(),
-    renderBadgeSettings(),
     renderHistory(),
     renderAlertHistory(),
     renderSidebarStatus(),
@@ -73,7 +72,6 @@ async function init() {
   bindKeywordEvents();
   bindUrlEvents();
   bindNotifEvents();
-  bindBadgeEvents();
   bindHistoryEvents();
   bindActivityEvents();
   bindSetupEvents();
@@ -285,19 +283,19 @@ function buildUrlScopeTags(kw, urls) {
 async function buildUrlBindingChecklist(currentScope, urls) {
   const active = urls.filter((u) => u.enabled);
   if (active.length === 0) {
-    return `<p class="hint" style="margin:4px 0;">No URL rules defined yet. <a class="link" href="#" data-nav="urls">Add URL rules</a> first, then bind keywords to them.</p>`;
+    return `<p class="url-binding-hint">No URL rules yet — keyword will fire on all pages. <a class="link" href="#" data-nav="urls">Add URL rules</a> to restrict it.</p>`;
   }
   const isAll = !currentScope || currentScope === URL_SCOPE_ALL || !Array.isArray(currentScope);
   const selected = isAll ? [] : currentScope;
   const items = active.map((u) => {
     const checked = selected.includes(u.id) ? 'checked' : '';
-    const label   = u.label || truncate(u.pattern, 40);
-    return `<label class="url-binding-item">
+    const label   = u.label || truncate(u.pattern, 32);
+    return `<label class="url-binding-bar__item">
       <input type="checkbox" name="urlScope" value="${escapeHtml(u.id)}" ${checked} />
-      <span class="url-binding-item__label" title="${escapeHtml(u.pattern)}">${escapeHtml(label)}</span>
+      <span title="${escapeHtml(u.pattern)}">${escapeHtml(label)}</span>
     </label>`;
   }).join('');
-  return `<p class="hint url-binding-hint">Bind to specific URLs (leave all unchecked for <em>all URLs</em>):</p>${items}`;
+  return `<p class="url-binding-hint">Bind to specific URLs (leave all unchecked = all pages):</p>${items}`;
 }
 
 /**
@@ -373,14 +371,151 @@ async function renderKeywords(filter = '') {
   });
 }
 
-function bindKeywordEvents() {
-  const kwMatchType = qs('#kwMatchType');
-  const kwRegexHint = qs('#kwRegexHint');
+// ─── Options Keyword Form State ───────────────────────────────────────────────
 
-  // Show regex hint when regex selected
-  kwMatchType.addEventListener('change', () => {
-    kwRegexHint.style.display = kwMatchType.value === MATCH_TYPE.REGEX ? 'block' : 'none';
+let kwCurrentMode = 'row';
+
+function kwSetMode(mode) {
+  kwCurrentMode = mode;
+  const rowBtn   = qs('#kwModeRowBtn');
+  const textBtn  = qs('#kwModeTextBtn');
+  const rowPanel = qs('#kwRowModePanel');
+  const txtPanel = qs('#kwTextModePanel');
+
+  rowBtn?.classList.toggle('active', mode === 'row');
+  textBtn?.classList.toggle('active', mode === 'text');
+  rowBtn?.setAttribute('aria-selected', mode === 'row');
+  textBtn?.setAttribute('aria-selected', mode === 'text');
+
+  if (rowPanel) rowPanel.style.display = mode === 'row' ? '' : 'none';
+  if (txtPanel) txtPanel.style.display = mode === 'text' ? '' : 'none';
+}
+
+function kwGetMatchType() {
+  const caseOn  = qs('#kwModCaseBtn')?.classList.contains('active');
+  const exactOn = qs('#kwModExactBtn')?.classList.contains('active');
+  const regexOn = qs('#kwModRegexBtn')?.classList.contains('active');
+  if (regexOn)       return MATCH_TYPE.REGEX;
+  if (exactOn && caseOn) return MATCH_TYPE.EXACT;
+  if (exactOn)       return MATCH_TYPE.EXACT;
+  if (caseOn)        return MATCH_TYPE.CONTAINS; // contains + case-sensitive — stored as CONTAINS
+  return MATCH_TYPE.CONTAINS;
+}
+
+function kwUpdateMatchHint() {
+  const hint    = qs('#kwMatchHint');
+  const regexOn = qs('#kwModRegexBtn')?.classList.contains('active');
+  const exactOn = qs('#kwModExactBtn')?.classList.contains('active');
+  const caseOn  = qs('#kwModCaseBtn')?.classList.contains('active');
+  if (!hint) return;
+  if (regexOn)             hint.textContent = 'Regular expression';
+  else if (exactOn && caseOn) hint.textContent = 'Exact phrase, case-sensitive';
+  else if (exactOn)        hint.textContent = 'Exact phrase';
+  else if (caseOn)         hint.textContent = 'Case-sensitive match';
+  else                     hint.textContent = 'Matches text anywhere on the page, any case';
+}
+
+function kwAppendColFilter(colName) {
+  const list = qs('#kwColFilterList');
+  if (!list) return;
+  const cell = document.createElement('div');
+  cell.className = 'col-filter-cell';
+  cell.innerHTML = `
+    <input type="text" class="input col-filter-input" data-col="${escapeHtml(colName)}" placeholder="${escapeHtml(colName)}" />
+    <button class="col-filter-cell-remove" type="button" aria-label="Remove column filter" title="Remove">×</button>
+  `;
+  cell.querySelector('.col-filter-cell-remove').addEventListener('click', () => {
+    cell.remove();
+    kwUpdateAddColBtn();
   });
+  list.appendChild(cell);
+  kwUpdateAddColBtn();
+}
+
+function kwUpdateAddColBtn() {
+  // No column limit in options (no detected columns) — keep button always enabled
+  const btn = qs('#kwAddColBtn');
+  if (btn) btn.disabled = false;
+}
+
+function kwGetRowPattern() {
+  const inputs = qs('#kwColFilterList')?.querySelectorAll('.col-filter-input') ?? [];
+  const vals = Array.from(inputs).map((i) => i.value.trim()).filter(Boolean);
+  return vals.join('.*');
+}
+
+function kwResetForm() {
+  // Mode back to row
+  kwSetMode('row');
+  // Clear text input
+  const kwText = qs('#kwText');
+  if (kwText) kwText.value = '';
+  // Clear modifier buttons
+  qs('#kwModCaseBtn')?.classList.remove('active');
+  qs('#kwModExactBtn')?.classList.remove('active');
+  qs('#kwModRegexBtn')?.classList.remove('active');
+  kwUpdateMatchHint();
+  // Clear col filter inputs
+  const list = qs('#kwColFilterList');
+  if (list) list.innerHTML = '';
+  // Re-seed 3 default columns
+  ['Column 1', 'Column 2', 'Column 3'].forEach(kwAppendColFilter);
+  // Clear label
+  const kwLabel = qs('#kwLabel');
+  if (kwLabel) kwLabel.value = '';
+  // Reset checkboxes
+  const kwAlertAppear    = qs('#kwAlertAppear');
+  const kwAlertDisappear = qs('#kwAlertDisappear');
+  if (kwAlertAppear)    kwAlertAppear.checked    = true;
+  if (kwAlertDisappear) kwAlertDisappear.checked = true;
+  // Reset URL binding
+  qs('#kwUrlBinding')?.querySelectorAll('input[type=checkbox]').forEach((cb) => { cb.checked = false; });
+  // Reset scope/enabled
+  const kwScope   = qs('#kwScope');
+  const kwEnabled = qs('#kwEnabled');
+  if (kwScope)   kwScope.value      = '';
+  if (kwEnabled) kwEnabled.checked  = true;
+  // Hide error
+  hideError(qs('#kwError'));
+  // Sync clear buttons
+  qs('#kwLabel')?.dispatchEvent(new Event('input'));
+}
+
+function bindKeywordEvents() {
+  // Mode tabs
+  qs('#kwModeRowBtn')?.addEventListener('click', () => kwSetMode('row'));
+  qs('#kwModeTextBtn')?.addEventListener('click', () => kwSetMode('text'));
+
+  // Modifier buttons
+  ['#kwModCaseBtn', '#kwModExactBtn', '#kwModRegexBtn'].forEach((sel) => {
+    qs(sel)?.addEventListener('click', () => {
+      const btn = qs(sel);
+      if (!btn) return;
+      // Regex is exclusive
+      if (sel === '#kwModRegexBtn') {
+        const wasActive = btn.classList.contains('active');
+        qs('#kwModCaseBtn')?.classList.remove('active');
+        qs('#kwModExactBtn')?.classList.remove('active');
+        btn.classList.toggle('active', !wasActive);
+      } else {
+        qs('#kwModRegexBtn')?.classList.remove('active');
+        btn.classList.toggle('active');
+      }
+      kwUpdateMatchHint();
+    });
+  });
+
+  // Add column button
+  qs('#kwAddColBtn')?.addEventListener('click', () => {
+    const list = qs('#kwColFilterList');
+    const count = list?.querySelectorAll('.col-filter-cell').length ?? 0;
+    kwAppendColFilter(`Column ${count + 1}`);
+  });
+
+  // Seed 3 default column inputs on init
+  if (qs('#kwColFilterList') && qs('#kwColFilterList').children.length === 0) {
+    ['Column 1', 'Column 2', 'Column 3'].forEach(kwAppendColFilter);
+  }
 
   // Add keyword
   qs('#addKwBtn').addEventListener('click', handleAddKeyword);
@@ -502,36 +637,49 @@ function bindKeywordEvents() {
 }
 
 async function handleAddKeyword() {
-  const text      = qs('#kwText').value.trim();
-  const matchType = qs('#kwMatchType').value;
-  const errEl     = qs('#kwError');
-
+  const errEl = qs('#kwError');
   hideError(errEl);
 
-  if (!text) { showError(errEl, 'Please enter a keyword.'); return; }
+  let text;
+  let matchType;
 
-  if (matchType === MATCH_TYPE.REGEX) {
-    const { valid, error } = validateRegex(text);
-    if (!valid) { showError(errEl, `Invalid regex: ${error}`); return; }
+  if (kwCurrentMode === 'row') {
+    text = kwGetRowPattern();
+    matchType = MATCH_TYPE.REGEX;
+    if (!text) { showError(errEl, 'Please enter at least one column value.'); return; }
+  } else {
+    text      = qs('#kwText').value.trim();
+    matchType = kwGetMatchType();
+    if (!text) { showError(errEl, 'Please enter a keyword.'); return; }
+    if (matchType === MATCH_TYPE.REGEX) {
+      const { valid, error } = validateRegex(text);
+      if (!valid) { showError(errEl, `Invalid regex: ${error}`); return; }
+    }
   }
 
-  await addKeyword({
+  const label = qs('#kwLabel')?.value.trim() || '';
+
+  const added = await addKeyword({
     text,
     matchType,
-    scopeSelector:  qs('#kwScope').value.trim(),
+    label,
+    scopeSelector:  qs('#kwScope')?.value.trim() ?? '',
     urlScope:       readUrlBindingFromContainer(qs('#kwUrlBinding')),
-    enabled:        qs('#kwEnabled').checked,
-    alertAppear:    qs('#kwAlertAppear').checked,
-    alertDisappear: qs('#kwAlertDisappear').checked,
+    enabled:        qs('#kwEnabled')?.checked ?? true,
+    alertAppear:    qs('#kwAlertAppear')?.checked ?? true,
+    alertDisappear: qs('#kwAlertDisappear')?.checked ?? true,
   });
 
-  qs('#kwText').value  = '';
-  qs('#kwScope').value = '';
-  // Reset binding checkboxes
-  qs('#kwUrlBinding').querySelectorAll('input[type=checkbox]').forEach((cb) => { cb.checked = false; });
+  if (!added) {
+    showError(qs('#kwError'), 'A rule with this pattern already exists.');
+    return;
+  }
+
+  kwResetForm();
+  await renderUrlBindingAddForm();
   await renderKeywords();
   await renderSidebarStatus();
-  showToast('Keyword added!');
+  showToast('Rule saved!');
 }
 
 // ─── URLs ─────────────────────────────────────────────────────────────────────
@@ -669,9 +817,20 @@ function bindUrlEvents() {
       const errEl     = form?.querySelector('[data-role="edit-error"]');
 
       if (!pattern) { showError(errEl, 'Pattern cannot be empty.'); return; }
-      if (matchType !== URL_MATCH_TYPE.DOMAIN) {
-        try { new URL(pattern.replace(/\*/g, 'x')); }
-        catch (_) { showError(errEl, 'Invalid URL format (e.g. https://example.com/*)'); return; }
+      if (matchType === URL_MATCH_TYPE.DOMAIN) {
+        const stripped = pattern.replace(/^\*\./, '');
+        if (/[:/]/.test(stripped)) {
+          showError(errEl, 'Domain should be a hostname only, e.g. example.com');
+          return;
+        }
+      } else {
+        try {
+          const parsed = new URL(pattern.replace(/\*/g, 'x'));
+          if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+            showError(errEl, 'Only http:// and https:// URLs are supported.');
+            return;
+          }
+        } catch (_) { showError(errEl, 'Invalid URL format (e.g. https://example.com/*)'); return; }
       }
 
       await updateUrl(editId, { pattern, matchType, label: label || pattern });
@@ -711,9 +870,20 @@ async function handleAddUrl() {
 
   if (!pattern) { showError(errEl, 'Please enter a URL or pattern.'); return; }
 
-  if (matchType !== URL_MATCH_TYPE.DOMAIN) {
-    try { new URL(pattern.replace(/\*/g, 'x')); }
-    catch (_) { showError(errEl, 'Invalid URL. Example: https://example.com/*'); return; }
+  if (matchType === URL_MATCH_TYPE.DOMAIN) {
+    const stripped = pattern.replace(/^\*\./, '');
+    if (/[:/]/.test(stripped)) {
+      showError(errEl, 'Domain should be a hostname only, e.g. example.com');
+      return;
+    }
+  } else {
+    try {
+      const parsed = new URL(pattern.replace(/\*/g, 'x'));
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+        showError(errEl, 'Only http:// and https:// URLs are supported.');
+        return;
+      }
+    } catch (_) { showError(errEl, 'Invalid URL. Example: https://example.com/*'); return; }
   }
 
   const added = await addUrl({
@@ -780,25 +950,6 @@ function bindNotifEvents() {
   });
 }
 
-// ─── Badge & Icon ─────────────────────────────────────────────────────────────
-
-async function renderBadgeSettings() {
-  const s = await getSettings();
-  qs('#badgeEnabled').checked = s.badgeEnabled !== false;
-}
-
-function bindBadgeEvents() {
-  const saveBtn = qs('#saveBadgeBtn');
-  qs('#badgeEnabled').addEventListener('change', () => { saveBtn.disabled = false; });
-
-  saveBtn.addEventListener('click', async () => {
-    await saveSettings({
-      badgeEnabled: qs('#badgeEnabled').checked,
-    });
-    showToast('Badge settings saved!');
-    saveBtn.disabled = true;
-  });
-}
 // ─── Activity (Alert Log) ───────────────────────────────────────────────────────
 
 async function renderAlertHistory() {
@@ -826,9 +977,9 @@ async function renderAlertHistory() {
 
     li.innerHTML = `
       <div class="rule-item__main">
-        <div class="rule-item__text">“${escapeHtml(truncate(entry.keyword, 50))}” ${isAppear ? 'appeared' : 'gone'}</div>
+        <div class="rule-item__text">“${escapeHtml(truncate(entry.keyword, 50))}” ${isAppear ? 'appeared' : 'disappeared'}</div>
         <div class="rule-item__meta">
-          <span class="rule-item__tag ${isAppear ? 'rule-item__tag--appear' : 'rule-item__tag--disappear'}">${isAppear ? '↑ appear' : '↓ gone'}</span>
+          <span class="rule-item__tag ${isAppear ? 'rule-item__tag--appear' : 'rule-item__tag--disappear'}">${isAppear ? '↑ appear' : '↓ disappear'}</span>
           <span class="rule-item__tag rule-item__tag--match">${escapeHtml(matchLabel)}</span>
           <span class="rule-item__tag" title="${escapeHtml(entry.url)}">${escapeHtml(host)}</span>
           <span class="rule-item__tag">${time}</span>
@@ -951,7 +1102,7 @@ function listenForChanges() {
     async (changes) => {
       if (STORAGE_KEY.KEYWORDS      in changes) await renderKeywords();
       if (STORAGE_KEY.URLS          in changes) { await renderUrls(); await renderUrlBindingAddForm(); }
-      if (STORAGE_KEY.SETTINGS      in changes) { await renderNotifSettings(); await renderBadgeSettings(); }
+      if (STORAGE_KEY.SETTINGS      in changes) { await renderNotifSettings(); }
       if (STORAGE_KEY.HISTORY       in changes) await renderHistory();
       if (STORAGE_KEY.ALERT_HISTORY in changes) await renderAlertHistory();
       // Only re-render webhook settings if there are no unsaved changes — avoid
@@ -985,7 +1136,7 @@ function buildPayloadPreviews() {
     [WEBHOOK_FORMAT.TEAMS]: `{
   "@type":    "MessageCard",
   "@context": "http://schema.org/extensions",
-  "themeColor": "28a745",
+  "themeColor": "3388ff",
   "summary":  "TextWatcher: \\"your keyword\\" appeared",
   "sections": [{
     "activityTitle":    "\u{1F7E2} Keyword \\"your keyword\\" appeared",
@@ -1156,15 +1307,15 @@ function bindWebhookEvents() {
     if (!result.sent) {
       testResult.className = 'webhook-test-result webhook-test-result--err';
       testResult.textContent = result.error
-        ? `✗ Failed: ${result.error}`
-        : '✗ Webhook is disabled or no URL configured. Save settings first.';
+        ? `Failed: ${result.error}`
+        : 'Webhook is disabled or no URL configured. Save settings first.';
       return;
     }
 
     const ok = result.status >= 200 && result.status < 300;
     testResult.className = `webhook-test-result webhook-test-result--${ok ? 'ok' : 'warn'}`;
     testResult.textContent = ok
-      ? `✓ Delivered — server responded ${result.status}`
+      ? `Delivered — server responded ${result.status}`
       : `⚠ Sent but server responded ${result.status} — check your endpoint`;
   });
 }

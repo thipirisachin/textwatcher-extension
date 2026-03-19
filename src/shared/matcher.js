@@ -29,11 +29,20 @@ export function matchesKeyword(haystack, needle, matchType) {
     case MATCH_TYPE.CONTAINS:
       return haystack.toLowerCase().includes(needle.toLowerCase());
 
+    case MATCH_TYPE.CONTAINS_CASE:
+      return haystack.includes(needle);
+
     case MATCH_TYPE.STARTS_WITH:
-      return haystack.trimStart().toLowerCase().startsWith(needle.toLowerCase());
+      // Test each text segment individually — the haystack is '\n'-joined text nodes,
+      // so splitting restores per-element boundaries.
+      return haystack.split('\n').some(
+        (seg) => seg.trimStart().toLowerCase().startsWith(needle.toLowerCase())
+      );
 
     case MATCH_TYPE.ENDS_WITH:
-      return haystack.trimEnd().toLowerCase().endsWith(needle.toLowerCase());
+      return haystack.split('\n').some(
+        (seg) => seg.trimEnd().toLowerCase().endsWith(needle.toLowerCase())
+      );
 
     case MATCH_TYPE.REGEX: {
       const result = safeRegexTest(needle, haystack);
@@ -60,22 +69,43 @@ export function findMatchPositions(haystack, needle, matchType) {
 
   if (matchType === MATCH_TYPE.REGEX) {
     try {
-      const rx = new RegExp(needle, 'gi');
+      // 'gis': g=all matches, i=case-insensitive, s=dotAll so '.' crosses text-node boundaries
+      const rx = new RegExp(needle, 'gis');
       let m;
       while ((m = rx.exec(haystack)) !== null) {
         positions.push({ index: m.index, length: m[0].length });
-        if (!rx.global) break;
       }
     } catch (_) { /* invalid regex — silently ignore */ }
     return positions;
   }
 
-  const searchStr = [MATCH_TYPE.EXACT_CASE].includes(matchType)
-    ? haystack
-    : haystack.toLowerCase();
-  const searchNeedle = [MATCH_TYPE.EXACT_CASE].includes(matchType)
-    ? needle
-    : needle.toLowerCase();
+  // STARTS_WITH: match is anchored to the start of trimmed text.
+  if (matchType === MATCH_TYPE.STARTS_WITH) {
+    const trimmed      = haystack.trimStart();
+    const trimmedLower = trimmed.toLowerCase();
+    const needleLower  = needle.toLowerCase();
+    if (trimmedLower.startsWith(needleLower)) {
+      const offset = haystack.length - trimmed.length; // chars stripped by trimStart
+      positions.push({ index: offset, length: needle.length });
+    }
+    return positions;
+  }
+
+  // ENDS_WITH: match is anchored to the end of trimmed text.
+  if (matchType === MATCH_TYPE.ENDS_WITH) {
+    const trimmed      = haystack.trimEnd();
+    const trimmedLower = trimmed.toLowerCase();
+    const needleLower  = needle.toLowerCase();
+    if (trimmedLower.endsWith(needleLower)) {
+      positions.push({ index: trimmed.length - needle.length, length: needle.length });
+    }
+    return positions;
+  }
+
+  // EXACT_CASE / EXACT_NOCASE / CONTAINS / CONTAINS_CASE: substring scan.
+  const caseSensitive = matchType === MATCH_TYPE.EXACT_CASE || matchType === MATCH_TYPE.CONTAINS_CASE;
+  const searchStr    = caseSensitive ? haystack       : haystack.toLowerCase();
+  const searchNeedle = caseSensitive ? needle         : needle.toLowerCase();
 
   let start = 0;
   while (true) {
@@ -188,9 +218,14 @@ function normalizeUrl(url) {
  * @param {string} target
  * @returns {boolean}
  */
+// Maximum allowed regex pattern length — guards against ReDoS on large page text.
+const MAX_REGEX_PATTERN_LENGTH = 300;
+
 export function safeRegexTest(pattern, target) {
+  if (pattern.length > MAX_REGEX_PATTERN_LENGTH) return false;
   try {
-    const rx = new RegExp(pattern, 'i');
+    // 'is': i=case-insensitive, s=dotAll so '.' crosses '\n' text-node boundaries
+    const rx = new RegExp(pattern, 'is');
     return rx.test(target);
   } catch (_) {
     return false;
@@ -203,6 +238,9 @@ export function safeRegexTest(pattern, target) {
  * @returns {{ valid: boolean, error: string|null }}
  */
 export function validateRegex(pattern) {
+  if (pattern.length > MAX_REGEX_PATTERN_LENGTH) {
+    return { valid: false, error: `Pattern too long (max ${MAX_REGEX_PATTERN_LENGTH} characters).` };
+  }
   try {
     new RegExp(pattern);
     return { valid: true, error: null };

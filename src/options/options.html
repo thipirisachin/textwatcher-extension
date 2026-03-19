@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TextWatcher — Settings</title>
+  <title>TextWatcher - Settings</title>
   <link rel="stylesheet" href="options.css" />
 </head>
 <body>
@@ -14,17 +14,17 @@
     <nav class="sidebar">
       <div class="sidebar__brand">
         <svg width="32" height="32" viewBox="80 70 390 390" xmlns="http://www.w3.org/2000/svg" aria-label="TextWatcher">
-          <rect x="120" y="100" width="260" height="300" rx="24" fill="#7c3aed"/>
+          <rect x="120" y="100" width="260" height="300" rx="24" fill="#3388ff"/>
           <rect x="120" y="100" width="260" height="80" rx="24" fill="rgba(255,255,255,0.10)"/>
           <rect x="158" y="170" width="182" height="18" rx="9" fill="rgba(255,255,255,0.80)"/>
           <rect x="158" y="212" width="182" height="18" rx="9" fill="rgba(255,255,255,0.80)"/>
           <rect x="158" y="254" width="120" height="18" rx="9" fill="rgba(255,255,255,0.50)"/>
-          <circle cx="360" cy="360" r="70" fill="none" stroke="#22d3ee" stroke-width="14" opacity="0.35"/>
-          <circle cx="360" cy="360" r="45" fill="none" stroke="#22d3ee" stroke-width="14" opacity="0.70"/>
-          <circle cx="360" cy="360" r="12" fill="#22d3ee"/>
+          <circle cx="360" cy="360" r="70" fill="none" stroke="#93ddff" stroke-width="14" opacity="0.35"/>
+          <circle cx="360" cy="360" r="45" fill="none" stroke="#93ddff" stroke-width="14" opacity="0.70"/>
+          <circle cx="360" cy="360" r="12" fill="#93ddff"/>
         </svg>
         <span>TextWatcher</span>
-        <label class="toggle" title="Enable / Disable monitoring" style="margin-left:auto;" aria-label="Enable or disable monitoring">
+        <label class="toggle" title="Enable / Disable monitoring" aria-label="Enable or disable monitoring" style="margin-left:auto;">
           <input type="checkbox" id="globalToggle" />
           <span class="toggle__track"></span>
         </label>
@@ -35,7 +35,6 @@
         <li><a href="#urls"          class="nav-link"        data-section="urls"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> URLs</a></li>
         <li><a href="#notifications" class="nav-link"        data-section="notifications"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Notifications</a></li>
         <li><a href="#activity"      class="nav-link"        data-section="activity"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Alert Log</a></li>
-        <li><a href="#badge"         class="nav-link"        data-section="badge"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Badge &amp; Icon</a></li>
         <li><a href="#history"       class="nav-link"        data-section="history"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Saved Setups</a></li>
         <li><a href="#webhooks"      class="nav-link"        data-section="webhooks"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Webhooks</a></li>
         <li><a href="#privacy"       class="nav-link"        data-section="privacy"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg> Privacy</a></li>
@@ -66,7 +65,7 @@
       <section class="panel hidden" id="section-setup">
         <div class="panel__header">
           <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg> Setup Guide</h1>
-          <p class="panel__desc">Get TextWatcher monitoring pages and firing alerts in five steps. Click any step to expand it.</p>
+          <p class="panel__desc">Get TextWatcher monitoring pages and firing alerts in five steps.</p>
         </div>
 
         <!-- Step 1: Notifications -->
@@ -79,9 +78,8 @@
           <div class="setup-accordion__body-wrap" id="step1-wrap">
             <div class="setup-accordion__body-inner">
               <div class="setup-accordion__body">
-                <p class="hint" style="margin-top:8px;">TextWatcher delivers alerts via OS notifications. Browser must be permitted to show them at the <strong>system</strong> level &mdash; browser permission alone is not enough on some machines.</p>
+                <p class="hint" style="margin-top:8px;">TextWatcher delivers alerts as OS notifications. The browser needs permission at the <strong>system</strong> level &mdash; browser-level permission alone is not enough on some machines.</p>
                 <div class="setup-os-block">
-                  <div>Example:</div>
                   <div class="setup-os-block__row">
                     <strong>Windows 10 / 11</strong>
                     <p>Settings &rarr; System &rarr; Notifications &rarr; <em>Google Chrome</em> &rarr; switch ON</p>
@@ -91,82 +89,102 @@
                     <p>System Settings &rarr; Notifications &rarr; <em>Google Chrome</em> &rarr; Allow Notifications</p>
                   </div>
                 </div>
+                <div id="notifPermBanner" class="perm-banner hidden" role="alert" style="margin-top:10px;"></div>
                 <button class="btn btn--ghost" id="testNotifBtn" style="margin-top:14px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Test Notification</button>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Step 2: Keywords -->
+        <!-- Step 2: Add a URL rule -->
         <div class="card setup-card setup-accordion">
           <button class="setup-accordion__hd" aria-expanded="false" data-accordion="step2">
             <span class="setup-card__num">2</span>
-            <h2 class="card__title" style="margin:0;flex:1">Add a Keyword</h2>
+            <h2 class="card__title" style="margin:0;flex:1">Tell TextWatcher which pages to watch</h2>
             <svg class="setup-accordion__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div class="setup-accordion__body-wrap" id="step2-wrap">
             <div class="setup-accordion__body-inner">
               <div class="setup-accordion__body">
-                <p class="hint" style="margin-top:8px;">Define the text TextWatcher looks for. Each keyword fires its own alert independently and has its own match type.</p>
-                <table class="setup-table">
-                  <thead><tr><th>Match Type</th><th>Behaviour</th><th>Example</th></tr></thead>
-                  <tbody>
-                    <tr><td>Contains</td><td>Text exists anywhere on the page</td><td><code>price drop</code></td></tr>
-                    <tr><td>Exact (case-insensitive)</td><td>Exact phrase, any casing</td><td><code>In Stock</code></td></tr>
-                    <tr><td>Starts / Ends with</td><td>Node text starts or ends with this value</td><td><code>Sale:</code></td></tr>
-                    <tr><td>Regex</td><td>Full regular expression</td><td><code>\$\d+\.\d{2}</code></td></tr>
-                  </tbody>
-                </table>
-                <p class="hint" style="margin-top:10px;"><strong>Scope selector</strong> &mdash; restrict matching to a specific element (e.g. <code>#price-box</code>). Leave blank to scan the whole page.</p>
-                <button class="btn btn--primary" id="setupGoKeywords" style="margin-top:14px;">Go to Keywords &rarr;</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Step 3: URLs -->
-        <div class="card setup-card setup-accordion">
-          <button class="setup-accordion__hd" aria-expanded="false" data-accordion="step3">
-            <span class="setup-card__num">3</span>
-            <h2 class="card__title" style="margin:0;flex:1">Set Your URLs</h2>
-            <svg class="setup-accordion__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="setup-accordion__body-wrap" id="step3-wrap">
-            <div class="setup-accordion__body-inner">
-              <div class="setup-accordion__body">
-                <p class="hint" style="margin-top:8px;">Tell TextWatcher which pages to monitor. Without a URL rule no pages are scanned, regardless of your keywords.</p>
+                <p class="hint" style="margin-top:8px;">Without a URL rule, TextWatcher watches <strong>no pages at all</strong>. URL rules tell it which sites to scan.</p>
                 <div class="setup-os-block">
                   <div class="setup-os-block__row">
                     <strong>Wildcard</strong>
-                    <p><code>https://example.com/*</code> &mdash; matches every page on example.com</p>
+                    <p>Covers a whole site. Example: <code>https://myapp.company.com/*</code> matches every page on that host.</p>
                   </div>
                   <div class="setup-os-block__row">
-                    <strong>Domain-wide</strong>
-                    <p>Matches the given domain and all its subdomains</p>
+                    <strong>Domain</strong>
+                    <p>Matches the domain and all its subdomains. Example: <code>company.com</code></p>
                   </div>
                   <div class="setup-os-block__row">
                     <strong>Exact</strong>
-                    <p>Only one specific URL &mdash; useful for single-page monitoring</p>
+                    <p>Only one specific page. Useful when you want to watch a single dashboard URL.</p>
                   </div>
                 </div>
-                <p class="hint" style="margin-top:10px;"><strong>Tip:</strong> Use <em>Use Current Tab</em> in the popup to fill in the URL of the page you&rsquo;re currently viewing automatically.</p>
+                <p class="hint" style="margin-top:10px;"><strong>Tip:</strong> Open the popup on the page you want to watch and click <em>Use current tab</em> &mdash; it fills in the URL for you.</p>
                 <button class="btn btn--primary" id="setupGoUrls" style="margin-top:14px;">Go to URLs &rarr;</button>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Step 4: Webhooks -->
+        <!-- Step 3: Add a rule -->
+        <div class="card setup-card setup-accordion">
+          <button class="setup-accordion__hd" aria-expanded="false" data-accordion="step3">
+            <span class="setup-card__num">3</span>
+            <h2 class="card__title" style="margin:0;flex:1">Create a rule for what to watch</h2>
+            <svg class="setup-accordion__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="setup-accordion__body-wrap" id="step3-wrap">
+            <div class="setup-accordion__body-inner">
+              <div class="setup-accordion__body">
+                <p class="hint" style="margin-top:8px;">Open the popup on the page you want to watch. Choose a mode:</p>
+                <div class="setup-os-block">
+                  <div class="setup-os-block__row">
+                    <strong>Watch a table row</strong>
+                    <p>Best for tables &mdash; build environments, issue trackers, pipelines. Enter partial text from the columns that identify the row (e.g. a branch name + a status value). The preview shows how many rows match &mdash; aim for <strong>1 unique match</strong>. You&rsquo;ll be alerted when that row appears or disappears.</p>
+                  </div>
+                  <div class="setup-os-block__row">
+                    <strong>Watch for text</strong>
+                    <p>Watches any text anywhere on the page. Type the keyword or phrase you want to detect. Use the modifier buttons to match case, require an exact phrase, or write a regex.</p>
+                  </div>
+                </div>
+                <p class="hint" style="margin-top:10px;">Give the rule a <strong>notification title</strong> &mdash; this is what you&rsquo;ll read when the alert fires, so make it descriptive (e.g. <em>prerel-2tenant deploy ready</em>).</p>
+                <button class="btn btn--primary" id="setupGoKeywords" style="margin-top:14px;">Go to Keywords &rarr;</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4: Enable & go -->
         <div class="card setup-card setup-accordion">
           <button class="setup-accordion__hd" aria-expanded="false" data-accordion="step4">
             <span class="setup-card__num">4</span>
-            <h2 class="card__title" style="margin:0;flex:1">Set Up Webhooks <span class="setup-card__opt">optional</span></h2>
+            <h2 class="card__title" style="margin:0;flex:1">Enable Monitoring</h2>
             <svg class="setup-accordion__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div class="setup-accordion__body-wrap" id="step4-wrap">
             <div class="setup-accordion__body-inner">
               <div class="setup-accordion__body">
-                <p class="hint" style="margin-top:8px;">Webhooks let TextWatcher POST a JSON payload to any URL each time an alert fires &mdash; useful for Slack, Teams, Telegram, or custom automations.</p>
+                <p class="hint" style="margin-top:8px;">Flip the toggle at the top of the sidebar to start monitoring. TextWatcher scans every open tab that matches your URL rules, at a regular interval.</p>
+                <p class="hint" style="margin-top:6px;">The status dot in the sidebar shows how many rules are active. You can pause at any time &mdash; your rules stay intact.</p>
+                <button class="btn btn--primary" id="setupDone" style="margin-top:14px;">Enable &amp; Go to Keywords &rarr;</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 5: Webhooks (optional) -->
+        <div class="card setup-card setup-accordion">
+          <button class="setup-accordion__hd" aria-expanded="false" data-accordion="step5">
+            <span class="setup-card__num">5</span>
+            <h2 class="card__title" style="margin:0;flex:1">Set Up Webhooks <span class="setup-card__opt">optional</span></h2>
+            <svg class="setup-accordion__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="setup-accordion__body-wrap" id="step5-wrap">
+            <div class="setup-accordion__body-inner">
+              <div class="setup-accordion__body">
+                <p class="hint" style="margin-top:8px;">Want alerts in Slack, Teams, or Telegram? TextWatcher can POST a message every time a rule fires.</p>
                 <div class="setup-os-block">
                   <div class="setup-os-block__row">
                     <strong>Slack / Teams</strong>
@@ -176,10 +194,6 @@
                     <strong>Telegram</strong>
                     <p>Create a bot via @BotFather, copy the token, and add your chat ID in the Webhooks page.</p>
                   </div>
-                  <div class="setup-os-block__row">
-                    <strong>Generic</strong>
-                    <p>Any endpoint that accepts a POST with a JSON body. Use the <em>Generic</em> format for full control over the payload.</p>
-                  </div>
                 </div>
                 <button class="btn btn--primary" id="setupGoWebhooks" style="margin-top:14px;">Go to Webhooks &rarr;</button>
               </div>
@@ -187,23 +201,6 @@
           </div>
         </div>
 
-        <!-- Step 5: Enable -->
-        <div class="card setup-card setup-accordion">
-          <button class="setup-accordion__hd" aria-expanded="false" data-accordion="step5">
-            <span class="setup-card__num">5</span>
-            <h2 class="card__title" style="margin:0;flex:1">Enable Monitoring</h2>
-            <svg class="setup-accordion__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="setup-accordion__body-wrap" id="step5-wrap">
-            <div class="setup-accordion__body-inner">
-              <div class="setup-accordion__body">
-                <p class="hint" style="margin-top:8px;">Flip the toggle at the top of the sidebar to activate TextWatcher. The status dot turns green when monitoring is live.</p>
-                <p class="hint" style="margin-top:6px;">You can pause at any time &mdash; your keywords and URL rules stay intact.</p>
-                <button class="btn btn--primary" id="setupDone" style="margin-top:14px;">Enable &amp; Go to Keywords &rarr;</button>
-              </div>
-            </div>
-          </div>
-        </div>
       </section>
       <!-- ════ Keywords ════════════════════════════════════ -->
       <section class="panel" id="section-keywords">
@@ -213,60 +210,92 @@
         </div>
 
         <!-- Add form -->
-        <div class="card">
-          <h2 class="card__title">Add Keyword</h2>
-          <div class="form-grid">
-            <div class="form-field form-field--wide">
-              <label class="label">Keyword / Phrase</label>
-              <div class="input-wrap">
-                <input type="text" id="kwText" class="input" placeholder="Text to watch for…" maxlength="500" />
-                <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
-              </div>
-            </div>
-            <div class="form-field">
-              <label class="label">Match Type</label>
-              <select id="kwMatchType" class="select">
-                <option value="contains">Contains</option>
-                <option value="exact_nocase">Exact (case-insensitive)</option>
-                <option value="exact_case">Exact (case-sensitive)</option>
-                <option value="starts_with">Starts with</option>
-                <option value="ends_with">Ends with</option>
-                <option value="regex">Regex</option>
-              </select>
-            </div>
-            <div class="form-field form-field--wide">
-              <label class="label">Scope — CSS Selector <span class="label__opt">(optional)</span></label>
-              <div class="input-wrap">
-                <input type="text" id="kwScope" class="input" placeholder="e.g. #results, .price-box, [data-section=&quot;live&quot;]" maxlength="500" />
-                <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
-              </div>
-              <p class="hint" style="margin-top:5px;">Leave empty to scan the whole page. Tip: right-click an element in DevTools → Copy → Copy selector.</p>
-            </div>            <div class="form-field form-field--wide">
-              <label class="label">URL Binding <span class="label__opt">(optional)</span></label>
-              <div class="url-binding-select" id="kwUrlBinding">
-                <p class="hint" style="margin:4px 0 0;">Add URL rules first, then bind this keyword to specific URLs. Leave unselected to monitor on <em>all</em> matched URLs.</p>
-              </div>
-            </div>          </div>
-          <div class="toggle-row">
-            <label class="toggle-field">
-              <input type="checkbox" id="kwAlertAppear" checked />
-              <span class="toggle-field__track"></span>
-              <span class="toggle-field__label">Alert when text <strong>appears</strong></span>
-            </label>
-            <label class="toggle-field">
-              <input type="checkbox" id="kwAlertDisappear" checked />
-              <span class="toggle-field__track"></span>
-              <span class="toggle-field__label">Alert when text <strong>disappears</strong></span>
-            </label>
-            <label class="toggle-field">
-              <input type="checkbox" id="kwEnabled" checked />
-              <span class="toggle-field__track"></span>
-              <span class="toggle-field__label">Enable/ Disable alerts for this keyword</span>
-            </label>
+        <div class="card" style="padding-bottom:14px;">
+          <h2 class="card__title">Add Rule</h2>
+
+          <!-- Mode tabs -->
+          <div class="mode-tabs" role="tablist" aria-label="Rule type">
+            <button class="mode-tab active" id="kwModeRowBtn" role="tab" aria-selected="true">
+              Table Mode
+              <span class="mode-tab__sub">Track a row in a table</span>
+            </button>
+            <button class="mode-tab" id="kwModeTextBtn" role="tab" aria-selected="false">
+              Text Mode
+              <span class="mode-tab__sub">Any keyword on the page</span>
+            </button>
           </div>
-          <p class="hint" id="kwRegexHint" style="display:none;"><svg style="vertical-align:middle;flex-shrink:0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> Regex patterns are tested case-insensitively by default. Example: <code>\bprice\b</code></p>
-          <p class="error-msg hidden" id="kwError"></p>
-          <button class="btn btn--primary" id="addKwBtn">Add Keyword</button>
+
+          <!-- Rule card -->
+          <div class="rule-card">
+
+            <!-- Text Mode panel -->
+            <div id="kwTextModePanel" style="display:none">
+              <div class="input-row" style="gap:5px;">
+                <div class="input-wrap" style="flex:1;" id="kwKeywordWrap">
+                  <input type="text" id="kwText" class="input" placeholder="Keyword or phrase…" maxlength="500" />
+                  <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
+                </div>
+                <div class="modifier-btns" role="group" aria-label="Match modifiers">
+                  <button class="modifier-btn" id="kwModCaseBtn"  data-mod="case"  type="button" title="Case sensitive">Aa</button>
+                  <button class="modifier-btn" id="kwModExactBtn" data-mod="exact" type="button" title="Exact phrase">ab</button>
+                  <button class="modifier-btn" id="kwModRegexBtn" data-mod="regex" type="button" title="Regular expression">.*</button>
+                </div>
+              </div>
+              <p class="match-hint" id="kwMatchHint">Matches text anywhere on the page, any case</p>
+            </div>
+
+            <!-- Table Mode panel -->
+            <div id="kwRowModePanel">
+              <div class="col-filter-grid" id="kwColFilterList"></div>
+              <button class="btn btn--ghost btn--sm btn--add-col" id="kwAddColBtn" type="button">+ Add column</button>
+            </div>
+
+            <!-- Shared: notification title -->
+            <div class="input-wrap" style="margin-top:10px;">
+              <input type="text" id="kwLabel" class="input" placeholder="Notification title (optional)" maxlength="100" />
+              <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
+            </div>
+
+            <!-- Shared: alert checkboxes -->
+            <div class="checkbox-row" style="margin-top:8px;">
+              <label class="checkbox-label">
+                <input type="checkbox" id="kwAlertAppear" checked />
+                Alert when appears
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="kwAlertDisappear" checked />
+                Alert when disappears
+              </label>
+            </div>
+
+            <!-- Shared: URL binding -->
+            <div class="url-binding-select" id="kwUrlBinding" style="margin-top:8px;"></div>
+
+          </div><!-- /.rule-card -->
+
+          <!-- Advanced (scope + enabled) -->
+          <details class="kw-advanced" style="margin-top:10px;">
+            <summary class="hint" style="cursor:pointer;user-select:none;">Advanced options</summary>
+            <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px;">
+              <div class="form-field">
+                <label class="label">Scope — CSS Selector <span class="label__opt">(optional)</span></label>
+                <div class="input-wrap">
+                  <input type="text" id="kwScope" class="input" placeholder="e.g. #results, .price-box" maxlength="500" />
+                  <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
+                </div>
+                <p class="hint" style="margin-top:4px;">Leave empty to scan the whole page.</p>
+              </div>
+              <label class="toggle-field">
+                <input type="checkbox" id="kwEnabled" checked />
+                <span class="toggle-field__track"></span>
+                <span class="toggle-field__label">Enable this rule immediately</span>
+              </label>
+            </div>
+          </details>
+
+          <p class="hint" id="kwRegexHint" style="display:none;margin-top:6px;"><svg style="vertical-align:middle;flex-shrink:0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> Regex patterns are tested case-insensitively by default. Example: <code>\bprice\b</code></p>
+          <p class="error-msg hidden" id="kwError" style="margin-top:6px;"></p>
+          <button class="btn btn--primary" id="addKwBtn" style="margin-top:10px;">Save Rule</button>
         </div>
 
         <!-- List -->
@@ -359,7 +388,7 @@
           <p class="panel__desc">Control exactly when and how you get alerted.</p>
         </div>
 
-        <div class="perm-banner hidden" id="notifPermBanner"></div>
+        <div class="perm-banner hidden" id="notifSectionBanner"></div>
 
         <div class="card">
           <h2 class="card__title">Frequency</h2>
@@ -439,39 +468,6 @@
           </ul>
         </div>
       </section>
-      <!-- ════ Badge & Icon ══════════════════════════════════ -->
-      <section class="panel hidden" id="section-badge">
-        <div class="panel__header">
-          <h1 class="panel__title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Badge &amp; Icon</h1>
-          <p class="panel__desc">Control the visual status indicator on the extension icon.</p>
-        </div>
-
-        <div class="card">
-          <h2 class="card__title">Badge</h2>
-          <div class="settings-list">
-            <div class="setting-row">
-              <div class="setting-row__info">
-                <span class="setting-row__name">Show badge</span>
-                <span class="setting-row__desc">Display badge on extension icon</span>
-              </div>
-              <label class="toggle"><input type="checkbox" id="badgeEnabled" /><span class="toggle__track"></span></label>
-            </div>
-          </div>
-          <div class="color-preview" id="badgePreview">
-            <div class="color-swatch" id="activeColor" title="Active (monitoring, no match)"></div>
-            <span>Active</span>
-            <div class="color-swatch match" id="matchColor" title="Match found"></div>
-            <span>Match found</span>
-            <div class="color-swatch inactive" id="inactiveColor" title="Paused"></div>
-            <span>Paused</span>
-          </div>
-        </div>
-
-        <div class="sticky-save">
-          <button class="btn btn--primary" id="saveBadgeBtn" disabled>Save Settings</button>
-        </div>
-      </section>
-
       <!-- ════ History ══════════════════════════════════════ -->
       <section class="panel hidden" id="section-history">
         <div class="panel__header">
@@ -678,5 +674,6 @@
   </div>
 
   <script type="module" src="options.js"></script>
+
 </body>
 </html>

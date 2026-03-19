@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TextWatcher — Test Page</title>
+  <title>TextWatcher - Test Page</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -92,6 +92,42 @@
     }
     #notifCheck.ok   { border-color: #22c55e; color: #22c55e; background: #052e16; }
     #notifCheck.deny { border-color: #ef4444; color: #ef4444; background: #1c1917; }
+
+    /* ---- ap-table ---- */
+    .tbl-card { max-width: 900px; }
+    .tbl-desc { font-size: 0.85rem; color: #94a3b8; margin-bottom: 16px; line-height: 1.6; }
+    .ap-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 4px; }
+    .ap-table .ap-row { display: grid; grid-template-columns: repeat(7, 1fr); }
+    .ap-table .ap-header .apcol-1 {
+      background: #0f172a; color: #64748b; font-size: 0.72rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .06em;
+      padding: 8px 10px; border: 1px solid #1e293b;
+    }
+    .ap-tablecell {
+      padding: 10px 10px; border: 1px solid #1e293b; color: #cbd5e1;
+      line-height: 1.4; transition: background .2s;
+    }
+    .ap-tablerow1 .ap-tablecell { background: #1e293b; }
+    .ap-tablerow0 .ap-tablecell { background: #172033; }
+    .ap-row.hidden { display: none; }
+    .ap-row .ap-tablecell.updated { background: #1c3a22 !important; transition: background 0s; }
+
+    .tbl-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+    .tbl-controls button { font-size: 0.82rem; padding: 7px 14px; }
+
+    /* ---- regex hints ---- */
+    .regex-card { max-width: 900px; }
+    .regex-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 4px; }
+    .regex-table th {
+      text-align: left; background: #0f172a; color: #64748b;
+      font-size: 0.72rem; text-transform: uppercase; letter-spacing: .06em;
+      padding: 8px 12px; border: 1px solid #1e293b;
+    }
+    .regex-table td { padding: 9px 12px; border: 1px solid #1e293b; color: #cbd5e1; vertical-align: top; }
+    .regex-table tr:nth-child(odd) td { background: #1e293b; }
+    .regex-table tr:nth-child(even) td { background: #172033; }
+    .regex-table code { font-size: 0.9em; color: #7dd3fc; }
+    .row-toggle-btn { font-size: 0.75rem; padding: 5px 10px; width: 100%; border-radius: 6px; }
   </style>
 </head>
 <body>
@@ -253,6 +289,339 @@
   window.hideSig   = hideSig;
   window.startAuto = startAuto;
   window.stopAuto  = stopAuto;
+}());
+</script>
+
+<!-- =================== AP-TABLE TEST =================== -->
+<div class="card tbl-card">
+  <h2>Table — row-scoped matching test</h2>
+  <p class="tbl-desc">
+    Seven rows across three servers and two fixtures. Rows 1–4 share the same
+    branch and fixture; rows 5–7 add <b>prerel_2tenant</b> and <b>rel_2tenant</b>
+    server names that overlap in fixture text — reproducing the real
+    cross-row contamination scenario (issue&nbsp;#57).<br>
+    Use the per-row buttons to add/remove rows. Use the regex cheat sheet below to
+    target exactly one row.
+  </p>
+
+  <div class="tbl-controls">
+    <button class="b" id="tblAutoBtn" onclick="startTableAuto()">&#10227; Auto-cycle Row 1 (10 s)</button>
+    <button class="s" id="tblStopBtn" onclick="stopTableAuto()">&#10005; Stop</button>
+    <span id="tblTick" style="font-size:0.8rem;color:#64748b;line-height:2.2"></span>
+  </div>
+
+  <div class="ap-table" id="apTable">
+    <!-- header: 8 cols — extra col for the action button -->
+    <div class="ap-row ap-header" style="grid-template-columns:repeat(7,1fr) 90px">
+      <div class="apcol-1">SERVERNAME</div>
+      <div class="apcol-1">AUTO_BRANCH</div>
+      <div class="apcol-1">FIXTURENAME</div>
+      <div class="apcol-1">TESTNAME</div>
+      <div class="apcol-1">STARTTIME</div>
+      <div class="apcol-1">USERNUMBER</div>
+      <div class="apcol-1">BROWSERNAME</div>
+      <div class="apcol-1">ACTION</div>
+    </div>
+    <!-- Row 1 — Pre-Rel_2T / chrome -->
+    <div class="ap-row ap-tablerow1" id="trow0" style="grid-template-columns:repeat(7,1fr) 90px">
+      <div class="apcol-1 ap-tablecell" data-columnid="SERVERNAME">Pre-Rel_2T (master-hc-prerel-2tenant)</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="AUTO_BRANCH">CEI03-1840-Migration_InputParameter_AllDatatypes_Orca</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="FIXTURENAME">Business Builder - All data types used in input parameters</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="TESTNAME"></div>
+      <div class="apcol-1 ap-tablecell" data-columnid="STARTTIME" id="trow0-time">Tue, 17 Mar 2026 12:25:43 GMT</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="USERNUMBER">40</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="BROWSERNAME">chrome</div>
+      <div class="apcol-1 ap-tablecell" style="padding:6px"><button class="r row-toggle-btn" id="tbtn0" onclick="toggleRow(0)">Remove</button></div>
+    </div>
+    <!-- Row 2 — Pre-Rel_2T / edge -->
+    <div class="ap-row ap-tablerow0" id="trow1" style="grid-template-columns:repeat(7,1fr) 90px">
+      <div class="apcol-1 ap-tablecell" data-columnid="SERVERNAME">Pre-Rel_2T (master-hc-prerel-2tenant)</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="AUTO_BRANCH">CEI03-1840-Migration_InputParameter_AllDatatypes_Orca</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="FIXTURENAME">Business Builder - All data types used in input parameters</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="TESTNAME"></div>
+      <div class="apcol-1 ap-tablecell" data-columnid="STARTTIME" id="trow1-time">Tue, 17 Mar 2026 12:25:43 GMT</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="USERNUMBER">40</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="BROWSERNAME">edge</div>
+      <div class="apcol-1 ap-tablecell" style="padding:6px"><button class="r row-toggle-btn" id="tbtn1" onclick="toggleRow(1)">Remove</button></div>
+    </div>
+    <!-- Row 3 — rel-2tenant / edge -->
+    <div class="ap-row ap-tablerow1" id="trow2" style="grid-template-columns:repeat(7,1fr) 90px">
+      <div class="apcol-1 ap-tablecell" data-columnid="SERVERNAME">rel-2tenant</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="AUTO_BRANCH">CEI03-1840-Migration_InputParameter_AllDatatypes_Orca</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="FIXTURENAME">Business Builder - All data types used in input parameters</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="TESTNAME"></div>
+      <div class="apcol-1 ap-tablecell" data-columnid="STARTTIME" id="trow2-time">Tue, 17 Mar 2026 12:25:43 GMT</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="USERNUMBER">40</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="BROWSERNAME">edge</div>
+      <div class="apcol-1 ap-tablecell" style="padding:6px"><button class="r row-toggle-btn" id="tbtn2" onclick="toggleRow(2)">Remove</button></div>
+    </div>
+    <!-- Row 4 — rel-2tenant / chrome -->
+    <div class="ap-row ap-tablerow0" id="trow3" style="grid-template-columns:repeat(7,1fr) 90px">
+      <div class="apcol-1 ap-tablecell" data-columnid="SERVERNAME">rel-2tenant</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="AUTO_BRANCH">CEI03-1840-Migration_InputParameter_AllDatatypes_Orca</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="FIXTURENAME">Business Builder - All data types used in input parameters</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="TESTNAME"></div>
+      <div class="apcol-1 ap-tablecell" data-columnid="STARTTIME" id="trow3-time">Tue, 17 Mar 2026 12:25:43 GMT</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="USERNUMBER">40</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="BROWSERNAME">chrome</div>
+      <div class="apcol-1 ap-tablecell" style="padding:6px"><button class="r row-toggle-btn" id="tbtn3" onclick="toggleRow(3)">Remove</button></div>
+    </div>
+    <!-- Row 5 — prerel_2tenant / Business Builder / chrome  ← monitor this -->
+    <div class="ap-row ap-tablerow1" id="trow4" style="grid-template-columns:repeat(7,1fr) 90px">
+      <div class="apcol-1 ap-tablecell" data-columnid="SERVERNAME">prerel_2tenant</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="AUTO_BRANCH">master-hc-prerel-2tenant</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="FIXTURENAME">Business Builder - All data types used in input parameters</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="TESTNAME"></div>
+      <div class="apcol-1 ap-tablecell" data-columnid="STARTTIME">Wed, 19 Mar 2026 10:00:00 GMT</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="USERNUMBER">40</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="BROWSERNAME">chrome</div>
+      <div class="apcol-1 ap-tablecell" style="padding:6px"><button class="r row-toggle-btn" id="tbtn4" onclick="toggleRow(4)">Remove</button></div>
+    </div>
+    <!-- Row 6 — rel_2tenant / Business Builder / chrome  ← contamination source for Row 5 -->
+    <div class="ap-row ap-tablerow0" id="trow5" style="grid-template-columns:repeat(7,1fr) 90px">
+      <div class="apcol-1 ap-tablecell" data-columnid="SERVERNAME">rel_2tenant</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="AUTO_BRANCH">rel-hc-2tenant</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="FIXTURENAME">Business Builder - All data types used in input parameters</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="TESTNAME"></div>
+      <div class="apcol-1 ap-tablecell" data-columnid="STARTTIME">Wed, 19 Mar 2026 10:01:00 GMT</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="USERNUMBER">40</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="BROWSERNAME">chrome</div>
+      <div class="apcol-1 ap-tablecell" style="padding:6px"><button class="r row-toggle-btn" id="tbtn5" onclick="toggleRow(5)">Remove</button></div>
+    </div>
+    <!-- Row 7 — prerel_2tenant / cei03 (unique fixture — no contamination risk) -->
+    <div class="ap-row ap-tablerow1" id="trow6" style="grid-template-columns:repeat(7,1fr) 90px">
+      <div class="apcol-1 ap-tablecell" data-columnid="SERVERNAME">prerel_2tenant</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="AUTO_BRANCH">master-hc-prerel-2tenant</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="FIXTURENAME">cei03 — Space: Bug Hunt</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="TESTNAME"></div>
+      <div class="apcol-1 ap-tablecell" data-columnid="STARTTIME">Wed, 19 Mar 2026 10:02:00 GMT</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="USERNUMBER">132</div>
+      <div class="apcol-1 ap-tablecell" data-columnid="BROWSERNAME">chrome</div>
+      <div class="apcol-1 ap-tablecell" style="padding:6px"><button class="r row-toggle-btn" id="tbtn6" onclick="toggleRow(6)">Remove</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="card regex-card">
+  <h2>Cheat sheet — targeting a specific row</h2>
+  <table class="regex-table">
+    <thead>
+      <tr><th>Pattern (Col 1 · Col 2 · Col 3)</th><th>Targets</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>master-hc-prerel-2tenant.*chrome</code></td>
+        <td>Row 1 only</td>
+        <td>Full server sub-string → chrome.</td>
+      </tr>
+      <tr>
+        <td><code>master-hc-prerel-2tenant.*edge</code></td>
+        <td>Row 2 only</td>
+        <td>Full server sub-string → edge.</td>
+      </tr>
+      <tr>
+        <td><code>^(?!.*master-hc-prerel).*rel-2tenant.*edge</code></td>
+        <td>Row 3 only</td>
+        <td>rel-2tenant but NOT master-hc-prerel, then edge.</td>
+      </tr>
+      <tr>
+        <td><code>^(?!.*master-hc-prerel).*rel-2tenant.*chrome</code></td>
+        <td>Row 4 only</td>
+        <td>rel-2tenant but NOT master-hc-prerel, then chrome.</td>
+      </tr>
+      <tr>
+        <td><code>CEI03-1840-Migration_InputParameter</code></td>
+        <td>Rows 1–4</td>
+        <td>Branch appears in every original row.</td>
+      </tr>
+      <tr>
+        <td><code>prerel_2tenant.*Business Builder.*chrome</code></td>
+        <td>Row 5 only</td>
+        <td>With rowSelector: fires disappear when Row 5 is removed even though Row 6 (rel_2tenant) is still present — verifies issue&nbsp;#57 fix.</td>
+      </tr>
+      <tr>
+        <td><code>rel_2tenant.*Business Builder.*chrome</code></td>
+        <td>Row 6 only</td>
+        <td>Fires independently of Row 5 (different server prefix).</td>
+      </tr>
+      <tr>
+        <td><code>prerel_2tenant.*cei03</code></td>
+        <td>Row 7 only</td>
+        <td>Unique fixture — no contamination risk. Good smoke-test for rowSelector.</td>
+      </tr>
+      <tr>
+        <td><code>rel_2tenant.*Business Builder</code> <em>(no rowSelector)</em></td>
+        <td>Rows 5 <em>and</em> 6</td>
+        <td style="color:#ef4444">Demonstrates issue&nbsp;#57: removing Row 5 fires no disappear alert because Row 6 keeps the text alive on the page.</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="tbl-desc" style="margin-top:12px">
+    <b>Row selector:</b> <code>#apTable .ap-row:not(.ap-header)</code>
+    &nbsp;·&nbsp;
+    Or click <b>Detect rows from page</b> in the popup — it auto-finds <code>.ap-row:not([class*="header"])</code>.
+  </p>
+</div>
+
+<!-- =================== DEBUG PANEL =================== -->
+<div class="card regex-card" id="debugCard">
+  <h2>Debug — extracted text &amp; regex tester</h2>
+  <p class="tbl-desc">
+    Mimics the exact text the content script sees. Use this to verify your regex before adding it as a rule.
+  </p>
+  <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+    <button class="b" style="font-size:0.82rem;padding:7px 14px" onclick="extractDebug()">&#128269; Extract page text</button>
+    <button class="b" style="font-size:0.82rem;padding:7px 14px" onclick="extractDebug(true)">&#128269; Extract table only</button>
+  </div>
+  <textarea id="debugText" readonly
+    style="width:100%;height:110px;background:#0f172a;color:#7dd3fc;border:1px solid #334155;
+           border-radius:6px;padding:10px;font-family:monospace;font-size:0.78rem;
+           resize:vertical;margin-bottom:10px"
+    placeholder="Click 'Extract page text' to see what the content script receives…"></textarea>
+
+  <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
+    <input id="debugRegex" type="text" placeholder="Enter regex pattern…"
+      style="flex:1;background:#0f172a;color:#e2e8f0;border:1px solid #334155;
+             border-radius:6px;padding:8px 12px;font-family:monospace;font-size:0.85rem"
+      oninput="testDebugRegex()">
+    <span id="debugResult" style="font-size:0.85rem;font-weight:700;min-width:80px;text-align:center"></span>
+  </div>
+  <div id="debugMatch" style="font-family:monospace;font-size:0.78rem;color:#94a3b8;word-break:break-all;min-height:1.4em"></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // Store detached row elements so they can be re-inserted at the right position
+  var detached = {};   // idx -> { node, parent, nextSibling }
+
+  window.toggleRow = function (idx) {
+    var btn = document.getElementById('tbtn' + idx);
+    var row = document.getElementById('trow' + idx);
+
+    if (row.parentNode) {
+      // Row is in DOM → detach it (real childList removal → observer fires)
+      detached[idx] = { node: row, parent: row.parentNode, next: row.nextSibling };
+      row.parentNode.removeChild(row);
+      btn.textContent = 'Add';
+      btn.className   = 'g row-toggle-btn';
+    } else {
+      // Row is detached → re-insert at original position
+      var d = detached[idx];
+      d.parent.insertBefore(d.node, d.next);
+      btn.textContent = 'Remove';
+      btn.className   = 'r row-toggle-btn';
+    }
+  };
+
+  // ── Auto-cycle Row 1 ──────────────────────────────────────────────────────
+  var tblTimer = null, tblCdTimer = null, tblNextAt = 0;
+
+  window.startTableAuto = function () {
+    stopTableAuto();
+    document.getElementById('tblAutoBtn').disabled = true;
+    document.getElementById('tblStopBtn').classList.add('vis');
+    var INTERVAL = 10000;
+
+    function cycle() {
+      toggleRow(0); // reuse existing toggle — triggers real DOM mutation
+      tblNextAt = Date.now() + INTERVAL;
+      var row0 = document.getElementById('trow0');
+      document.getElementById('tblTick').textContent =
+        (row0 && row0.parentNode ? 'Row 1 visible' : 'Row 1 removed') +
+        ' — next toggle in 10s';
+    }
+
+    cycle(); // fire immediately
+    tblTimer   = setInterval(cycle, INTERVAL);
+    tblCdTimer = setInterval(function () {
+      var rem  = Math.max(0, Math.ceil((tblNextAt - Date.now()) / 1000));
+      var row0 = document.getElementById('trow0');
+      document.getElementById('tblTick').textContent =
+        (row0 && row0.parentNode ? 'Row 1 visible' : 'Row 1 removed') +
+        ' — next toggle in ' + rem + 's';
+    }, 250);
+  };
+
+  window.stopTableAuto = function () {
+    clearInterval(tblTimer); clearInterval(tblCdTimer);
+    tblTimer = tblCdTimer = null;
+    document.getElementById('tblAutoBtn').disabled = false;
+    document.getElementById('tblStopBtn').classList.remove('vis');
+    document.getElementById('tblTick').textContent = '';
+  };
+}());
+</script>
+
+<script>
+(function () {
+  'use strict';
+
+  // Mirrors content-script.js extractPageText exactly
+  function extractText(roots) {
+    var scanRoots = (roots && roots.length) ? roots : [document.body];
+    var parts = [];
+    var skipTags = ['SCRIPT','STYLE','NOSCRIPT','TEMPLATE'];
+
+    function accept(node) {
+      var parent = node.parentElement;
+      if (!parent) return NodeFilter.FILTER_REJECT;
+      if (skipTags.indexOf(parent.tagName.toUpperCase()) !== -1) return NodeFilter.FILTER_REJECT;
+      if (parent.hidden ||
+          parent.getAttribute('aria-hidden') === 'true' ||
+          parent.style.display === 'none' ||
+          parent.style.visibility === 'hidden') return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    }
+
+    for (var i = 0; i < scanRoots.length; i++) {
+      var walker = document.createTreeWalker(scanRoots[i], NodeFilter.SHOW_TEXT, { acceptNode: accept });
+      var node;
+      while ((node = walker.nextNode())) {
+        var t = node.textContent.trim();
+        if (t) parts.push(t);
+      }
+    }
+    return parts.join(' ');
+  }
+
+  window.extractDebug = function (tableOnly) {
+    var text = tableOnly
+      ? extractText(Array.from(document.querySelectorAll('#apTable .ap-row:not(.ap-header)')))
+      : extractText(null);
+    document.getElementById('debugText').value = text;
+    testDebugRegex();
+  };
+
+  window.testDebugRegex = function () {
+    var text    = document.getElementById('debugText').value;
+    var pattern = document.getElementById('debugRegex').value.trim();
+    var result  = document.getElementById('debugResult');
+    var match   = document.getElementById('debugMatch');
+
+    if (!pattern || !text) { result.textContent = ''; match.textContent = ''; return; }
+
+    try {
+      var rx = new RegExp(pattern, 'i');
+      var m  = rx.exec(text);
+      if (m) {
+        result.textContent  = 'MATCH';
+        result.style.color  = '#22c55e';
+        var start = Math.max(0, m.index - 40);
+        var end   = Math.min(text.length, m.index + m[0].length + 40);
+        match.textContent   = (start > 0 ? '…' : '') + text.slice(start, end) + (end < text.length ? '…' : '');
+      } else {
+        result.textContent  = 'NO MATCH';
+        result.style.color  = '#ef4444';
+        match.textContent   = '';
+      }
+    } catch (e) {
+      result.textContent  = '⚠ Invalid regex';
+      result.style.color  = '#f59e0b';
+      match.textContent   = e.message;
+    }
+  };
 }());
 </script>
 
