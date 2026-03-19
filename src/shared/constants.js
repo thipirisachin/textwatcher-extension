@@ -8,7 +8,8 @@
 export const MATCH_TYPE = Object.freeze({
   EXACT_CASE:        'exact_case',       // "Hello" matches only "Hello"
   EXACT_NOCASE:      'exact_nocase',     // "Hello" matches "hello", "HELLO"
-  CONTAINS:          'contains',         // "ell" matches "Hello"
+  CONTAINS:          'contains',         // "ell" matches "Hello" (case-insensitive)
+  CONTAINS_CASE:     'contains_case',    // "ell" matches "Hello" (case-sensitive)
   STARTS_WITH:       'starts_with',      // "Hel" matches "Hello World"
   ENDS_WITH:         'ends_with',        // "rld" matches "Hello World"
   REGEX:             'regex',            // Any valid JS regex

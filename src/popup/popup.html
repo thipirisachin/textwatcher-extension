@@ -53,21 +53,22 @@
 
     <!-- ── MODE A: Watch for text ─────────────────────────── -->
     <div id="textModePanel" style="display:none">
-      <div class="input-wrap" style="margin-top:10px;" id="quickKeywordWrap">
-        <input
-          type="text"
-          id="quickKeyword"
-          class="input"
-          placeholder="Keyword or phrase…"
-          maxlength="500"
-        />
-        <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
-      </div>
-      <div class="match-type-btns" role="group" aria-label="Match type" style="margin-top:6px;">
-        <button class="match-type-btn active" data-value="contains"     type="button">Contains</button>
-        <button class="match-type-btn"        data-value="exact_nocase" type="button">Exact</button>
-        <button class="match-type-btn"        data-value="exact_case"   type="button">Case sensitive</button>
-        <button class="match-type-btn"        data-value="regex"        type="button">Regex</button>
+      <div class="input-row" style="margin-top:10px; gap:5px;">
+        <div class="input-wrap" style="flex:1;" id="quickKeywordWrap">
+          <input
+            type="text"
+            id="quickKeyword"
+            class="input"
+            placeholder="Keyword or phrase…"
+            maxlength="500"
+          />
+          <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
+        </div>
+        <div class="modifier-btns" role="group" aria-label="Match modifiers">
+          <button class="modifier-btn" id="modCaseBtn"  data-mod="case"  type="button" title="Case sensitive">Aa</button>
+          <button class="modifier-btn" id="modExactBtn" data-mod="exact" type="button" title="Exact phrase">ab</button>
+          <button class="modifier-btn" id="modRegexBtn" data-mod="regex" type="button" title="Regular expression">.*</button>
+        </div>
       </div>
     </div>
 

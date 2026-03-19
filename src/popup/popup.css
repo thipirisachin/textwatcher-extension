@@ -192,33 +192,38 @@ body {
   border-color: var(--accent-lt);
 }
 
-/* ── Match type button group (text mode) ─────────────────────────────────── */
-.match-type-btns {
+/* ── Text-mode modifier buttons (Aa / ab / .*) ───────────────────────────── */
+.modifier-btns {
   display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
+  gap: 2px;
+  flex-shrink: 0;
 }
 
-.match-type-btn {
-  background: none;
+.modifier-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 32px;
+  background: var(--surface-2);
   border: 1px solid var(--border-2);
   border-radius: var(--r-xs);
-  color: var(--text-2);
+  color: var(--text-3);
   font-size: 11px;
   font-family: inherit;
-  font-weight: 600;
-  padding: 3px 9px;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.15s;
+  white-space: nowrap;
 }
 
-.match-type-btn:hover {
+.modifier-btn:hover {
   background: var(--accent-gl);
   border-color: var(--accent-lt);
   color: var(--accent-lt);
 }
 
-.match-type-btn.active {
+.modifier-btn.active {
   background: var(--accent-gl);
   border-color: var(--accent-lt);
   color: var(--accent-lt);

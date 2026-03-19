@@ -42,12 +42,13 @@ const MSG = Object.freeze({
 });
 
 const MATCH_TYPE = Object.freeze({
-  EXACT_CASE:   'exact_case',
-  EXACT_NOCASE: 'exact_nocase',
-  CONTAINS:     'contains',
-  STARTS_WITH:  'starts_with',
-  ENDS_WITH:    'ends_with',
-  REGEX:        'regex',
+  EXACT_CASE:    'exact_case',
+  EXACT_NOCASE:  'exact_nocase',
+  CONTAINS:      'contains',
+  CONTAINS_CASE: 'contains_case',
+  STARTS_WITH:   'starts_with',
+  ENDS_WITH:     'ends_with',
+  REGEX:         'regex',
 });
 
 const ALERT_EVENT = Object.freeze({
@@ -124,6 +125,8 @@ function matchesKeyword(haystack, needle, matchType) {
       return haystack.toLowerCase().includes(needle.toLowerCase());
     case MATCH_TYPE.CONTAINS:
       return haystack.toLowerCase().includes(needle.toLowerCase());
+    case MATCH_TYPE.CONTAINS_CASE:
+      return haystack.includes(needle);
     case MATCH_TYPE.STARTS_WITH:
       return haystack.trimStart().toLowerCase().startsWith(needle.toLowerCase());
     case MATCH_TYPE.ENDS_WITH:

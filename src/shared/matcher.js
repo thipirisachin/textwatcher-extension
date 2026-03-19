@@ -29,6 +29,9 @@ export function matchesKeyword(haystack, needle, matchType) {
     case MATCH_TYPE.CONTAINS:
       return haystack.toLowerCase().includes(needle.toLowerCase());
 
+    case MATCH_TYPE.CONTAINS_CASE:
+      return haystack.includes(needle);
+
     case MATCH_TYPE.STARTS_WITH:
       return haystack.trimStart().toLowerCase().startsWith(needle.toLowerCase());
 
@@ -93,8 +96,8 @@ export function findMatchPositions(haystack, needle, matchType) {
     return positions;
   }
 
-  // EXACT_CASE / EXACT_NOCASE / CONTAINS: substring scan.
-  const caseSensitive = matchType === MATCH_TYPE.EXACT_CASE;
+  // EXACT_CASE / EXACT_NOCASE / CONTAINS / CONTAINS_CASE: substring scan.
+  const caseSensitive = matchType === MATCH_TYPE.EXACT_CASE || matchType === MATCH_TYPE.CONTAINS_CASE;
   const searchStr    = caseSensitive ? haystack       : haystack.toLowerCase();
   const searchNeedle = caseSensitive ? needle         : needle.toLowerCase();
 

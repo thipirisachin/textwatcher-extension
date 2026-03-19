@@ -267,8 +267,15 @@ async function autoDetectRows() {
 // ─── Live Row Match Preview ───────────────────────────────────────────────────
 
 function getMatchType() {
-  const active = qs('.match-type-btn.active');
-  return active?.dataset.value ?? MATCH_TYPE.CONTAINS;
+  const caseOn  = qs('#modCaseBtn')?.classList.contains('active')  ?? false;
+  const exactOn = qs('#modExactBtn')?.classList.contains('active') ?? false;
+  const regexOn = qs('#modRegexBtn')?.classList.contains('active') ?? false;
+
+  if (regexOn)             return MATCH_TYPE.REGEX;
+  if (exactOn && caseOn)   return MATCH_TYPE.EXACT_CASE;
+  if (exactOn)             return MATCH_TYPE.EXACT_NOCASE;
+  if (caseOn)              return MATCH_TYPE.CONTAINS_CASE;
+  return MATCH_TYPE.CONTAINS;
 }
 
 function getRowPattern() {
@@ -508,12 +515,22 @@ function bindEvents() {
     qs(id)?.addEventListener('input', debouncedPreview);
   });
 
-  // Match type button group (text mode)
-  qs('.match-type-btns')?.addEventListener('click', (e) => {
-    const btn = e.target.closest('.match-type-btn');
+  // Match modifier buttons (text mode): Aa / ab / .*
+  // .* is exclusive (regex overrides); Aa and ab are independent toggles.
+  qs('.modifier-btns')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.modifier-btn');
     if (!btn) return;
-    qs('.match-type-btn.active')?.classList.remove('active');
-    btn.classList.add('active');
+    const mod = btn.dataset.mod;
+    if (mod === 'regex') {
+      const nowActive = !btn.classList.contains('active');
+      btn.classList.toggle('active', nowActive);
+      // When regex turns on, deactivate exact (case stays — it's informational for regex too)
+      if (nowActive) qs('#modExactBtn')?.classList.remove('active');
+    } else {
+      btn.classList.toggle('active');
+      // When exact or case turns on, deactivate regex
+      qs('#modRegexBtn')?.classList.remove('active');
+    }
   });
 
   // Add URL
