@@ -10,7 +10,7 @@
  *  - Cooldown tracking to prevent notification spam
  */
 
-import { MSG, NOTIF_FREQUENCY, ALERT_EVENT, STORAGE_KEY, WEBHOOK_FORMAT } from '../shared/constants.js';
+import { MSG, NOTIF_FREQUENCY, ALERT_EVENT, STORAGE_KEY, WEBHOOK_FORMAT, MATCH_TYPE } from '../shared/constants.js';
 import { getKeywords, getUrls, getSettings, getEnabled, addAlertEvent,
          getOnboarded, getWebhookSettings } from '../shared/storage.js';
 import { matchesUrl } from '../shared/matcher.js';
@@ -84,28 +84,35 @@ function queueNotification(opts) {
 
 /**
  * Fire the consolidated notification for a completed batch.
- * Settings are passed in from the batch (captured at queue time) to avoid
- * a redundant storage read 1 second after the alert was already processed.
+ * Lists keyword names so the user knows exactly what changed,
+ * not just a count.
  */
 async function flushBatch({ tabId, events, settings }) {
   const count = events.length;
 
   if (count === 1) {
-    // Single event — original detailed format
+    // Single event — full detailed format
     await fireNotification({ ...events[0], settings });
     return;
   }
 
-  // Multiple events — summarise
-  const appears    = events.filter((e) => e.event === ALERT_EVENT.APPEARS).length;
-  const disappears = events.filter((e) => e.event === ALERT_EVENT.DISAPPEARS).length;
+  // Multiple events — summarise with keyword names
+  const appears    = events.filter((e) => e.event === ALERT_EVENT.APPEARS);
+  const disappears = events.filter((e) => e.event === ALERT_EVENT.DISAPPEARS);
 
   let host = events[0].url;
   try { host = new URL(events[0].url).hostname; } catch (_) { /* keep raw */ }
 
+  // List up to 2 keyword names per direction, then "+ N more"
+  const formatNames = (evts) => {
+    const names = evts.slice(0, 2).map((e) => truncate(e.keyword, 22)).join(', ');
+    const extra = evts.length > 2 ? ` +${evts.length - 2} more` : '';
+    return names + extra;
+  };
+
   const parts = [];
-  if (appears)    parts.push(`${appears} appeared`);
-  if (disappears) parts.push(`${disappears} disappeared`);
+  if (appears.length)    parts.push(`↑ ${formatNames(appears)}`);
+  if (disappears.length) parts.push(`↓ ${formatNames(disappears)}`);
 
   const notifId = `tw:${tabId}:${crypto.randomUUID()}`;
   const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -113,9 +120,9 @@ async function flushBatch({ tabId, events, settings }) {
   chrome.notifications.create(notifId, {
     type:           'basic',
     iconUrl:        chrome.runtime.getURL('src/icons/icon48.png'),
-    title:          `TextWatcher - ${count} alerts`,
-    message:        parts.join(', '),
-    contextMessage: `${host}  ·  ${now}`,
+    title:          `TextWatcher — ${count} alerts on ${host}`,
+    message:        parts.join('  ·  '),
+    contextMessage: now,
     priority:       1,
   });
 }
@@ -287,6 +294,7 @@ async function handleAlertMessage(tabId, event, message, settings) {
     keyword:   message.keyword,
     matchType: message.matchType,
     url:       message.url,
+    pageTitle: message.title,
     snippet:   isAppear ? message.snippet : null,
     settings,
   });
@@ -321,42 +329,70 @@ async function handleAlertMessage(tabId, event, message, settings) {
 
 /**
  * Fire a browser notification for a single alert event.
- * Title carries the keyword + verb; message holds match type/snippet;
- * contextMessage holds URL + time (displayed in a lighter weight by Chrome).
+ *
+ * Layout strategy:
+ *   title          — keyword + verb. No quotes (they orphan on truncation).
+ *   message        — most informative available line (always rendered):
+ *                    appear:    snippet with cell values joined by ' · '
+ *                    disappear: url + time (no snippet available)
+ *                    fallback:  url + time or page title
+ *   contextMessage — secondary context (may not render on all platforms):
+ *                    appear:    url + time
+ *                    disappear: page title
+ *
+ * Match type is shown only for non-regex rules — for table-mode (REGEX)
+ * it is an internal implementation detail, not useful to the user.
  */
-async function fireNotification({ tabId, event, keyword, matchType, url, snippet, settings }) {
+async function fireNotification({ tabId, event, keyword, matchType, url, pageTitle, snippet, settings }) {
   const isAppear = event === ALERT_EVENT.APPEARS;
   const notifId  = `tw:${tabId}:${crypto.randomUUID()}`;
   const verb     = isAppear ? 'appeared' : 'disappeared';
-  const title    = `"${truncate(keyword, 55)}" ${verb}`;
+
+  // Title: label + verb, no quotes, 60 chars for the label
+  const title = `${truncate(keyword, 60)} ${verb}`;
 
   const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  // Primary body: match type and/or snippet
-  const bodyParts = [];
-  if (settings.showMatchType && matchType) {
-    bodyParts.push(MATCH_TYPE_LABEL[matchType] || matchType);
-  }
-  if (settings.showSnippet && snippet) {
-    bodyParts.push(truncate(snippet, 100));
-  }
-
-  // contextMessage: URL path + time (lighter sub-line in Chrome)
-  const ctxParts = [];
+  // URL display string
+  let urlDisplay = '';
   if (settings.showUrl && url) {
     try {
       const { hostname, pathname } = new URL(url);
-      ctxParts.push(truncate(hostname + pathname, 55));
-    } catch (_) { ctxParts.push(truncate(url, 55)); }
+      urlDisplay = truncate(hostname + pathname, 55);
+    } catch (_) { urlDisplay = truncate(url, 55); }
   }
-  ctxParts.push(now);
+  const timeLine = [urlDisplay, now].filter(Boolean).join('  ·  ');
+
+  // Match type label — skip for REGEX (table mode implementation detail)
+  const matchTypeLabel = settings.showMatchType && matchType && matchType !== MATCH_TYPE.REGEX
+    ? (MATCH_TYPE_LABEL[matchType] || matchType)
+    : null;
+
+  // Snippet — replace \n (text-node delimiter) with ' · ' so table row cells
+  // read as "prerel_2tenant · Business Builder · chrome" not raw newlines
+  const cleanSnippet = settings.showSnippet && snippet
+    ? truncate(snippet.replace(/\n+/g, '  ·  ').trim(), 120)
+    : null;
+
+  // Build message (primary body — always visible)
+  // Appear:    [matchType ·] snippet  →  falls back to timeLine
+  // Disappear: [matchType ·] timeLine (no snippet available)
+  const bodyParts = [matchTypeLabel, cleanSnippet || (isAppear ? null : timeLine)].filter(Boolean);
+  const message = bodyParts.join('  ·  ') || timeLine || verb;
+
+  // contextMessage (secondary — may be hidden on some platforms)
+  // Appear:    url + time  (snippet already in message)
+  // Disappear: page title  (gives page context when no snippet exists)
+  const contextMessage = isAppear
+    ? (cleanSnippet ? timeLine : (pageTitle ? truncate(pageTitle, 60) : ''))
+    : (pageTitle ? truncate(pageTitle, 60) : '');
 
   chrome.notifications.create(notifId, {
     type:           'basic',
     iconUrl:        chrome.runtime.getURL('src/icons/icon48.png'),
     title,
-    message:        bodyParts.join('  ·  ') || verb.charAt(0).toUpperCase() + verb.slice(1),
-    contextMessage: ctxParts.join('  ·  '),
+    message,
+    contextMessage,
     priority:       1,
   });
 }
@@ -470,22 +506,46 @@ export function buildWebhookPayload(cfg, payload) {
         }],
       });
 
-    case WEBHOOK_FORMAT.SLACK:
+    case WEBHOOK_FORMAT.SLACK: {
+      // Main line: bold keyword + verb + linked page title
+      const slackLines = [
+        `*${escapeMarkdown(payload.keyword)}* ${eventLabel} — <${url}|${(title || url).replace(/[|<>]/g, ' ')}>`,
+      ];
+      // Snippet on next line as a blockquote — replace \n with ' · ' for table rows
+      if (payload.snippet) {
+        const cleanSnippet = payload.snippet.replace(/\n+/g, ' · ').trim();
+        slackLines.push(`> ${escapeMarkdown(truncate(cleanSnippet, 200))}`);
+      }
       return JSON.stringify({
-        icon_url:  LOGO_DATA_URI,
-        username:  'TextWatcher',
-        // Escape keyword to prevent mrkdwn injection (e.g. *bold* in a keyword name)
-        // Escape link-text to prevent <url|text> syntax breakage
-        text: `*${escapeMarkdown(payload.keyword)}* ${eventLabel} — <${url}|${(title || url).replace(/[|<>]/g, ' ')}>`,
+        icon_url: LOGO_DATA_URI,
+        username: 'TextWatcher',
+        text:     slackLines.join('\n'),
       });
+    }
 
-    case WEBHOOK_FORMAT.TELEGRAM:
+    case WEBHOOK_FORMAT.TELEGRAM: {
+      // Title line: bold keyword + verb
+      const tgLines = [
+        `*${escapeMarkdown(payload.keyword)}* ${eventLabel}`,
+      ];
+      // Page title as a clickable link, or plain URL
+      if (title && title !== url) {
+        tgLines.push(`[${escapeMarkdown(title)}](${url})`);
+      } else {
+        tgLines.push(url);
+      }
+      // Snippet — replace \n with ' · ' for table rows, wrap in italics
+      if (payload.snippet) {
+        const cleanSnippet = payload.snippet.replace(/\n+/g, ' · ').trim();
+        tgLines.push(`_${escapeMarkdown(truncate(cleanSnippet, 200))}_`);
+      }
+      tgLines.push(tsIso);
       return JSON.stringify({
         chat_id:    cfg.telegramChatId || '',
-        // Escape keyword to prevent Markdown v1 injection (e.g. _italic_ in a keyword name)
-        text:       `*${escapeMarkdown(payload.keyword)}* ${eventLabel}\n${url}`,
+        text:       tgLines.join('\n'),
         parse_mode: 'Markdown',
       });
+    }
 
     default: // WEBHOOK_FORMAT.GENERIC
       return JSON.stringify({
