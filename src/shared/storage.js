@@ -83,10 +83,20 @@ export async function saveKeywords(keywords) {
  * Add a single keyword rule.
  * @param {KeywordRule} rule
  */
+/**
+ * Add a single keyword rule. Rejects exact duplicates (same text + matchType).
+ * @param {KeywordRule} rule
+ * @returns {Promise<boolean>} true if added, false if rejected as duplicate
+ */
 export async function addKeyword(rule) {
   const list = await getKeywords();
+  const isDuplicate = list.some(
+    (k) => k.text === rule.text && k.matchType === rule.matchType
+  );
+  if (isDuplicate) return false;
   list.push({ ...rule, id: generateId() });
   await saveKeywords(list);
+  return true;
 }
 
 /**

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TextWatcher — Test Page</title>
+  <title>TextWatcher - Test Page</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -606,13 +606,13 @@
       var rx = new RegExp(pattern, 'i');
       var m  = rx.exec(text);
       if (m) {
-        result.textContent  = '✓ MATCH';
+        result.textContent  = 'MATCH';
         result.style.color  = '#22c55e';
         var start = Math.max(0, m.index - 40);
         var end   = Math.min(text.length, m.index + m[0].length + 40);
         match.textContent   = (start > 0 ? '…' : '') + text.slice(start, end) + (end < text.length ? '…' : '');
       } else {
-        result.textContent  = '✗ NO MATCH';
+        result.textContent  = 'NO MATCH';
         result.style.color  = '#ef4444';
         match.textContent   = '';
       }

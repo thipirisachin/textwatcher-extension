@@ -317,9 +317,27 @@ try {
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === MSG.PREVIEW_MATCH) {
     // Popup queries how many live rows match a given pattern + row selector.
-    // Reuses the same extractPageText / matchesKeyword path as runScan().
+    // When rowSelector is omitted, performs a full-page text match (text mode).
     const { pattern, matchType, rowSelector } = message;
     try {
+      if (!rowSelector) {
+        // Text mode: scan full page text
+        const pageText = extractPageText(null);
+        const found    = matchesKeyword(pageText, pattern, matchType);
+        let snippet = '';
+        if (found) {
+          const positions = findMatchPositions(pageText, pattern, matchType);
+          if (positions.length > 0) {
+            const pos = positions[0];
+            const start = Math.max(0, pos.index - 40);
+            const end   = Math.min(pageText.length, pos.index + pos.length + 60);
+            snippet = (start > 0 ? '…' : '') + pageText.slice(start, end) + (end < pageText.length ? '…' : '');
+          }
+        }
+        sendResponse({ found, matchCount: found ? findMatchPositions(pageText, pattern, matchType).length : 0, snippet });
+        return true;
+      }
+      // Row mode: count matching rows
       const rows = Array.from(document.querySelectorAll(rowSelector))
         .filter(el => el.offsetParent !== null && el.style.visibility !== 'hidden');
       const samples = [];
@@ -331,7 +349,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           if (samples.length < 3) samples.push(rowText.slice(0, 100));
         }
       }
-      sendResponse({ count, total: rows.length, samples });
+      sendResponse({ count, total: rows.length, samples, firstRowSample: count === 0 && rows.length > 0 ? extractPageText([rows[0]]).slice(0, 120) : null });
     } catch (_) {
       sendResponse({ count: 0, total: 0, error: 'Invalid selector' });
     }
@@ -354,7 +372,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         const els = Array.from(document.querySelectorAll(sel))
           .filter(el => el.offsetParent !== null && el.style.visibility !== 'hidden');
         if (els.length > 0) {
-          sendResponse({ selector: sel, count: els.length });
+          const columns = extractColumnHeaders(document, sel, els[0]);
+          sendResponse({ selector: sel, count: els.length, columns });
           return true;
         }
       } catch (_) { continue; }
@@ -373,6 +392,48 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 // =============================================================================
 // MutationObserver
 // =============================================================================
+
+// ─── Column Header Extraction ─────────────────────────────────────────────────
+/**
+ * Extract column header names for detected table rows.
+ * Strategy:
+ *  1. Look for <th> elements in the closest <thead> or <tr> preceding the rows.
+ *  2. Fall back to data-columnid attributes on the first row's cells.
+ *  3. Fall back to index-based labels ("Col 1", "Col 2", …).
+ *
+ * @param {Document} doc
+ * @param {string}   sel      CSS selector used to find rows
+ * @param {Element}  firstRow First matching row element
+ * @returns {string[]}
+ */
+function extractColumnHeaders(doc, sel, firstRow) {
+  // Try <th> in closest <thead> ancestor
+  const thead = firstRow.closest('thead') || firstRow.parentElement?.previousElementSibling;
+  if (thead) {
+    const ths = Array.from(thead.querySelectorAll('th'));
+    if (ths.length > 0) {
+      return ths.map((th) => th.textContent.trim()).filter(Boolean);
+    }
+  }
+
+  // Try <th> anywhere in same table ancestor
+  const table = firstRow.closest('table');
+  if (table) {
+    const ths = Array.from(table.querySelectorAll('thead th, tr:first-child th'));
+    if (ths.length > 0) {
+      return ths.map((th) => th.textContent.trim()).filter(Boolean);
+    }
+  }
+
+  // Try data-columnid on the first row's child cells
+  const cells = Array.from(firstRow.children);
+  const colIds = cells.map((c) => c.getAttribute('data-columnid') || '').filter(Boolean);
+  if (colIds.length === cells.length && colIds.length > 0) return colIds;
+
+  // Fall back: use cell count from first row, label by index
+  const count = cells.length || 3;
+  return Array.from({ length: count }, (_, i) => `Col ${i + 1}`);
+}
 
 let observer = null;
 

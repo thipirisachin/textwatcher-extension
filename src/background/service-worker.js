@@ -5,13 +5,12 @@
  * Responsibilities:
  *  - Respond to content script GET_STATE requests
  *  - Send browser notifications on text appear/disappear
- *  - Manage badge (count, color)
  *  - Inject content scripts into matching tabs
  *  - Push rule reloads to active tabs when rules change
  *  - Cooldown tracking to prevent notification spam
  */
 
-import { MSG, BADGE_COLOR, NOTIF_FREQUENCY, ALERT_EVENT, STORAGE_KEY, WEBHOOK_FORMAT } from '../shared/constants.js';
+import { MSG, NOTIF_FREQUENCY, ALERT_EVENT, STORAGE_KEY, WEBHOOK_FORMAT } from '../shared/constants.js';
 import { getKeywords, getUrls, getSettings, getEnabled, addAlertEvent,
          getOnboarded, getWebhookSettings } from '../shared/storage.js';
 import { matchesUrl } from '../shared/matcher.js';
@@ -91,7 +90,7 @@ async function flushBatch({ tabId, events, settings }) {
   chrome.notifications.create(notifId, {
     type:           'basic',
     iconUrl:        chrome.runtime.getURL('src/icons/icon48.png'),
-    title:          `TextWatcher — ${count} alerts`,
+    title:          `TextWatcher - ${count} alerts`,
     message:        parts.join(', '),
     contextMessage: `${host}  ·  ${now}`,
     priority:       1,
@@ -124,7 +123,6 @@ async function deleteTabMatchCount(tabId) {
 
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   await injectIntoMatchingTabs();
-  await refreshBadge();
 
   if (reason === 'install') {
     const alreadyOnboarded = await getOnboarded();
@@ -136,7 +134,6 @@ chrome.runtime.onInstalled.addListener(async ({ reason }) => {
 
 chrome.runtime.onStartup.addListener(async () => {
   await injectIntoMatchingTabs();
-  await refreshBadge();
 });
 
 // ─── Tab Events ───────────────────────────────────────────────────────────────
@@ -157,7 +154,6 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     await injectContentScript(tabId);
     // Reset match count for this tab on new page load
     await setTabMatchCount(tabId, 0);
-    updateBadgeForTab(tabId, 0);
   }
 });
 
@@ -235,7 +231,7 @@ async function handleMessage(message, sender, sendResponse) {
         keyword:   'TextWatcher Test',
         matchType: 'contains',
         url:       'https://textwatcher.test/demo',
-        title:     'TextWatcher — Test Payload',
+        title:     'TextWatcher - Test Payload',
         snippet:   'This is a test payload sent from TextWatcher settings.',
       }, { isTest: true });
       sendResponse(result);
@@ -251,7 +247,7 @@ async function handleMessage(message, sender, sendResponse) {
 
 /**
  * Shared handler for TEXT_APPEARED and TEXT_DISAPPEARED messages.
- * Queues a notification, logs the alert event, and updates the badge.
+ * Queues a notification, logs the alert event, and updates match counts.
  */
 async function handleAlertMessage(tabId, event, message, settings) {
   if (!shouldSendAlert(tabId, message.keywordId, event, settings)) return;
@@ -295,7 +291,6 @@ async function handleAlertMessage(tabId, event, message, settings) {
   const delta   = isAppear ? 1 : -1;
   const current = Math.max(0, (await getTabMatchCount(tabId)) + delta);
   await setTabMatchCount(tabId, current);
-  if (settings.badgeEnabled) updateBadgeForTab(tabId, current);
 }
 
 /**
@@ -306,8 +301,8 @@ async function handleAlertMessage(tabId, event, message, settings) {
 async function fireNotification({ tabId, event, keyword, matchType, url, snippet, settings }) {
   const isAppear = event === ALERT_EVENT.APPEARS;
   const notifId  = `tw:${tabId}:${Date.now()}`;
-  const verb     = isAppear ? 'appeared' : 'gone';
-  const title    = `TextWatcher — "${truncate(keyword, 40)}" ${verb}`;
+  const verb     = isAppear ? 'appeared' : 'disappeared';
+  const title    = `"${truncate(keyword, 55)}" ${verb}`;
 
   const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -470,7 +465,7 @@ export function buildWebhookPayload(cfg, payload) {
 
 /**
  * POST an alert payload to the configured webhook URL.
- * Completely isolated — a failure here must never affect notifications or badge.
+ * Completely isolated — a failure here must never affect notifications.
  *
  * @param {{ event, keyword, matchType, url, title, snippet }} payload
  * @param {{ isTest?: boolean }} [opts]
@@ -554,39 +549,6 @@ export function shouldSendAlert(tabId, keywordId, event, settings) {
   return true;
 }
 
-// ─── Badge Management ─────────────────────────────────────────────────────────
-
-/**
- * Update the badge for a specific tab.
- * @param {number} tabId
- * @param {number} count
- */
-function updateBadgeForTab(tabId, count) {
-  const text  = count > 0 ? '●' : '';
-  const color = count > 0 ? BADGE_COLOR.MATCH : BADGE_COLOR.ACTIVE;
-
-  chrome.action.setBadgeText({ text, tabId });
-  chrome.action.setBadgeBackgroundColor({ color, tabId });
-}
-
-/**
- * Set badge to inactive (gray) — called when extension is disabled.
- */
-async function refreshBadge() {
-  const enabled = await getEnabled();
-  const settings = await getSettings();
-
-  if (!settings.badgeEnabled) {
-    chrome.action.setBadgeText({ text: '' });
-    return;
-  }
-
-  chrome.action.setBadgeText({ text: enabled ? '' : 'OFF' });
-  chrome.action.setBadgeBackgroundColor({
-    color: enabled ? BADGE_COLOR.ACTIVE : BADGE_COLOR.INACTIVE,
-  });
-}
-
 // ─── Content Script Injection ─────────────────────────────────────────────────
 
 /**
@@ -652,8 +614,6 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
 
   const hasRelevant = relevantKeys.some((k) => k in changes);
   if (!hasRelevant) return;
-
-  await refreshBadge();
 
   const [enabled, keywords, urls, settings] = await Promise.all([
     getEnabled(),

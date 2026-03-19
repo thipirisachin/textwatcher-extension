@@ -23,17 +23,14 @@
       </svg>
       <span class="header__title">TextWatcher</span>
     </div>
-    <label class="toggle" title="Enable / Disable monitoring" aria-label="Enable or disable monitoring">
-      <input type="checkbox" id="masterToggle" />
-      <span class="toggle__track"></span>
-    </label>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <button class="btn--help" id="tourBtn" type="button" title="Show tour">?</button>
+      <label class="toggle" title="Enable / Disable monitoring" aria-label="Enable or disable monitoring">
+        <input type="checkbox" id="masterToggle" />
+        <span class="toggle__track"></span>
+      </label>
+    </div>
   </header>
-
-  <!-- ── Status Bar ─────────────────────────────────────────── -->
-  <div class="status-bar" id="statusBar" aria-live="polite" aria-atomic="true">
-    <span class="status-dot" id="statusDot"></span>
-    <span class="status-text" id="statusText">Loading…</span>
-  </div>
 
   <!-- ── Tab Context Bar ───────────────────────────────────────── -->
   <div class="tab-ctx-bar" id="tabCtxBar" aria-live="polite" style="display:none;">
@@ -45,84 +42,95 @@
   <!-- ── Add Rule ───────────────────────────────────────────── -->
   <section class="section" id="addRuleSection">
 
-    <!-- Mode switcher -->
+    <!-- Mode switcher — Table Mode first (default) -->
     <div class="mode-tabs" role="tablist" aria-label="Rule type">
-      <button class="mode-tab"        id="modeTextBtn" role="tab" aria-selected="false">Watch for text</button>
-      <button class="mode-tab active" id="modeRowBtn"  role="tab" aria-selected="true">Watch a table row</button>
+      <button class="mode-tab active" id="modeRowBtn"  role="tab" aria-selected="true">
+        Table Mode
+        <span class="mode-tab__sub">Track a row in a table</span>
+      </button>
+      <button class="mode-tab"        id="modeTextBtn" role="tab" aria-selected="false">
+        Text Mode
+        <span class="mode-tab__sub">Any keyword on the page</span>
+      </button>
     </div>
 
-    <!-- ── MODE A: Watch for text ─────────────────────────── -->
-    <div id="textModePanel" style="display:none">
-      <div class="input-row" style="margin-top:10px; gap:5px;">
-        <div class="input-wrap" style="flex:1;" id="quickKeywordWrap">
-          <input
-            type="text"
-            id="quickKeyword"
-            class="input"
-            placeholder="Keyword or phrase…"
-            maxlength="500"
-          />
-          <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
+    <!-- Rule card wraps all mode-specific + shared inputs -->
+    <div class="rule-card">
+
+      <!-- ── MODE A: Text Mode ─────────────────────────── -->
+      <div id="textModePanel" style="display:none">
+        <div class="input-row" style="gap:5px;">
+          <div class="input-wrap" style="flex:1;" id="quickKeywordWrap">
+            <input
+              type="text"
+              id="quickKeyword"
+              class="input"
+              placeholder="Keyword or phrase…"
+              maxlength="500"
+            />
+            <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
+          </div>
+          <div class="modifier-btns" role="group" aria-label="Match modifiers">
+            <button class="modifier-btn" id="modCaseBtn"  data-mod="case"  type="button" title="Case sensitive">Aa</button>
+            <button class="modifier-btn" id="modExactBtn" data-mod="exact" type="button" title="Exact phrase">ab</button>
+            <button class="modifier-btn" id="modRegexBtn" data-mod="regex" type="button" title="Regular expression">.*</button>
+          </div>
         </div>
-        <div class="modifier-btns" role="group" aria-label="Match modifiers">
-          <button class="modifier-btn" id="modCaseBtn"  data-mod="case"  type="button" title="Case sensitive">Aa</button>
-          <button class="modifier-btn" id="modExactBtn" data-mod="exact" type="button" title="Exact phrase">ab</button>
-          <button class="modifier-btn" id="modRegexBtn" data-mod="regex" type="button" title="Regular expression">.*</button>
+        <p class="match-hint" id="matchHint">Matches text anywhere on the page, any case</p>
+        <p class="match-preview" id="textMatchPreview" aria-live="polite" style="display:none"></p>
+        <div class="match-samples" id="textMatchSamples"></div>
+      </div>
+
+      <!-- ── MODE B: Table Mode ─────────────────────── -->
+      <div id="rowModePanel">
+        <div class="col-filter-wrap" id="colFilterWrap" data-detect-state="detecting">
+          <div class="col-filter-grid" id="colFilterList">
+            <!-- Rendered dynamically by renderColFilters() -->
+          </div>
+          <button class="btn btn--ghost btn--sm btn--add-col" id="addColBtn" type="button" disabled>
+            + Add column
+          </button>
+          <div class="col-detect-overlay" id="colDetectOverlay">
+            <span id="colDetectMsg"></span>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- ── MODE B: Watch a table row ─────────────────────── -->
-    <div id="rowModePanel">
-      <div class="row-builder-grid" style="margin-top:10px;">
-        <div class="row-builder-field">
-          <label class="row-builder-field__label" for="builderCol1">Column 1</label>
-          <input type="text" id="builderCol1" class="input" placeholder="e.g. bdc-ga-prerel" maxlength="200" />
-        </div>
-        <div class="row-builder-field">
-          <label class="row-builder-field__label" for="builderCol2">Column 2</label>
-          <input type="text" id="builderCol2" class="input" placeholder="e.g. TC_TF_67" maxlength="200" />
-        </div>
-        <div class="row-builder-field">
-          <label class="row-builder-field__label" for="builderCol3">Column 3</label>
-          <input type="text" id="builderCol3" class="input" placeholder="e.g. chrome" maxlength="200" />
-        </div>
+      <!-- ── Shared: alert name ─────────────────────────────── -->
+      <div class="input-wrap" style="margin-top:10px;">
+        <input
+          type="text"
+          id="alertName"
+          class="input"
+          placeholder="Notification title (optional)"
+          maxlength="100"
+        />
+        <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
       </div>
-      <p class="advanced-hint" style="margin-top:5px;">Enter partial text from each column that identifies the row. Leave unused columns blank.</p>
-    </div>
 
-    <!-- ── Shared: alert name ─────────────────────────────── -->
-    <input
-      type="text"
-      id="alertName"
-      class="input"
-      placeholder="Alert name (shown in notification)"
-      maxlength="100"
-      style="margin-top:10px;"
-    />
+      <!-- ── Shared: alert checkboxes ───────────────────────── -->
+      <div class="checkbox-row" style="margin-top:8px;">
+        <label class="checkbox-label">
+          <input type="checkbox" id="quickAlertAppear" checked />
+          Alert when appears
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="quickAlertDisappear" checked />
+          Alert when disappears
+        </label>
+      </div>
 
-    <!-- ── Shared: alert checkboxes ───────────────────────── -->
-    <div class="checkbox-row" style="margin-top:10px;">
-      <label class="checkbox-label">
-        <input type="checkbox" id="quickAlertAppear" checked />
-        Alert when appears
-      </label>
-      <label class="checkbox-label">
-        <input type="checkbox" id="quickAlertDisappear" />
-        Alert when disappears
-      </label>
-    </div>
+      <!-- ── Shared: URL binding ────────────────────────────── -->
+      <div id="urlBindingBar" class="url-binding-bar"></div>
 
-    <!-- ── Shared: URL binding ────────────────────────────── -->
-    <div id="urlBindingBar" class="url-binding-bar"></div>
+      <!-- ── Shared: live match preview (row mode only) ──────── -->
+      <p class="match-preview" id="matchPreview" aria-live="polite" style="display:none"></p>
+      <div class="match-samples" id="matchSamples"></div>
 
-    <!-- ── Shared: live match preview (row mode only) ──────── -->
-    <p class="match-preview" id="matchPreview" aria-live="polite" style="display:none"></p>
-    <div class="match-samples" id="matchSamples"></div>
+    </div><!-- /.rule-card -->
 
-    <!-- ── Shared: success toast + submit ────────────────────── -->
-    <p class="success-toast" id="successToast" style="display:none" aria-live="polite"></p>
-    <button class="btn btn--primary" id="addKeywordBtn" style="margin-top:4px;">Add Keyword</button>
+    <!-- ── Submit ────────────────────────────────────────────── -->
+    <button class="btn btn--primary" id="addKeywordBtn" style="margin-top:8px;">Save Rule</button>
     <p class="error-msg hidden" id="keywordError" role="alert"></p>
 
   </section>
@@ -130,33 +138,39 @@
   <!-- ── Quick Add URL ──────────────────────────────────────── -->
   <section class="section">
     <h2 class="section__title">Quick Add URL</h2>
-    <div class="input-row">
-      <div class="input-wrap" style="flex:1;">
+    <div class="rule-card">
+      <div class="input-row">
+        <div class="input-wrap" style="flex:1;">
+          <input
+            type="text"
+            id="quickUrl"
+            class="input"
+            placeholder="https://example.com/*"
+            maxlength="500"
+          />
+          <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
+        </div>
+        <!-- URL match type: modifier-style button group -->
+        <div class="modifier-btns url-match-btns" role="group" aria-label="URL match type">
+          <button class="modifier-btn active" data-match="wildcard" type="button" title="Wildcard — use * as wildcard">Wild</button>
+          <button class="modifier-btn"        data-match="exact"    type="button" title="Exact URL match">Exact</button>
+          <button class="modifier-btn"        data-match="domain"   type="button" title="Match entire domain">Domain</button>
+        </div>
+      </div>
+      <p class="url-match-hint" id="urlMatchHint">Use * as wildcard — e.g. https://example.com/*</p>
+      <div class="input-wrap" style="margin-top: 6px;">
         <input
           type="text"
-          id="quickUrl"
+          id="quickUrlLabel"
           class="input"
-          placeholder="https://example.com/*"
-          maxlength="500"
+          placeholder="Label (optional)"
+          maxlength="100"
         />
         <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
       </div>
-      <select id="quickUrlMatchType" class="select select--compact">
-        <option value="wildcard">Wildcard</option>
-        <option value="exact">Exact URL</option>
-        <option value="domain">Domain-wide</option>
-      </select>
-    </div>
-    <input
-      type="text"
-      id="quickUrlLabel"
-      class="input"
-      placeholder="Label (optional)"
-      maxlength="100"
-      style="margin-top: 6px;"
-    />
-    <div class="input-row" style="margin-top:6px;">
-      <button class="btn btn--ghost" id="useCurrentUrlBtn" style="width:100%; font-size:12px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> Use Current Tab's URL</button>
+      <div class="input-row" style="margin-top:6px;">
+        <button class="btn btn--ghost" id="useCurrentUrlBtn" style="width:100%; font-size:12px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> Use Current Tab's URL</button>
+      </div>
     </div>
     <button class="btn btn--primary" id="addUrlBtn" style="margin-top: 8px;">Add URL</button>
     <p class="error-msg hidden" id="urlError" role="alert"></p>
@@ -183,9 +197,31 @@
 
   <!-- ── Footer ─────────────────────────────────────────────── -->
   <footer class="footer">
-    <button class="btn btn--ghost" id="navSetups"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Setups</button>
+    <button class="btn btn--ghost" id="navSetups">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2z"/><path d="M7 7h.01"/></svg>
+      Rule History
+    </button>
     <button class="btn btn--ghost" id="openOptionsBtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Settings</button>
   </footer>
+
+  <!-- ── Toast ──────────────────────────────────────────────── -->
+  <div class="toast hidden" id="popupToast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- ── Tour overlay ────────────────────────────────────────── -->
+  <div class="tour-overlay hidden" id="tourOverlay" aria-modal="true" role="dialog">
+    <div class="tour-spotlight" id="tourSpotlight"></div>
+    <div class="tour-tooltip" id="tourTooltip">
+      <p class="tour-tooltip__step" id="tourStepLabel"></p>
+      <p class="tour-tooltip__text" id="tourText"></p>
+      <div class="tour-tooltip__actions">
+        <button class="tour-btn tour-btn--skip" id="tourSkipBtn" type="button">Skip</button>
+        <div class="tour-tooltip__nav">
+          <button class="tour-btn tour-btn--back" id="tourBackBtn" type="button" disabled>← Back</button>
+          <button class="tour-btn tour-btn--next" id="tourNextBtn" type="button">Next →</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script type="module" src="popup.js"></script>
 </body>
