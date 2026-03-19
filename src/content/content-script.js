@@ -681,7 +681,10 @@ function maybeAlert(keyword, event, pageText) {
   if (event === ALERT_EVENT.APPEARS    && !keyword.alertAppear)    return;
   if (event === ALERT_EVENT.DISAPPEARS && !keyword.alertDisappear) return;
 
-  // once_per_page frequency gate
+  // once_per_page frequency gate — handled HERE in the content script.
+  // The service worker's shouldSendAlert() intentionally passes once_per_page
+  // through unconditionally; gating it there too would double-block and would
+  // break cross-tab scenarios where the same keyword fires on different tabs.
   const alerted = alertedThisLoad.get(keyword.id) || { appeared: false, disappeared: false };
   if (settings.notifFrequency === NOTIF_FREQUENCY.ONCE_PER_PAGE) {
     if (event === ALERT_EVENT.APPEARS    && alerted.appeared)    return;

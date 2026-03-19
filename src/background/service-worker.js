@@ -45,7 +45,16 @@ function persistCooldownState() {
 
 // ─── Notification Batcher ─────────────────────────────────────────────────────
 // Groups alerts that arrive within BATCH_WINDOW_MS into a single notification.
-// Key: tabId  Value: { timer, deadline, events: [...], url, tabId, settings }
+// Key: tabId  Value: { timer, deadline, events: [...], tabId, settings }
+//
+// MV3 constraint: pendingBatches is in-memory only. If the service worker is
+// terminated mid-window (Chrome may do this at any time), any queued events
+// are silently lost. This is unavoidable — timers cannot survive SW restarts.
+// cooldownMap IS persisted (chrome.storage.session) so cooldown state is safe.
+//
+// settings are snapshotted at first-event time and reused for all events in
+// the batch. A settings change during the 1-second window takes effect on the
+// next batch. This is an acceptable trade-off vs an extra storage read at flush.
 const BATCH_WINDOW_MS   = 1000;
 const BATCH_MAX_WAIT_MS = 5000; // Hard ceiling — never delay a notification beyond this
 const pendingBatches    = new Map();
@@ -191,6 +200,16 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 
 // Clean up when tab is closed
 chrome.tabs.onRemoved.addListener(async (tabId) => {
+  // Cancel any pending batched notification — avoids a ghost notification
+  // firing for a tab that no longer exists (the onClicked handler would
+  // silently swallow the chrome.tabs.get error, but the notification would
+  // still appear with nothing to focus when clicked).
+  const batch = pendingBatches.get(tabId);
+  if (batch) {
+    clearTimeout(batch.timer);
+    pendingBatches.delete(tabId);
+  }
+
   await deleteTabMatchCount(tabId);
   // Evict all cooldown entries for this tab to prevent unbounded Map growth
   for (const key of cooldownMap.keys()) {
@@ -301,6 +320,10 @@ async function handleAlertMessage(tabId, event, message, settings) {
 
   // Fire webhook in parallel with the alert log write — both are awaited so
   // the service worker stays alive for the full duration of both operations.
+  // Note: webhooks fire per-event (not per-batch). If multiple keywords match
+  // simultaneously, multiple webhook calls go out in parallel. Platforms with
+  // strict rate limits (Slack: 1 req/s, Teams: 4 req/s) may throttle on
+  // busy pages with many rules. No retry logic — failures are silent.
   await Promise.all([
     addAlertEvent({
       event,
@@ -645,7 +668,10 @@ export function shouldSendAlert(tabId, keywordId, event, settings) {
     return true;
   }
 
-  // once_per_page: content script handles this gate — background always lets through
+  // once_per_page: gate lives in the content script (maybeAlert), not here.
+  // Gating here too would break the case where the same keyword fires on
+  // two different tabs — each tab has its own content script state, so
+  // the per-page gate correctly allows both tabs to alert independently.
   return true;
 }
 
