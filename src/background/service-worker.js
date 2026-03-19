@@ -308,7 +308,7 @@ async function handleAlertMessage(tabId, event, message, settings) {
     matchType: message.matchType,
     url:       message.url,
     pageTitle: message.title,
-    snippet:   isAppear ? message.snippet : null,
+    snippet:   message.snippet,   // passed for both appear and disappear
     settings,
   });
 
@@ -365,11 +365,17 @@ async function fireNotification({ tabId, event, keyword, matchType, url, pageTit
 
   const lines = [];
 
-  // 1. Snippet — top of body, appear events only.
+  // 1. Snippet — top of body.
+  //    Appear:    current matched text.
+  //    Disappear: last-seen matched text cached in the content script.
   //    Replace \n (text-node delimiter) with ' · ' so table row cells read
   //    as "prerel_2tenant · Business Builder · chrome", not raw newlines.
-  if (isAppear && settings.showSnippet && snippet) {
+  if (settings.showSnippet && snippet) {
     lines.push(truncate(snippet.replace(/\n+/g, '  ·  ').trim(), 120));
+  } else if (!isAppear && pageTitle) {
+    // No cached snippet for disappear — fall back to page title so the user
+    // knows at least which page the item was on when it vanished.
+    lines.push(truncate(pageTitle, 60));
   }
 
   // 2. URL + time — second-to-last, always shown.

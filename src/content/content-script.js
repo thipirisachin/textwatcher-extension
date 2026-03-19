@@ -237,6 +237,13 @@ const alertedThisLoad = new Map();
 const lastPresence = new Map();
 
 /**
+ * Last matched page text for each keyword — used to build a snippet for
+ * disappear notifications ("what did it look like before it was gone").
+ * Key: keyword.id  Value: string
+ */
+const lastMatchText = new Map();
+
+/**
  * Pending alert timers — absorb table re-render oscillations.
  * Key: `${keywordId}:${event}`  Value: setTimeout handle
  */
@@ -485,6 +492,7 @@ function stopObserver() {
   }
   pendingAlerts.forEach((timer) => clearTimeout(timer));
   pendingAlerts.clear();
+  lastMatchText.clear();
 }
 
 // =============================================================================
@@ -614,6 +622,10 @@ function runScan() {
     const prevCount  = lastPresence.has(keyword.id) ? lastPresence.get(keyword.id) : null;
     lastPresence.set(keyword.id, matchCount);
 
+    // Cache the matched text while the keyword is present so a disappear
+    // notification can show "what it looked like" even after the row is gone.
+    if (matchCount > 0) lastMatchText.set(keyword.id, pageText);
+
     if (prevCount === null) continue; // Baseline pass — no alerts
 
     const wasPresent = prevCount  > 0;
@@ -695,17 +707,25 @@ function maybeAlert(keyword, event, pageText) {
   if (event === ALERT_EVENT.DISAPPEARS) alerted.disappeared = true;
   alertedThisLoad.set(keyword.id, alerted);
 
-  // Build context snippet for appear events (when enabled)
+  // Build context snippet.
+  // Appear:    extract from current pageText (keyword is present now).
+  // Disappear: extract from lastMatchText — the cached text from the last
+  //            time the keyword was seen, before it left the page.
   let snippet = null;
-  if (settings.showSnippet && event === ALERT_EVENT.APPEARS) {
-    const positions = findMatchPositions(pageText, keyword.text, keyword.matchType);
-    if (positions.length > 0) {
-      snippet = extractSnippet(
-        pageText,
-        positions[0].index,
-        positions[0].length,
-        LIMITS.SNIPPET_CHARS
-      );
+  if (settings.showSnippet) {
+    const textForSnippet = event === ALERT_EVENT.APPEARS
+      ? pageText
+      : (lastMatchText.get(keyword.id) ?? null);
+    if (textForSnippet) {
+      const positions = findMatchPositions(textForSnippet, keyword.text, keyword.matchType);
+      if (positions.length > 0) {
+        snippet = extractSnippet(
+          textForSnippet,
+          positions[0].index,
+          positions[0].length,
+          LIMITS.SNIPPET_CHARS
+        );
+      }
     }
   }
 
