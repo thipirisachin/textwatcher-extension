@@ -803,6 +803,25 @@ async function handleAddUrl() {
   showToast('URL added');
   await renderCounts();
   await renderUrlBindingBar();
+
+  // If the column filter area was showing the "not monitored" overlay,
+  // re-run detection now that a URL rule exists. The service worker needs
+  // a moment to inject the content script via storage.onChanged, so we
+  // set the overlay to "detecting" immediately and retry after 400 ms.
+  const colFilterWrap = qs('#colFilterWrap');
+  if (colFilterWrap?.dataset.detectState === 'no-rule') {
+    colFilterWrap.dataset.detectState = 'detecting';
+    const msgEl = colFilterWrap.querySelector('#colDetectMsg');
+    if (msgEl) msgEl.textContent = 'Detecting…';
+    setTimeout(async () => {
+      await autoDetectRows();
+      // If still no content script after injection window, the added URL
+      // may not match this tab — show a clearer message than "add a URL rule".
+      if (colFilterWrap.dataset.detectState === 'no-rule') {
+        showColFilterOverlay(colFilterWrap, "URL added — reload this tab to start monitoring");
+      }
+    }, 400);
+  }
 }
 
 // ─── Event Bindings ───────────────────────────────────────────────────────────
