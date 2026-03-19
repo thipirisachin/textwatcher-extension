@@ -93,8 +93,7 @@ function queueNotification(opts) {
 
 /**
  * Fire the consolidated notification for a completed batch.
- * Lists keyword names so the user knows exactly what changed,
- * not just a count.
+ * Each alert gets its own line in the message body.
  */
 async function flushBatch({ tabId, events, settings }) {
   const count = events.length;
@@ -105,33 +104,28 @@ async function flushBatch({ tabId, events, settings }) {
     return;
   }
 
-  // Multiple events — summarise with keyword names
+  // Multiple events — one line per alert, appears before disappears
   const appears    = events.filter((e) => e.event === ALERT_EVENT.APPEARS);
   const disappears = events.filter((e) => e.event === ALERT_EVENT.DISAPPEARS);
 
   let host = events[0].url;
   try { host = new URL(events[0].url).hostname; } catch (_) { /* keep raw */ }
 
-  // List up to 2 keyword names per direction, then "+ N more"
-  const formatNames = (evts) => {
-    const names = evts.slice(0, 2).map((e) => truncate(e.keyword, 22)).join(', ');
-    const extra = evts.length > 2 ? ` +${evts.length - 2} more` : '';
-    return names + extra;
-  };
-
-  const parts = [];
-  if (appears.length)    parts.push(`↑ ${formatNames(appears)}`);
-  if (disappears.length) parts.push(`↓ ${formatNames(disappears)}`);
-
   const notifId = `tw:${tabId}:${crypto.randomUUID()}`;
   const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const lines = [
+    ...appears.map((e)    => `↑ ${truncate(e.keyword, 45)}`),
+    ...disappears.map((e) => `↓ ${truncate(e.keyword, 45)}`),
+    `${host}  ·  ${now}`,
+  ];
 
   chrome.notifications.create(notifId, {
     type:           'basic',
     iconUrl:        chrome.runtime.getURL('src/icons/icon48.png'),
-    title:          `TextWatcher — ${count} alerts on ${host}`,
-    message:        parts.join('  ·  '),
-    contextMessage: now,
+    title:          `TextWatcher — ${count} alerts`,
+    message:        lines.join('\n'),
+    contextMessage: '',
     priority:       1,
   });
 }
@@ -353,30 +347,32 @@ async function handleAlertMessage(tabId, event, message, settings) {
 /**
  * Fire a browser notification for a single alert event.
  *
- * Layout strategy:
- *   title          — keyword + verb. No quotes (they orphan on truncation).
- *   message        — most informative available line (always rendered):
- *                    appear:    snippet with cell values joined by ' · '
- *                    disappear: url + time (no snippet available)
- *                    fallback:  url + time or page title
- *   contextMessage — secondary context (may not render on all platforms):
- *                    appear:    url + time
- *                    disappear: page title
+ * Message body layout (top → bottom):
+ *   [snippet]          — appear events only; \n→' · ' for table row cells
+ *   [url  ·  time]     — always present (second-to-last)
+ *   [match type]       — last line; omitted for REGEX (table-mode detail)
  *
- * Match type is shown only for non-regex rules — for table-mode (REGEX)
- * it is an internal implementation detail, not useful to the user.
+ * contextMessage holds the page title as supplemental context since the
+ * three lines above already contain everything actionable.
  */
 async function fireNotification({ tabId, event, keyword, matchType, url, pageTitle, snippet, settings }) {
   const isAppear = event === ALERT_EVENT.APPEARS;
   const notifId  = `tw:${tabId}:${crypto.randomUUID()}`;
   const verb     = isAppear ? 'appeared' : 'disappeared';
-
-  // Title: label + verb, no quotes, 60 chars for the label
-  const title = `${truncate(keyword, 60)} ${verb}`;
+  const title    = `${truncate(keyword, 60)} ${verb}`;
 
   const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  // URL display string
+  const lines = [];
+
+  // 1. Snippet — top of body, appear events only.
+  //    Replace \n (text-node delimiter) with ' · ' so table row cells read
+  //    as "prerel_2tenant · Business Builder · chrome", not raw newlines.
+  if (isAppear && settings.showSnippet && snippet) {
+    lines.push(truncate(snippet.replace(/\n+/g, '  ·  ').trim(), 120));
+  }
+
+  // 2. URL + time — second-to-last, always shown.
   let urlDisplay = '';
   if (settings.showUrl && url) {
     try {
@@ -384,38 +380,20 @@ async function fireNotification({ tabId, event, keyword, matchType, url, pageTit
       urlDisplay = truncate(hostname + pathname, 55);
     } catch (_) { urlDisplay = truncate(url, 55); }
   }
-  const timeLine = [urlDisplay, now].filter(Boolean).join('  ·  ');
+  lines.push([urlDisplay, now].filter(Boolean).join('  ·  '));
 
-  // Match type label — skip for REGEX (table mode implementation detail)
-  const matchTypeLabel = settings.showMatchType && matchType && matchType !== MATCH_TYPE.REGEX
-    ? (MATCH_TYPE_LABEL[matchType] || matchType)
-    : null;
-
-  // Snippet — replace \n (text-node delimiter) with ' · ' so table row cells
-  // read as "prerel_2tenant · Business Builder · chrome" not raw newlines
-  const cleanSnippet = settings.showSnippet && snippet
-    ? truncate(snippet.replace(/\n+/g, '  ·  ').trim(), 120)
-    : null;
-
-  // Build message (primary body — always visible)
-  // Appear:    [matchType ·] snippet  →  falls back to timeLine
-  // Disappear: [matchType ·] timeLine (no snippet available)
-  const bodyParts = [matchTypeLabel, cleanSnippet || (isAppear ? null : timeLine)].filter(Boolean);
-  const message = bodyParts.join('  ·  ') || timeLine || verb;
-
-  // contextMessage (secondary — may be hidden on some platforms)
-  // Appear:    url + time  (snippet already in message)
-  // Disappear: page title  (gives page context when no snippet exists)
-  const contextMessage = isAppear
-    ? (cleanSnippet ? timeLine : (pageTitle ? truncate(pageTitle, 60) : ''))
-    : (pageTitle ? truncate(pageTitle, 60) : '');
+  // 3. Match type — last line. Omit for REGEX: it is an internal implementation
+  //    detail for table-mode rules, not meaningful to the user.
+  if (settings.showMatchType && matchType && matchType !== MATCH_TYPE.REGEX) {
+    lines.push(MATCH_TYPE_LABEL[matchType] || matchType);
+  }
 
   chrome.notifications.create(notifId, {
     type:           'basic',
     iconUrl:        chrome.runtime.getURL('src/icons/icon48.png'),
     title,
-    message,
-    contextMessage,
+    message:        lines.join('\n'),
+    contextMessage: pageTitle ? truncate(pageTitle, 60) : '',
     priority:       1,
   });
 }
