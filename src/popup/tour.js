@@ -51,21 +51,18 @@ function previousStep() {
 function endTour() {
   const overlay = document.getElementById('tourOverlay');
   if (overlay) overlay.classList.add('hidden');
-  setPageInert(false);
+  document.body.classList.remove('tour-active');
   chrome.storage.local.set({ [TOUR_DONE_KEY]: true });
 }
 
 /**
- * Add or remove `inert` on all body children except the tour overlay,
- * so that keyboard focus, clicks, and form inputs are blocked during the tour.
+ * Toggle the `tour-active` class on body.
+ * CSS handles blocking: body.tour-active blocks pointer events on everything
+ * except #tourOverlay via `pointer-events: none`.
+ * This survives DOM re-renders (unlike setting `inert` on individual nodes).
  */
-function setPageInert(on) {
-  const overlay = document.getElementById('tourOverlay');
-  Array.from(document.body.children).forEach((el) => {
-    if (el === overlay) return;
-    if (on) el.setAttribute('inert', '');
-    else    el.removeAttribute('inert');
-  });
+function setTourActive(on) {
+  document.body.classList.toggle('tour-active', on);
 }
 
 /** Render a single tour step.
@@ -109,9 +106,7 @@ function showStep(index, direction = 1) {
   }
 
   overlay.classList.remove('hidden');
-  // Block all page interaction except the tour overlay itself.
-  // We add `inert` to every direct child of body except the overlay.
-  setPageInert(true);
+  setTourActive(true);
 
   // Scroll target into view so spotlight can cover it
   if (target) target.scrollIntoView({ block: 'nearest', behavior: 'instant' });
@@ -146,11 +141,8 @@ function showStep(index, direction = 1) {
   if (nextBtn) nextBtn.onclick = nextStep;
   if (backBtn) backBtn.onclick = previousStep;
   if (skipBtn) skipBtn.onclick = endTour;
-
-  // Close on overlay click (outside spotlight and tooltip)
-  overlay.onclick = (e) => {
-    if (!tooltip.contains(e.target) && !spotlight.contains(e.target)) endTour();
-  };
+  // No overlay.onclick — clicking outside tooltip does nothing.
+  // Only the tooltip action buttons can advance or close the tour.
 }
 
 /** Position tooltip below the target, flipping above if it would overflow. */

@@ -1198,8 +1198,17 @@ body {
   inset: 0;
   background: transparent; /* dimming done by spotlight box-shadow only */
   z-index: 999;
+  pointer-events: none; /* overlay itself is pass-through; only .tour-tooltip responds */
 }
 .tour-overlay.hidden { display: none; }
+
+/* When tour is active, block all pointer interaction on the page.
+   The overlay lives outside this rule (it's a sibling at body level),
+   so it—and its tooltip—remain interactive. */
+body.tour-active > *:not(#tourOverlay) {
+  pointer-events: none !important;
+  user-select: none !important;
+}
 
 .tour-spotlight {
   position: fixed;
@@ -1219,6 +1228,7 @@ body {
   width: 260px;
   box-shadow: 0 4px 24px rgba(0,0,0,0.5);
   animation: panel-in 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: auto; /* tooltip is the only interactive element during tour */
 }
 .tour-tooltip__step {
   font-size: 10px;
@@ -1260,12 +1270,12 @@ body {
   background: var(--accent-gl);
 }
 .tour-btn--next {
+  font-weight: 600;
+}
+.tour-btn--next:hover {
   background: var(--accent-gl);
   border-color: var(--accent);
   color: var(--accent-lt);
-}
-.tour-btn--next:hover {
-  background: rgba(51,136,255,0.22);
 }
 .tour-btn--back:disabled {
   opacity: 0.3;

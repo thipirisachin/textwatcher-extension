@@ -338,8 +338,25 @@ async function autoDetectRows() {
   if (!tab?.id) return;
 
   const colFilterWrap = qs('#colFilterWrap');
-  const addColBtn = qs('#addColBtn');
+  const addColBtn     = qs('#addColBtn');
   const colFilterList = qs('#colFilterList');
+
+  // Check URL rules locally first — the content script may still be injected
+  // even after a URL rule is removed, so we can't rely on message failure alone.
+  const tabUrl = tab.url ?? '';
+  if (tabUrl && !/^(chrome|about|edge|moz-extension|chrome-extension):/.test(tabUrl)) {
+    const urls     = await getUrls();
+    const monitored = urls.filter((u) => u.enabled).some((u) => matchesUrl(tabUrl, u.pattern, u.matchType));
+    if (!monitored) {
+      if (colFilterWrap) {
+        colFilterWrap.dataset.detectState = 'no-rule';
+        showColFilterOverlay(colFilterWrap, "This page isn't monitored — add a URL rule first");
+      }
+      if (addColBtn) addColBtn.disabled = true;
+      if (colFilterList) colFilterList.innerHTML = '';
+      return;
+    }
+  }
 
   // Set detecting state
   if (colFilterWrap) colFilterWrap.dataset.detectState = 'detecting';
@@ -400,21 +417,27 @@ function showColFilterOverlay(wrap, msg) {
   if (msgEl) msgEl.textContent = msg;
 }
 
-// Show a persistent "not monitored" hint in text mode preview
-// when the page has no matching URL rules. Cleared by debouncedPreview()
-// once a URL rule is added and detection succeeds.
+// Show a persistent "not monitored" hint in text mode preview when no URL rule
+// matches the current page. Hides the preview when the page IS monitored.
+// Called from debouncedPreview (empty keyword path) and on init/mode-switch.
 async function checkPageMonitoredStatus() {
   const txtPreview = qs('#textMatchPreview');
   if (!txtPreview || currentMode !== 'text') return;
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const tabUrl = tab?.url ?? '';
-  if (!tabUrl || /^(chrome|about|edge|moz-extension|chrome-extension):/.test(tabUrl)) return;
+  if (!tabUrl || /^(chrome|about|edge|moz-extension|chrome-extension):/.test(tabUrl)) {
+    txtPreview.style.display = 'none';
+    return;
+  }
   const urls = await getUrls();
   const monitored = urls.filter((u) => u.enabled).some((u) => matchesUrl(tabUrl, u.pattern, u.matchType));
   if (!monitored) {
     txtPreview.style.display = '';
     txtPreview.className     = 'match-preview off';
-    txtPreview.textContent   = 'This page isn\'t monitored — add a URL rule first';
+    txtPreview.textContent   = "This page isn't monitored — add a URL rule first";
+  } else {
+    // Page is monitored but no keyword typed — hide preview
+    txtPreview.style.display = 'none';
   }
 }
 
@@ -515,8 +538,9 @@ const debouncedPreview = debounce(async () => {
     const matchType = getMatchType();
 
     if (!keyword) {
-      txtPreview.style.display = 'none';
       if (txtSamples) txtSamples.innerHTML = '';
+      // Don't blindly hide — re-check monitored status so the hint stays visible
+      await checkPageMonitoredStatus();
       return;
     }
 
@@ -1008,7 +1032,15 @@ function listenForStorageChanges() {
   onStorageChange(
     [STORAGE_KEY.KEYWORDS, STORAGE_KEY.URLS, STORAGE_KEY.HISTORY,
      STORAGE_KEY.ALERT_HISTORY, STORAGE_KEY.ENABLED],
-    async () => { await renderAll(); }
+    async () => {
+      await renderAll();
+      // Re-check monitored status in text mode when keyword is empty
+      if (currentMode === 'text' && !qs('#quickKeyword')?.value.trim()) {
+        await checkPageMonitoredStatus();
+      }
+      // Re-check in row mode — URL removal should re-show the overlay
+      if (currentMode === 'row') autoDetectRows();
+    }
   );
 }
 
