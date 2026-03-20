@@ -124,12 +124,12 @@ function showStep(index, direction = 1) {
     spotlight.style.display = 'none';
   }
 
-  // Position tooltip below (or above) target
-  positionTooltip(tooltip, target);
-
-  // Set text
+  // Set text first so offsetHeight is accurate when positioning
   if (stepLabel) stepLabel.textContent = `Step ${index + 1} of ${steps.length}`;
   if (stepText)  stepText.textContent  = step.text;
+
+  // Position tooltip below (or above) target — must come after text is set
+  positionTooltip(tooltip, target);
 
   // Last step: change button label and add Done styling; remove it on other steps
   if (nextBtn) {

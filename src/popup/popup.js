@@ -101,7 +101,7 @@ const TOUR_STEPS = [
   },
   {
     target: '.footer',
-    text: 'Rule History saves snapshots of your setup so you can restore them. Settings opens the full options page to manage all rules, view alert logs, and configure webhooks.',
+    text: 'Rule History: restore saved setups. Settings: manage all rules, alerts, and webhooks.',
   },
   {
     target: '.summary-grid',
