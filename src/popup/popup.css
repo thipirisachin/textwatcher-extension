@@ -570,6 +570,12 @@ body {
 .match-preview.none { color: #ef4444; }
 .match-preview.off  { color: var(--text-3); }
 
+.error-msg {
+  font-size: 11px;
+  color: #ef4444;
+  margin: 4px 0 0;
+}
+
 .match-samples {
   margin-top: 4px;
 }
@@ -1208,10 +1214,15 @@ body {
 .tour-overlay.hidden { display: none; }
 
 /* When tour is active, block all pointer interaction on the page and prevent scroll.
-   Both html and body must have overflow:hidden — the popup scroll context sits on both.
-   The overlay lives outside this rule, so it—and its tooltip—remain interactive. */
-html.tour-active,
+   `position: fixed` on body is the only reliable cross-browser way to stop scroll
+   inside a Chrome extension popup (overflow:hidden alone has no effect without a
+   fixed height, and extension popups don't set one). */
+html.tour-active {
+  overflow: hidden;
+}
 body.tour-active {
+  position: fixed;
+  width: 100%;
   overflow: hidden;
 }
 body.tour-active > *:not(#tourOverlay) {
