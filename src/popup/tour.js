@@ -27,7 +27,7 @@ export async function maybeAutoStartTour(tourSteps) {
 export function startTour(tourSteps) {
   steps = tourSteps;
   currentStep = 0;
-  showStep(currentStep);
+  showStep(currentStep, 1);
 }
 
 /** Advance to the next step, or end tour if on last step. */
@@ -36,7 +36,7 @@ function nextStep() {
   if (currentStep >= steps.length) {
     endTour();
   } else {
-    showStep(currentStep);
+    showStep(currentStep, 1);
   }
 }
 
@@ -44,18 +44,35 @@ function nextStep() {
 function previousStep() {
   if (currentStep <= 0) return;
   currentStep--;
-  showStep(currentStep);
+  showStep(currentStep, -1);
 }
 
 /** End the tour and mark as done in storage. */
 function endTour() {
   const overlay = document.getElementById('tourOverlay');
   if (overlay) overlay.classList.add('hidden');
+  setPageInert(false);
   chrome.storage.local.set({ [TOUR_DONE_KEY]: true });
 }
 
-/** Render a single tour step. */
-function showStep(index) {
+/**
+ * Add or remove `inert` on all body children except the tour overlay,
+ * so that keyboard focus, clicks, and form inputs are blocked during the tour.
+ */
+function setPageInert(on) {
+  const overlay = document.getElementById('tourOverlay');
+  Array.from(document.body.children).forEach((el) => {
+    if (el === overlay) return;
+    if (on) el.setAttribute('inert', '');
+    else    el.removeAttribute('inert');
+  });
+}
+
+/** Render a single tour step.
+ * @param {number} index
+ * @param {1|-1} direction - 1 = forward, -1 = backward (for skip logic)
+ */
+function showStep(index, direction = 1) {
   const step = steps[index];
   if (!step) return;
 
@@ -79,17 +96,22 @@ function showStep(index) {
   // Skip step if target element is not visible
   const target = step.target ? document.querySelector(step.target) : null;
   if (step.target && !isVisible(target)) {
-    // Skip invisible step — advance or retreat depending on direction
-    currentStep++;
+    currentStep += direction;
     if (currentStep >= steps.length) {
       endTour();
+    } else if (currentStep < 0) {
+      currentStep = 0;
+      showStep(currentStep, 1);
     } else {
-      showStep(currentStep);
+      showStep(currentStep, direction);
     }
     return;
   }
 
   overlay.classList.remove('hidden');
+  // Block all page interaction except the tour overlay itself.
+  // We add `inert` to every direct child of body except the overlay.
+  setPageInert(true);
 
   // Scroll target into view so spotlight can cover it
   if (target) target.scrollIntoView({ block: 'nearest', behavior: 'instant' });
@@ -125,9 +147,9 @@ function showStep(index) {
   if (backBtn) backBtn.onclick = previousStep;
   if (skipBtn) skipBtn.onclick = endTour;
 
-  // Close on overlay click (outside tooltip)
+  // Close on overlay click (outside spotlight and tooltip)
   overlay.onclick = (e) => {
-    if (!tooltip.contains(e.target)) endTour();
+    if (!tooltip.contains(e.target) && !spotlight.contains(e.target)) endTour();
   };
 }
 

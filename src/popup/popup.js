@@ -100,6 +100,14 @@ const TOUR_STEPS = [
     text: 'Add the URL and your rules will activate on matching pages.',
   },
   {
+    target: '#navSetups',
+    text: 'Rule History saves snapshots of your setup — restore any previous configuration in one click.',
+  },
+  {
+    target: '#openOptionsBtn',
+    text: 'Settings opens the full options page: manage all rules, view alert history, and configure webhooks.',
+  },
+  {
     target: '.summary-grid',
     text: 'See all your active keywords, URLs, and recent alerts at a glance here.',
   },
@@ -113,6 +121,7 @@ async function init() {
   listenForStorageChanges();
   autoDetectRows(); // silent — no await needed
   await restoreFormState();
+  checkPageMonitoredStatus(); // show "not monitored" hint in text mode if needed
   maybeAutoStartTour(TOUR_STEPS);
 }
 
@@ -314,7 +323,10 @@ function setMode(mode) {
   if (txtPreview) txtPreview.style.display = 'none';
   if (txtSamples) txtSamples.innerHTML = '';
   // Trigger text preview immediately if switching to text mode with content
-  if (!isRow) debouncedPreview();
+  if (!isRow) {
+    debouncedPreview();
+    checkPageMonitoredStatus();
+  }
 }
 
 // ─── Silent Row Auto-Detection ───────────────────────────────────────────────
@@ -386,6 +398,24 @@ async function autoDetectRows() {
 function showColFilterOverlay(wrap, msg) {
   const msgEl = wrap.querySelector('#colDetectMsg');
   if (msgEl) msgEl.textContent = msg;
+}
+
+// Show a persistent "not monitored" hint in text mode preview
+// when the page has no matching URL rules. Cleared by debouncedPreview()
+// once a URL rule is added and detection succeeds.
+async function checkPageMonitoredStatus() {
+  const txtPreview = qs('#textMatchPreview');
+  if (!txtPreview || currentMode !== 'text') return;
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tabUrl = tab?.url ?? '';
+  if (!tabUrl || /^(chrome|about|edge|moz-extension|chrome-extension):/.test(tabUrl)) return;
+  const urls = await getUrls();
+  const monitored = urls.filter((u) => u.enabled).some((u) => matchesUrl(tabUrl, u.pattern, u.matchType));
+  if (!monitored) {
+    txtPreview.style.display = '';
+    txtPreview.className     = 'match-preview off';
+    txtPreview.textContent   = 'This page isn\'t monitored — add a URL rule first';
+  }
 }
 
 // ─── Column Filter Rendering ─────────────────────────────────────────────────
@@ -810,6 +840,17 @@ async function handleAddUrl() {
   await renderCounts();
   await renderUrlBindingBar();
 
+  // Re-trigger preview in text mode so "Not monitoring" clears if user has a keyword typed
+  if (currentMode === 'text') {
+    if (qs('#quickKeyword')?.value.trim()) {
+      debouncedPreview();
+    } else {
+      // No keyword yet — re-evaluate the "not monitored" hint
+      const txtPreview = qs('#textMatchPreview');
+      if (txtPreview) { txtPreview.style.display = 'none'; }
+    }
+  }
+
   // If the column filter area was showing the "not monitored" overlay,
   // re-run detection now that a URL rule exists. The service worker needs
   // a moment to inject the content script via storage.onChanged, so we
@@ -914,31 +955,33 @@ function bindEvents() {
   addUrlBtn.addEventListener('click', handleAddUrl);
   quickUrl.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAddUrl(); });
 
-  // Fill URL from current tab
+  // Fill URL from current tab — exact match of the full page URL
   useCurrentUrlBtn.addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab?.url && !tab.url.startsWith('chrome') && !tab.url.startsWith('about')) {
       quickUrl.value      = tab.url;
       quickUrlLabel.value = tab.title || '';
+      setUrlMatchType('exact');
+      updateUrlMatchHint();
+      updateUrlInputPlaceholder();
       quickUrl.closest('.input-wrap')?.classList.add('has-value');
       debouncedSaveFormState();
     }
   });
 
-  // Tab context bar — "+ Add URL" shortcut
+  // Tab context bar — "+ Add URL" shortcut — exact match of the full page URL
   tabCtxAddBtn.addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab?.url && !tab.url.startsWith('chrome') && !tab.url.startsWith('about')) {
-      try {
-        const { hostname } = new URL(tab.url);
-        quickUrl.value      = hostname;
-        setUrlMatchType('domain');
-        quickUrlLabel.value = tab.title || '';
-      } catch (_) {
-        quickUrl.value = tab.url;
-      }
+      quickUrl.value      = tab.url;
+      quickUrlLabel.value = tab.title || '';
+      setUrlMatchType('exact');
+      updateUrlMatchHint();
+      updateUrlInputPlaceholder();
+      quickUrl.closest('.input-wrap')?.classList.add('has-value');
       quickUrl.focus();
       quickUrl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      debouncedSaveFormState();
     }
   });
 
