@@ -140,7 +140,7 @@ async function renderUrlBindingBar() {
     urlBindingBar.innerHTML =
       '<p class="url-binding-bar__warn">' +
       '⚠ No URL rules — won\'t monitor any page. ' +
-      '<a href="#" id="scrollToUrl" tabindex="0">Add one ↓</a>' +
+      '<a href="#" id="scrollToUrl" tabindex="0">Add one</a>' +
       '</p>';
     qs('#scrollToUrl')?.addEventListener('click', (e) => {
       e.preventDefault();
