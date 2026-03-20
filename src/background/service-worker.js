@@ -156,6 +156,7 @@ async function deleteTabMatchCount(tabId) {
 
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   await loadCooldownState();
+  await updateBadge();
   await injectIntoMatchingTabs();
 
   if (reason === 'install') {
@@ -168,6 +169,7 @@ chrome.runtime.onInstalled.addListener(async ({ reason }) => {
 
 chrome.runtime.onStartup.addListener(async () => {
   await loadCooldownState();
+  await updateBadge();
   await injectIntoMatchingTabs();
 });
 
@@ -686,6 +688,20 @@ async function injectContentScript(tabId) {
 }
 
 /**
+ * Show an "OFF" badge on the toolbar icon when the extension is disabled,
+ * and clear it when enabled.
+ */
+async function updateBadge() {
+  const enabled = await getEnabled();
+  if (enabled) {
+    chrome.action.setBadgeText({ text: '' });
+  } else {
+    chrome.action.setBadgeText({ text: 'OFF' });
+    chrome.action.setBadgeBackgroundColor({ color: '#6b7280' });
+  }
+}
+
+/**
  * Inject content script into all currently open tabs that match URL rules.
  */
 async function injectIntoMatchingTabs() {
@@ -726,6 +742,8 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
 
   const hasRelevant = relevantKeys.some((k) => k in changes);
   if (!hasRelevant) return;
+
+  if (STORAGE_KEY.ENABLED in changes) await updateBadge();
 
   const [enabled, keywords, urls, settings] = await Promise.all([
     getEnabled(),
