@@ -140,7 +140,7 @@ async function renderUrlBindingBar() {
     urlBindingBar.innerHTML =
       '<p class="url-binding-bar__warn">' +
       '⚠ No URL rules — won\'t monitor any page. ' +
-      '<a href="#" id="scrollToUrl" tabindex="0">Add one below ↓</a>' +
+      '<a href="#" id="scrollToUrl" tabindex="0">Add one ↓</a>' +
       '</p>';
     qs('#scrollToUrl')?.addEventListener('click', (e) => {
       e.preventDefault();
@@ -309,7 +309,8 @@ function setMode(mode) {
     updateAlertNamePlaceholder();
   }
 
-  // Hide previews when switching modes
+  // Hide previews when switching modes; clear any stale error from the other mode
+  hideError(keywordError);
   const preview = qs('#matchPreview');
   const samples = qs('#matchSamples');
   if (preview) preview.style.display = 'none';
