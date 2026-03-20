@@ -1,110 +1,91 @@
-# TextWatcher Browser Extension
+# TextWatcher
 
-A **100% local**, zero-data-collection browser extension that monitors websites for specific text and sends browser notifications when text appears or disappears.
+Monitor any website for text changes and get notified the moment something appears or disappears — without writing a line of code.
+
+---
+
+## What it does
+
+TextWatcher watches pages you care about and sends you a notification when:
+- A keyword or phrase **appears** on the page
+- A keyword or phrase **disappears** from the page
+- A specific **row in a table** matches or stops matching your criteria
+
+All monitoring happens inside your browser. Nothing is sent anywhere unless you configure a webhook.
+
+---
 
 ## Features
 
-- ✅ **Continuous monitoring** via MutationObserver (no polling, minimal CPU)
-- ✅ **All match types**: Contains, Exact (case-sensitive/insensitive), Starts with, Ends with, Regex
-- ✅ **All URL patterns**: Exact URL, Wildcard (`https://example.com/*`), Domain-wide (`*.example.com`)
-- ✅ **Appear & disappear alerts** with per-keyword toggles
-- ✅ **Notification frequency control**: Once per page / Every occurrence / Cooldown
-- ✅ **Badge indicator** with match count
-- ✅ **Last 10 setups** saved as history — one-click restore
-- ✅ **Zero external calls** — all data stays on your device
-- ✅ **Works on Chrome, Edge, Firefox**
+| | |
+|---|---|
+| **Table Mode** | Track a specific row in a table by its column values |
+| **Text Mode** | Watch for any keyword or phrase anywhere on the page |
+| **Flexible URL matching** | Exact URL, wildcard (`example.com/*`), or entire domain |
+| **Match options** | Contains, exact phrase, case-sensitive, or regular expression |
+| **Browser notifications** | Instant alerts with page title and matched content |
+| **Webhook alerts** | Optionally send alerts to Slack or Microsoft Teams |
+| **Alert history** | Log of every alert fired, with timestamps |
+| **Rule history** | Save and restore your full setup with one click |
+| **Badge indicator** | Toolbar icon shows active match count at a glance |
 
-## Project Structure
-
-```
-textwatcher-extension/
-├── manifest.json                  ← MV3 manifest
-├── src/
-│   ├── background/
-│   │   └── service-worker.js      ← Notifications, badge, tab injection
-│   ├── content/
-│   │   └── content-script.js      ← MutationObserver page monitoring
-│   ├── popup/
-│   │   ├── popup.html             ← Quick-add + status
-│   │   ├── popup.css
-│   │   └── popup.js
-│   ├── options/
-│   │   ├── options.html           ← Full settings page
-│   │   ├── options.css
-│   │   └── options.js
-│   ├── shared/
-│   │   ├── constants.js           ← All app constants
-│   │   ├── storage.js             ← Unified storage API
-│   │   ├── matcher.js             ← Pure matching logic
-│   │   └── utils.js               ← General utilities
-│   └── icons/
-│       ├── icon16.png
-│       ├── icon48.png
-│       ├── icon128.png
-│       └── generate_icons.py      ← Icon generator script
-├── tests/                         ← (add your tests here)
-├── docs/                          ← (add docs here)
-├── .vscode/
-│   ├── settings.json
-│   └── extensions.json
-└── .gitignore
-```
+---
 
 ## Installation
 
 ### Chrome / Edge
+
 1. Open `chrome://extensions` (or `edge://extensions`)
-2. Enable **Developer mode** (top right toggle)
+2. Enable **Developer mode** (top-right toggle)
 3. Click **Load unpacked**
 4. Select the `textwatcher-extension` folder
-5. The extension icon appears in your toolbar ✅
+5. The TextWatcher icon appears in your toolbar
 
 ### Firefox
-1. Open `about:debugging`
-2. Click **This Firefox** → **Load Temporary Add-on**
+
+1. Open `about:debugging` → **This Firefox**
+2. Click **Load Temporary Add-on**
 3. Select `manifest.json` from the project folder
-4. The extension is loaded ✅
 
-> For permanent Firefox install, sign the extension via [addons.mozilla.org](https://addons.mozilla.org/developers/)
+> For a permanent Firefox install, sign the extension via [addons.mozilla.org](https://addons.mozilla.org/developers/)
 
-## Quick Start
+---
+
+## Quick start
 
 1. Click the **TextWatcher** icon in your toolbar
-2. Add a **keyword** (e.g. "Out of Stock") with match type "Contains"
-3. Add a **URL** (e.g. `https://shop.example.com/*`) with type "Wildcard"
-4. Visit the monitored page — TextWatcher watches continuously
-5. Get a browser notification when text appears or disappears
+2. Add a URL to tell it which page to watch (e.g. `https://example.com/*`)
+3. Create a rule — enter a keyword or table row values
+4. Hit **Save Rule**
+5. TextWatcher watches the page continuously and notifies you when something changes
+
+---
 
 ## Settings
 
-Open **⚙ Full Settings** from the popup to configure:
+Open **Settings** from the popup footer to access:
 
-| Section | What you can set |
-|---|---|
-| **Keywords** | Text, match type, appear/disappear toggles, enable/disable per rule |
-| **URLs** | URL pattern, match type, label, enable/disable per rule |
-| **Notifications** | Alert events, frequency, cooldown, notification content |
-| **Badge & Icon** | Badge count, badge colors, icon change on match |
-| **History** | Save/restore/delete the last 10 keyword+URL setups |
+- **Keywords** — manage all your watch rules
+- **URLs** — manage which pages are monitored
+- **Notifications** — control alert frequency, cooldown, and content
+- **Webhooks** — send alerts to Slack or Microsoft Teams
+- **Activity** — view the full alert history
+- **Rule History** — restore a previous setup
+
+---
 
 ## Privacy
 
-- **Zero network calls** — no fetch, XHR, or WebSocket
-- **No analytics or telemetry**
-- **`chrome.storage.local` only** — data never leaves your device
-- **No third-party libraries**
-- **No eval()** — regex handled safely via `new RegExp()`
+TextWatcher runs entirely in your browser. Your keywords, URLs, and alert history are stored locally using `chrome.storage.local` and never leave your device.
+
+The only exception is **webhooks** — if you configure a Slack or Teams webhook URL in Settings, TextWatcher will send alert data to that URL when a rule fires. Webhooks are optional and disabled by default.
+
+---
 
 ## Development
 
-No build step required — pure vanilla JS with ES modules.
+No build step required — plain JavaScript with ES modules.
 
-```
-# Regenerate icons if needed
-python src/icons/generate_icons.py
-```
-
-To test changes:
-1. Edit files
-2. Go to `chrome://extensions`
-3. Click the **↻ reload** button on the TextWatcher card
+To reload after making changes:
+1. Go to `chrome://extensions`
+2. Click the **↻ reload** button on the TextWatcher card
