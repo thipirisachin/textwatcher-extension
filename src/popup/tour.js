@@ -55,34 +55,14 @@ function endTour() {
   chrome.storage.local.set({ [TOUR_DONE_KEY]: true });
 }
 
-/** Prevent scroll from wheel and keyboard during tour. */
-function preventScroll(e) { e.preventDefault(); }
-
-const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
-  'PageUp', 'PageDown', 'Home', 'End', ' ']);
-
-function preventScrollKeys(e) {
-  if (SCROLL_KEYS.has(e.key)) e.preventDefault();
-}
-
 /**
  * Toggle the `tour-active` class on body.
- * CSS handles blocking: body.tour-active blocks pointer events on everything
- * except #tourOverlay via `pointer-events: none`.
- * JS wheel/keydown listeners prevent scrolling (position:fixed is unsafe in
- * extension popups — it collapses the layout).
+ * CSS blocks pointer events on everything except #tourOverlay.
  * This survives DOM re-renders (unlike setting `inert` on individual nodes).
  */
 function setTourActive(on) {
   document.body.classList.toggle('tour-active', on);
   document.documentElement.classList.toggle('tour-active', on);
-  if (on) {
-    document.addEventListener('wheel', preventScroll, { passive: false });
-    document.addEventListener('keydown', preventScrollKeys, false);
-  } else {
-    document.removeEventListener('wheel', preventScroll);
-    document.removeEventListener('keydown', preventScrollKeys);
-  }
 }
 
 /** Render a single tour step.

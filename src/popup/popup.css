@@ -1213,18 +1213,7 @@ body {
 }
 .tour-overlay.hidden { display: none; }
 
-/* When tour is active, block all pointer interaction on the page and prevent scroll.
-   `position: fixed` on body is the only reliable cross-browser way to stop scroll
-   inside a Chrome extension popup (overflow:hidden alone has no effect without a
-   fixed height, and extension popups don't set one). */
-html.tour-active {
-  overflow: hidden;
-}
-body.tour-active {
-  position: fixed;
-  width: 100%;
-  overflow: hidden;
-}
+/* When tour is active, block pointer interaction on everything except the tooltip. */
 body.tour-active > *:not(#tourOverlay) {
   pointer-events: none !important;
   user-select: none !important;
