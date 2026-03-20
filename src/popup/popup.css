@@ -1202,9 +1202,12 @@ body {
 }
 .tour-overlay.hidden { display: none; }
 
-/* When tour is active, block all pointer interaction on the page.
+/* When tour is active, block all pointer interaction on the page and prevent scroll.
    The overlay lives outside this rule (it's a sibling at body level),
    so it—and its tooltip—remain interactive. */
+body.tour-active {
+  overflow: hidden;
+}
 body.tour-active > *:not(#tourOverlay) {
   pointer-events: none !important;
   user-select: none !important;

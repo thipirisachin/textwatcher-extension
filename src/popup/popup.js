@@ -100,12 +100,8 @@ const TOUR_STEPS = [
     text: 'Add the URL and your rules will activate on matching pages.',
   },
   {
-    target: '#navSetups',
-    text: 'Rule History saves snapshots of your setup — restore any previous configuration in one click.',
-  },
-  {
-    target: '#openOptionsBtn',
-    text: 'Settings opens the full options page: manage all rules, view alert history, and configure webhooks.',
+    target: '.footer',
+    text: 'Rule History saves snapshots of your setup so you can restore them. Settings opens the full options page to manage all rules, view alert logs, and configure webhooks.',
   },
   {
     target: '.summary-grid',
@@ -313,15 +309,19 @@ function setMode(mode) {
     updateAlertNamePlaceholder();
   }
 
-  // Hide preview when switching modes
+  // Hide previews — always clear row-mode preview; only clear text preview when
+  // switching AWAY from text mode (switching TO text mode will re-evaluate via checkPageMonitoredStatus)
   const preview = qs('#matchPreview');
   const samples = qs('#matchSamples');
   if (preview) preview.style.display = 'none';
   if (samples) samples.innerHTML = '';
-  const txtPreview = qs('#textMatchPreview');
-  const txtSamples = qs('#textMatchSamples');
-  if (txtPreview) txtPreview.style.display = 'none';
-  if (txtSamples) txtSamples.innerHTML = '';
+  if (isRow) {
+    // Switching to row mode — clear text-mode preview
+    const txtPreview = qs('#textMatchPreview');
+    const txtSamples = qs('#textMatchSamples');
+    if (txtPreview) txtPreview.style.display = 'none';
+    if (txtSamples) txtSamples.innerHTML = '';
+  }
   // Trigger text preview immediately if switching to text mode with content
   if (!isRow) {
     debouncedPreview();
