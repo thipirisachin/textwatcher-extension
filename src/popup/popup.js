@@ -309,19 +309,15 @@ function setMode(mode) {
     updateAlertNamePlaceholder();
   }
 
-  // Hide previews — always clear row-mode preview; only clear text preview when
-  // switching AWAY from text mode (switching TO text mode will re-evaluate via checkPageMonitoredStatus)
+  // Hide previews when switching modes
   const preview = qs('#matchPreview');
   const samples = qs('#matchSamples');
   if (preview) preview.style.display = 'none';
   if (samples) samples.innerHTML = '';
-  if (isRow) {
-    // Switching to row mode — clear text-mode preview
-    const txtPreview = qs('#textMatchPreview');
-    const txtSamples = qs('#textMatchSamples');
-    if (txtPreview) txtPreview.style.display = 'none';
-    if (txtSamples) txtSamples.innerHTML = '';
-  }
+  const txtPreview = qs('#textMatchPreview');
+  const txtSamples = qs('#textMatchSamples');
+  if (txtPreview) txtPreview.style.display = 'none';
+  if (txtSamples) txtSamples.innerHTML = '';
   // Trigger text preview immediately if switching to text mode with content
   if (!isRow) {
     debouncedPreview();
@@ -417,27 +413,27 @@ function showColFilterOverlay(wrap, msg) {
   if (msgEl) msgEl.textContent = msg;
 }
 
-// Show a persistent "not monitored" hint in text mode preview when no URL rule
-// matches the current page. Hides the preview when the page IS monitored.
-// Called from debouncedPreview (empty keyword path) and on init/mode-switch.
+// Manage the "not monitored" overlay on the text mode keyword input.
+// Mirrors how col-detect-overlay works for table mode: blocks the input
+// with an overlay when the page has no matching URL rule.
 async function checkPageMonitoredStatus() {
-  const txtPreview = qs('#textMatchPreview');
-  if (!txtPreview || currentMode !== 'text') return;
+  const textInputWrap = qs('#textInputWrap');
+  if (!textInputWrap || currentMode !== 'text') return;
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const tabUrl = tab?.url ?? '';
   if (!tabUrl || /^(chrome|about|edge|moz-extension|chrome-extension):/.test(tabUrl)) {
-    txtPreview.style.display = 'none';
+    textInputWrap.dataset.detectState = 'ok';
     return;
   }
   const urls = await getUrls();
   const monitored = urls.filter((u) => u.enabled).some((u) => matchesUrl(tabUrl, u.pattern, u.matchType));
   if (!monitored) {
-    txtPreview.style.display = '';
-    txtPreview.className     = 'match-preview off';
-    txtPreview.textContent   = "This page isn't monitored — add a URL rule first";
+    textInputWrap.dataset.detectState = 'no-rule';
+    const msgEl = qs('#textDetectMsg');
+    if (msgEl) msgEl.textContent = "This page isn't monitored — add a URL rule first";
+    qs('#quickKeyword')?.blur();
   } else {
-    // Page is monitored but no keyword typed — hide preview
-    txtPreview.style.display = 'none';
+    textInputWrap.dataset.detectState = 'ok';
   }
 }
 
@@ -538,9 +534,8 @@ const debouncedPreview = debounce(async () => {
     const matchType = getMatchType();
 
     if (!keyword) {
+      txtPreview.style.display = 'none';
       if (txtSamples) txtSamples.innerHTML = '';
-      // Don't blindly hide — re-check monitored status so the hint stays visible
-      await checkPageMonitoredStatus();
       return;
     }
 
@@ -864,16 +859,8 @@ async function handleAddUrl() {
   await renderCounts();
   await renderUrlBindingBar();
 
-  // Re-trigger preview in text mode so "Not monitoring" clears if user has a keyword typed
-  if (currentMode === 'text') {
-    if (qs('#quickKeyword')?.value.trim()) {
-      debouncedPreview();
-    } else {
-      // No keyword yet — re-evaluate the "not monitored" hint
-      const txtPreview = qs('#textMatchPreview');
-      if (txtPreview) { txtPreview.style.display = 'none'; }
-    }
-  }
+  // Re-check monitored status in text mode — overlay should clear after URL is added
+  if (currentMode === 'text') checkPageMonitoredStatus();
 
   // If the column filter area was showing the "not monitored" overlay,
   // re-run detection now that a URL rule exists. The service worker needs

@@ -1104,6 +1104,11 @@ body {
 .col-filter-wrap {
   position: relative;
 }
+
+/* Text mode input wrapper — mirrors col-filter-wrap for the "not monitored" overlay */
+.text-input-wrap {
+  position: relative;
+}
 .col-filter-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1203,8 +1208,9 @@ body {
 .tour-overlay.hidden { display: none; }
 
 /* When tour is active, block all pointer interaction on the page and prevent scroll.
-   The overlay lives outside this rule (it's a sibling at body level),
-   so it—and its tooltip—remain interactive. */
+   Both html and body must have overflow:hidden — the popup scroll context sits on both.
+   The overlay lives outside this rule, so it—and its tooltip—remain interactive. */
+html.tour-active,
 body.tour-active {
   overflow: hidden;
 }
@@ -1279,6 +1285,16 @@ body.tour-active > *:not(#tourOverlay) {
   background: var(--accent-gl);
   border-color: var(--accent);
   color: var(--accent-lt);
+}
+/* Only the Done button (last step) gets persistent accent styling */
+.tour-btn--done {
+  background: var(--accent-gl);
+  border-color: var(--accent);
+  color: var(--accent-lt);
+  font-weight: 600;
+}
+.tour-btn--done:hover {
+  background: rgba(51,136,255,0.22);
 }
 .tour-btn--back:disabled {
   opacity: 0.3;

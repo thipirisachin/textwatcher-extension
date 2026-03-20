@@ -63,6 +63,7 @@ function endTour() {
  */
 function setTourActive(on) {
   document.body.classList.toggle('tour-active', on);
+  document.documentElement.classList.toggle('tour-active', on);
 }
 
 /** Render a single tour step.
@@ -131,8 +132,12 @@ function showStep(index, direction = 1) {
   if (stepLabel) stepLabel.textContent = `Step ${index + 1} of ${steps.length}`;
   if (stepText)  stepText.textContent  = step.text;
 
-  // Last step: change button label
-  if (nextBtn) nextBtn.textContent = index === steps.length - 1 ? 'Done \u2713' : 'Next \u2192';
+  // Last step: change button label and add Done styling; remove it on other steps
+  if (nextBtn) {
+    const isLast = index === steps.length - 1;
+    nextBtn.textContent = isLast ? 'Done' : 'Next \u2192';
+    nextBtn.classList.toggle('tour-btn--done', isLast);
+  }
 
   // Back button: disabled on first step
   if (backBtn) backBtn.disabled = index === 0;
