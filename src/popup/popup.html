@@ -59,21 +59,26 @@
 
       <!-- ── MODE A: Text Mode ─────────────────────────── -->
       <div id="textModePanel" style="display:none">
-        <div class="input-row" style="gap:5px;">
-          <div class="input-wrap" style="flex:1;" id="quickKeywordWrap">
-            <input
-              type="text"
-              id="quickKeyword"
-              class="input"
-              placeholder="Keyword or phrase…"
-              maxlength="500"
-            />
-            <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
+        <div class="text-input-wrap" id="textInputWrap" data-detect-state="ok">
+          <div class="input-row" style="gap:5px;">
+            <div class="input-wrap" style="flex:1;" id="quickKeywordWrap">
+              <input
+                type="text"
+                id="quickKeyword"
+                class="input"
+                placeholder="Keyword or phrase…"
+                maxlength="500"
+              />
+              <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
+            </div>
+            <div class="modifier-btns" role="group" aria-label="Match modifiers">
+              <button class="modifier-btn" id="modCaseBtn"  data-mod="case"  type="button" title="Case sensitive">Aa</button>
+              <button class="modifier-btn" id="modExactBtn" data-mod="exact" type="button" title="Exact phrase">ab</button>
+              <button class="modifier-btn" id="modRegexBtn" data-mod="regex" type="button" title="Regular expression">.*</button>
+            </div>
           </div>
-          <div class="modifier-btns" role="group" aria-label="Match modifiers">
-            <button class="modifier-btn" id="modCaseBtn"  data-mod="case"  type="button" title="Case sensitive">Aa</button>
-            <button class="modifier-btn" id="modExactBtn" data-mod="exact" type="button" title="Exact phrase">ab</button>
-            <button class="modifier-btn" id="modRegexBtn" data-mod="regex" type="button" title="Regular expression">.*</button>
+          <div class="col-detect-overlay" id="textDetectOverlay">
+            <span id="textDetectMsg"></span>
           </div>
         </div>
         <p class="match-hint" id="matchHint">Matches text anywhere on the page, any case</p>

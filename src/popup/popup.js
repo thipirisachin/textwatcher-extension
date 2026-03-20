@@ -100,6 +100,10 @@ const TOUR_STEPS = [
     text: 'Add the URL and your rules will activate on matching pages.',
   },
   {
+    target: '.footer',
+    text: 'Rule History: restore saved setups. Settings: manage all rules, alerts, and webhooks.',
+  },
+  {
     target: '.summary-grid',
     text: 'See all your active keywords, URLs, and recent alerts at a glance here.',
   },
@@ -113,6 +117,7 @@ async function init() {
   listenForStorageChanges();
   autoDetectRows(); // silent — no await needed
   await restoreFormState();
+  checkPageMonitoredStatus(); // show "not monitored" hint in text mode if needed
   maybeAutoStartTour(TOUR_STEPS);
 }
 
@@ -135,7 +140,7 @@ async function renderUrlBindingBar() {
     urlBindingBar.innerHTML =
       '<p class="url-binding-bar__warn">' +
       '⚠ No URL rules — won\'t monitor any page. ' +
-      '<a href="#" id="scrollToUrl" tabindex="0">Add one below ↓</a>' +
+      '<a href="#" id="scrollToUrl" tabindex="0">Add one</a>' +
       '</p>';
     qs('#scrollToUrl')?.addEventListener('click', (e) => {
       e.preventDefault();
@@ -304,7 +309,8 @@ function setMode(mode) {
     updateAlertNamePlaceholder();
   }
 
-  // Hide preview when switching modes
+  // Hide previews when switching modes; clear any stale error from the other mode
+  hideError(keywordError);
   const preview = qs('#matchPreview');
   const samples = qs('#matchSamples');
   if (preview) preview.style.display = 'none';
@@ -314,7 +320,10 @@ function setMode(mode) {
   if (txtPreview) txtPreview.style.display = 'none';
   if (txtSamples) txtSamples.innerHTML = '';
   // Trigger text preview immediately if switching to text mode with content
-  if (!isRow) debouncedPreview();
+  if (!isRow) {
+    debouncedPreview();
+    checkPageMonitoredStatus();
+  }
 }
 
 // ─── Silent Row Auto-Detection ───────────────────────────────────────────────
@@ -326,8 +335,25 @@ async function autoDetectRows() {
   if (!tab?.id) return;
 
   const colFilterWrap = qs('#colFilterWrap');
-  const addColBtn = qs('#addColBtn');
+  const addColBtn     = qs('#addColBtn');
   const colFilterList = qs('#colFilterList');
+
+  // Check URL rules locally first — the content script may still be injected
+  // even after a URL rule is removed, so we can't rely on message failure alone.
+  const tabUrl = tab.url ?? '';
+  if (tabUrl && !/^(chrome|about|edge|moz-extension|chrome-extension):/.test(tabUrl)) {
+    const urls     = await getUrls();
+    const monitored = urls.filter((u) => u.enabled).some((u) => matchesUrl(tabUrl, u.pattern, u.matchType));
+    if (!monitored) {
+      if (colFilterWrap) {
+        colFilterWrap.dataset.detectState = 'no-rule';
+        showColFilterOverlay(colFilterWrap, "This page isn't monitored — add a URL rule first");
+      }
+      if (addColBtn) addColBtn.disabled = true;
+      if (colFilterList) colFilterList.innerHTML = '';
+      return;
+    }
+  }
 
   // Set detecting state
   if (colFilterWrap) colFilterWrap.dataset.detectState = 'detecting';
@@ -386,6 +412,30 @@ async function autoDetectRows() {
 function showColFilterOverlay(wrap, msg) {
   const msgEl = wrap.querySelector('#colDetectMsg');
   if (msgEl) msgEl.textContent = msg;
+}
+
+// Manage the "not monitored" overlay on the text mode keyword input.
+// Mirrors how col-detect-overlay works for table mode: blocks the input
+// with an overlay when the page has no matching URL rule.
+async function checkPageMonitoredStatus() {
+  const textInputWrap = qs('#textInputWrap');
+  if (!textInputWrap || currentMode !== 'text') return;
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tabUrl = tab?.url ?? '';
+  if (!tabUrl || /^(chrome|about|edge|moz-extension|chrome-extension):/.test(tabUrl)) {
+    textInputWrap.dataset.detectState = 'ok';
+    return;
+  }
+  const urls = await getUrls();
+  const monitored = urls.filter((u) => u.enabled).some((u) => matchesUrl(tabUrl, u.pattern, u.matchType));
+  if (!monitored) {
+    textInputWrap.dataset.detectState = 'no-rule';
+    const msgEl = qs('#textDetectMsg');
+    if (msgEl) msgEl.textContent = "This page isn't monitored — add a URL rule first";
+    qs('#quickKeyword')?.blur();
+  } else {
+    textInputWrap.dataset.detectState = 'ok';
+  }
 }
 
 // ─── Column Filter Rendering ─────────────────────────────────────────────────
@@ -810,6 +860,9 @@ async function handleAddUrl() {
   await renderCounts();
   await renderUrlBindingBar();
 
+  // Re-check monitored status in text mode — overlay should clear after URL is added
+  if (currentMode === 'text') checkPageMonitoredStatus();
+
   // If the column filter area was showing the "not monitored" overlay,
   // re-run detection now that a URL rule exists. The service worker needs
   // a moment to inject the content script via storage.onChanged, so we
@@ -914,31 +967,33 @@ function bindEvents() {
   addUrlBtn.addEventListener('click', handleAddUrl);
   quickUrl.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAddUrl(); });
 
-  // Fill URL from current tab
+  // Fill URL from current tab — exact match of the full page URL
   useCurrentUrlBtn.addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab?.url && !tab.url.startsWith('chrome') && !tab.url.startsWith('about')) {
       quickUrl.value      = tab.url;
       quickUrlLabel.value = tab.title || '';
+      setUrlMatchType('exact');
+      updateUrlMatchHint();
+      updateUrlInputPlaceholder();
       quickUrl.closest('.input-wrap')?.classList.add('has-value');
       debouncedSaveFormState();
     }
   });
 
-  // Tab context bar — "+ Add URL" shortcut
+  // Tab context bar — "+ Add URL" shortcut — exact match of the full page URL
   tabCtxAddBtn.addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab?.url && !tab.url.startsWith('chrome') && !tab.url.startsWith('about')) {
-      try {
-        const { hostname } = new URL(tab.url);
-        quickUrl.value      = hostname;
-        setUrlMatchType('domain');
-        quickUrlLabel.value = tab.title || '';
-      } catch (_) {
-        quickUrl.value = tab.url;
-      }
+      quickUrl.value      = tab.url;
+      quickUrlLabel.value = tab.title || '';
+      setUrlMatchType('exact');
+      updateUrlMatchHint();
+      updateUrlInputPlaceholder();
+      quickUrl.closest('.input-wrap')?.classList.add('has-value');
       quickUrl.focus();
       quickUrl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      debouncedSaveFormState();
     }
   });
 
@@ -965,7 +1020,15 @@ function listenForStorageChanges() {
   onStorageChange(
     [STORAGE_KEY.KEYWORDS, STORAGE_KEY.URLS, STORAGE_KEY.HISTORY,
      STORAGE_KEY.ALERT_HISTORY, STORAGE_KEY.ENABLED],
-    async () => { await renderAll(); }
+    async () => {
+      await renderAll();
+      // Re-check monitored status in text mode when keyword is empty
+      if (currentMode === 'text' && !qs('#quickKeyword')?.value.trim()) {
+        await checkPageMonitoredStatus();
+      }
+      // Re-check in row mode — URL removal should re-show the overlay
+      if (currentMode === 'row') autoDetectRows();
+    }
   );
 }
 

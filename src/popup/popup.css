@@ -570,6 +570,12 @@ body {
 .match-preview.none { color: #ef4444; }
 .match-preview.off  { color: var(--text-3); }
 
+.error-msg {
+  font-size: 11px;
+  color: #ef4444;
+  margin: 4px 0 0;
+}
+
 .match-samples {
   margin-top: 4px;
 }
@@ -1104,6 +1110,11 @@ body {
 .col-filter-wrap {
   position: relative;
 }
+
+/* Text mode input wrapper — mirrors col-filter-wrap for the "not monitored" overlay */
+.text-input-wrap {
+  position: relative;
+}
 .col-filter-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1198,8 +1209,15 @@ body {
   inset: 0;
   background: transparent; /* dimming done by spotlight box-shadow only */
   z-index: 999;
+  pointer-events: none; /* overlay itself is pass-through; only .tour-tooltip responds */
 }
 .tour-overlay.hidden { display: none; }
+
+/* When tour is active, block pointer interaction on everything except the tooltip. */
+body.tour-active > *:not(#tourOverlay) {
+  pointer-events: none !important;
+  user-select: none !important;
+}
 
 .tour-spotlight {
   position: fixed;
@@ -1219,6 +1237,7 @@ body {
   width: 260px;
   box-shadow: 0 4px 24px rgba(0,0,0,0.5);
   animation: panel-in 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: auto; /* tooltip is the only interactive element during tour */
 }
 .tour-tooltip__step {
   font-size: 10px;
@@ -1260,11 +1279,21 @@ body {
   background: var(--accent-gl);
 }
 .tour-btn--next {
+  font-weight: 600;
+}
+.tour-btn--next:hover {
   background: var(--accent-gl);
   border-color: var(--accent);
   color: var(--accent-lt);
 }
-.tour-btn--next:hover {
+/* Only the Done button (last step) gets persistent accent styling */
+.tour-btn--done {
+  background: var(--accent-gl);
+  border-color: var(--accent);
+  color: var(--accent-lt);
+  font-weight: 600;
+}
+.tour-btn--done:hover {
   background: rgba(51,136,255,0.22);
 }
 .tour-btn--back:disabled {

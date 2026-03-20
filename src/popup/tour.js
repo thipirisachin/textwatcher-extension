@@ -27,7 +27,7 @@ export async function maybeAutoStartTour(tourSteps) {
 export function startTour(tourSteps) {
   steps = tourSteps;
   currentStep = 0;
-  showStep(currentStep);
+  showStep(currentStep, 1);
 }
 
 /** Advance to the next step, or end tour if on last step. */
@@ -36,7 +36,7 @@ function nextStep() {
   if (currentStep >= steps.length) {
     endTour();
   } else {
-    showStep(currentStep);
+    showStep(currentStep, 1);
   }
 }
 
@@ -44,18 +44,32 @@ function nextStep() {
 function previousStep() {
   if (currentStep <= 0) return;
   currentStep--;
-  showStep(currentStep);
+  showStep(currentStep, -1);
 }
 
 /** End the tour and mark as done in storage. */
 function endTour() {
   const overlay = document.getElementById('tourOverlay');
   if (overlay) overlay.classList.add('hidden');
+  setTourActive(false);
   chrome.storage.local.set({ [TOUR_DONE_KEY]: true });
 }
 
-/** Render a single tour step. */
-function showStep(index) {
+/**
+ * Toggle the `tour-active` class on body.
+ * CSS blocks pointer events on everything except #tourOverlay.
+ * This survives DOM re-renders (unlike setting `inert` on individual nodes).
+ */
+function setTourActive(on) {
+  document.body.classList.toggle('tour-active', on);
+  document.documentElement.classList.toggle('tour-active', on);
+}
+
+/** Render a single tour step.
+ * @param {number} index
+ * @param {1|-1} direction - 1 = forward, -1 = backward (for skip logic)
+ */
+function showStep(index, direction = 1) {
   const step = steps[index];
   if (!step) return;
 
@@ -79,17 +93,20 @@ function showStep(index) {
   // Skip step if target element is not visible
   const target = step.target ? document.querySelector(step.target) : null;
   if (step.target && !isVisible(target)) {
-    // Skip invisible step — advance or retreat depending on direction
-    currentStep++;
+    currentStep += direction;
     if (currentStep >= steps.length) {
       endTour();
+    } else if (currentStep < 0) {
+      currentStep = 0;
+      showStep(currentStep, 1);
     } else {
-      showStep(currentStep);
+      showStep(currentStep, direction);
     }
     return;
   }
 
   overlay.classList.remove('hidden');
+  setTourActive(true);
 
   // Scroll target into view so spotlight can cover it
   if (target) target.scrollIntoView({ block: 'nearest', behavior: 'instant' });
@@ -107,15 +124,19 @@ function showStep(index) {
     spotlight.style.display = 'none';
   }
 
-  // Position tooltip below (or above) target
-  positionTooltip(tooltip, target);
-
-  // Set text
+  // Set text first so offsetHeight is accurate when positioning
   if (stepLabel) stepLabel.textContent = `Step ${index + 1} of ${steps.length}`;
   if (stepText)  stepText.textContent  = step.text;
 
-  // Last step: change button label
-  if (nextBtn) nextBtn.textContent = index === steps.length - 1 ? 'Done \u2713' : 'Next \u2192';
+  // Position tooltip below (or above) target — must come after text is set
+  positionTooltip(tooltip, target);
+
+  // Last step: change button label and add Done styling; remove it on other steps
+  if (nextBtn) {
+    const isLast = index === steps.length - 1;
+    nextBtn.textContent = isLast ? 'Done' : 'Next \u2192';
+    nextBtn.classList.toggle('tour-btn--done', isLast);
+  }
 
   // Back button: disabled on first step
   if (backBtn) backBtn.disabled = index === 0;
@@ -124,11 +145,8 @@ function showStep(index) {
   if (nextBtn) nextBtn.onclick = nextStep;
   if (backBtn) backBtn.onclick = previousStep;
   if (skipBtn) skipBtn.onclick = endTour;
-
-  // Close on overlay click (outside tooltip)
-  overlay.onclick = (e) => {
-    if (!tooltip.contains(e.target)) endTour();
-  };
+  // No overlay.onclick — clicking outside tooltip does nothing.
+  // Only the tooltip action buttons can advance or close the tour.
 }
 
 /** Position tooltip below the target, flipping above if it would overflow. */
