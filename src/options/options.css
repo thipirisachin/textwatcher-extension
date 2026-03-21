@@ -1459,6 +1459,10 @@ code {
   background: rgba(51,136,255,0.26);
   border-style: dashed;
 }
+.url-match-btns .modifier-btn {
+  width: auto;
+  padding: 0 10px;
+}
 
 /* ── Match hint ─────────────────────────────────────────────────────────── */
 .match-hint {
