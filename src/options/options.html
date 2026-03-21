@@ -354,13 +354,13 @@
                 <button class="input-clear" type="button" aria-label="Clear" tabindex="-1">&times;</button>
               </div>
             </div>
-            <div class="form-field">
+            <div class="form-field form-field--wide">
               <label class="label">Match Type</label>
-              <select id="urlMatchType" class="select">
-                <option value="wildcard">Wildcard (https://example.com/*)</option>
-                <option value="exact">Exact URL</option>
-                <option value="domain">Domain-wide (*.example.com)</option>
-              </select>
+              <div class="modifier-btns url-match-btns" role="group" aria-label="URL match type">
+                <button class="modifier-btn active" data-match="wildcard" type="button" title="Wildcard — use * as wildcard">Wild</button>
+                <button class="modifier-btn"        data-match="exact"    type="button" title="Exact URL match">Exact</button>
+                <button class="modifier-btn"        data-match="domain"   type="button" title="Match entire domain">Domain</button>
+              </div>
             </div>
             <div class="form-field form-field--wide">
               <label class="label">Label (optional)</label>

@@ -344,13 +344,13 @@ async function renderKeywords(filter = '') {
   list.innerHTML = '';
   filtered.forEach((kw) => {
     const li = document.createElement('li');
-    li.className = `rule-item${!kw.enabled ? ' rule-item--disabled' : ''}`;
+    li.className = 'rule-item';
     li.dataset.id = kw.id;
 
     const matchLabel = MATCH_TYPE_LABEL[kw.matchType] || kw.matchType;
 
     li.innerHTML = `
-      <div class="rule-item__main">
+      <div class="rule-item__main${!kw.enabled ? ' rule-item--disabled' : ''}">
         <div class="rule-item__text">${escapeHtml(kw.text)}</div>
         <div class="rule-item__meta">
           <span class="rule-item__tag rule-item__tag--match">${escapeHtml(matchLabel)}</span>
@@ -700,13 +700,13 @@ async function renderUrls() {
   list.innerHTML = '';
   urls.forEach((url) => {
     const li = document.createElement('li');
-    li.className = `rule-item${!url.enabled ? ' rule-item--disabled' : ''}`;
+    li.className = 'rule-item';
     li.dataset.id = url.id;
 
     const typeLabel = URL_MATCH_TYPE_LABEL[url.matchType] || url.matchType;
 
     li.innerHTML = `
-      <div class="rule-item__main">
+      <div class="rule-item__main${!url.enabled ? ' rule-item--disabled' : ''}">
         <div class="rule-item__text">${escapeHtml(url.label || url.pattern)}</div>
         <div class="rule-item__meta">
           <span class="rule-item__tag rule-item__tag--match">${escapeHtml(typeLabel)}</span>
@@ -727,8 +727,7 @@ async function renderUrls() {
 }
 
 function bindUrlEvents() {
-  const urlMatchType = qs('#urlMatchType');
-  const urlHint      = qs('#urlHint');
+  const urlHint = qs('#urlHint');
 
   const HINTS = {
     wildcard: '<strong>Wildcard:</strong> Use * as wildcard. E.g. <code>https://example.com/*</code>',
@@ -736,8 +735,13 @@ function bindUrlEvents() {
     domain:   '<strong>Domain-wide:</strong> Enter domain like <code>example.com</code> or <code>*.example.com</code>',
   };
 
-  urlMatchType.addEventListener('change', () => {
-    urlHint.innerHTML = HINTS[urlMatchType.value] || '';
+  // Modifier-button group for match type
+  qs('#section-urls')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.url-match-btns .modifier-btn');
+    if (!btn) return;
+    btn.closest('.url-match-btns').querySelectorAll('.modifier-btn').forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (urlHint) urlHint.innerHTML = HINTS[btn.dataset.match] || '';
   });
 
   // Add URL
@@ -864,7 +868,7 @@ function bindUrlEvents() {
 
 async function handleAddUrl() {
   const pattern   = qs('#urlPattern').value.trim();
-  const matchType = qs('#urlMatchType').value;
+  const matchType = qs('#section-urls .url-match-btns .modifier-btn.active')?.dataset.match ?? 'wildcard';
   const label     = qs('#urlLabel').value.trim();
   const errEl     = qs('#urlError');
 

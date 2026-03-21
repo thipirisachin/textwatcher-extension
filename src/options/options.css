@@ -540,7 +540,7 @@ html, body { height: 100%; background: var(--clr-bg); }
 }
 
 .rule-item:hover { border-color: var(--accent-lt); border-style: dashed; }
-.rule-item--disabled { opacity: 0.45; }
+.rule-item__main.rule-item--disabled { opacity: 0.45; }
 
 .rule-item__main {
   flex: 1;
@@ -643,32 +643,30 @@ html, body { height: 100%; background: var(--clr-bg); }
 .url-binding-bar__item {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  color: var(--clr-muted);
-  background: var(--clr-surface2);
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 12px;
   border: 1px solid var(--clr-border);
-  border-radius: 99px;
-  padding: 2px 8px 2px 5px;
   cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
+  font-size: 10px;
+  color: var(--clr-muted);
+  background: transparent;
+  transition: all 0.15s;
   user-select: none;
 }
 .url-binding-bar__item:hover {
-  border-color: var(--border-2);
+  border-style: dashed;
+  border-color: var(--accent-lt);
   color: var(--clr-text);
+  background: var(--accent-gl);
 }
 .url-binding-bar__item input[type=checkbox] {
-  flex-shrink: 0;
-  accent-color: var(--clr-accent);
-  width: 11px;
-  height: 11px;
-  margin: 0;
-  cursor: pointer;
+  display: none;
 }
 .url-binding-bar__item:has(input:checked) {
   border-color: var(--clr-accent);
-  color: var(--clr-text);
+  color: var(--accent-lt);
+  background: var(--accent-gl);
 }
 .url-binding-bar__item span {
   overflow: hidden;
