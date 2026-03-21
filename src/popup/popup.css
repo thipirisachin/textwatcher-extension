@@ -166,7 +166,7 @@ body {
   transition: background 0.3s, box-shadow 0.3s;
 }
 
-.tab-ctx-bar--watched   .tab-ctx-bar__dot { background: var(--green); box-shadow: 0 0 0 3px var(--green-gl); }
+.tab-ctx-bar--watched   .tab-ctx-bar__dot { background: var(--green); box-shadow: 0 0 0 3px var(--green-gl); animation: ctx-blink 2.8s ease-in-out infinite; }
 .tab-ctx-bar--unwatched .tab-ctx-bar__dot { background: var(--yellow); }
 
 .tab-ctx-bar__text { flex: 1; }
@@ -327,6 +327,7 @@ body {
   outline: none;
   cursor: pointer;
   transition: border-color 0.15s, box-shadow 0.15s;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
 }
 
 .select:focus {
@@ -338,12 +339,6 @@ body {
   background: var(--surface);
   color: var(--text);
 }
-
-.select {
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
-}
-
-.select--compact { flex-shrink: 0; }
 
 .input-row {
   display: flex;
@@ -438,10 +433,6 @@ body {
 @keyframes ctx-blink {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.35; }
-}
-
-.tab-ctx-bar--watched .tab-ctx-bar__dot {
-  animation: ctx-blink 2.8s ease-in-out infinite;
 }
 
 /* ── Advanced toggle button ───────────────────────────────────────── */
@@ -689,29 +680,6 @@ body {
   color: #f59e0b;
   text-decoration: underline;
   cursor: pointer;
-}
-.url-binding-bar__item {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  color: var(--text-2);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 99px;
-  padding: 2px 8px 2px 5px;
-  cursor: pointer;
-  transition: border-color 0.15s;
-}
-.url-binding-bar__item:has(input:checked) {
-  border-color: var(--accent);
-  color: var(--text);
-}
-.url-binding-bar__item input {
-  accent-color: var(--accent);
-  width: 11px;
-  height: 11px;
-  margin: 0;
 }
 .url-binding-bar__more {
   font-size: 11px;
@@ -1175,8 +1143,6 @@ body {
 }
 
 /* ── Column filter grid ─────────────────────────────────────────────────── */
-.col-filter-wrap { }
-
 /* monitor-wrap covers both Save Rule + Quick Add URL sections with one overlay */
 .monitor-wrap { position: relative; }
 .col-filter-grid {

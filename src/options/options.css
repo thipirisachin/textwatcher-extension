@@ -104,16 +104,23 @@ html, body { height: 100%; background: var(--clr-bg); }
   text-decoration: none;
   font-size: 13px;
   font-weight: 500;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
   margin-bottom: 2px;
+  border: 1px solid transparent;
 }
 
-.nav-link:hover { background: var(--clr-surface2); color: var(--clr-text); }
+.nav-link:hover {
+  background: var(--accent-gl);
+  color: var(--accent-lt);
+  border-color: var(--accent-lt);
+  border-style: dashed;
+}
 
 .nav-link.active {
   background: var(--accent-gl);
   color: var(--accent-lt);
   font-weight: 600;
+  border-style: solid;
 }
 
 .sidebar__feedback {
@@ -345,9 +352,9 @@ html, body { height: 100%; background: var(--clr-bg); }
 }
 
 .toggle input:checked ~ .toggle__track {
-  background: var(--clr-green);
-  border-color: var(--clr-green);
-  box-shadow: 0 0 0 3px var(--green-gl);
+  background: var(--clr-accent);
+  border-color: var(--clr-accent);
+  box-shadow: 0 0 0 3px var(--accent-gl);
 }
 
 .toggle input:checked ~ .toggle__track::after {
@@ -386,7 +393,11 @@ html, body { height: 100%; background: var(--clr-bg); }
   transition: transform 0.2s, background 0.2s;
 }
 
-.toggle-field input:checked ~ .toggle-field__track { background: var(--clr-green); border-color: var(--clr-green); }
+.toggle-field input:checked ~ .toggle-field__track {
+  background: var(--clr-accent);
+  border-color: var(--clr-accent);
+  box-shadow: 0 0 0 3px var(--accent-gl);
+}
 .toggle-field input:checked ~ .toggle-field__track::after { transform: translateX(16px); background: #fff; }
 
 .toggle-field__label { font-size: 13px; }
@@ -431,14 +442,15 @@ html, body { height: 100%; background: var(--clr-bg); }
 
 .btn--ghost {
   background: var(--clr-surface2);
-  color: var(--clr-muted);
-  border: 1px solid var(--clr-border);
+  color: var(--clr-text);
+  border: 1px solid var(--border-2);
 }
 
 .btn--ghost:hover {
-  background: var(--overlay);
-  color: var(--clr-text);
-  border-color: var(--border-2);
+  background: var(--accent-gl);
+  color: var(--accent-lt);
+  border-color: var(--accent-lt);
+  border-style: dashed;
 }
 
 .btn--sm { height: 28px; padding: 0 12px; font-size: 12px; }
@@ -527,7 +539,7 @@ html, body { height: 100%; background: var(--clr-bg); }
   transition: border-color 0.15s;
 }
 
-.rule-item:hover { border-color: var(--border-2); }
+.rule-item:hover { border-color: var(--accent-lt); border-style: dashed; }
 .rule-item--disabled { opacity: 0.45; }
 
 .rule-item__main {
@@ -701,7 +713,7 @@ html, body { height: 100%; background: var(--clr-bg); }
   transition: all 0.15s;
 }
 
-.btn--icon:hover { background: var(--clr-surface); color: var(--clr-text); border-color: var(--border-2); }
+.btn--icon:hover { background: var(--clr-surface); color: var(--clr-text); border-color: var(--border-2); border-style: dashed; }
 .btn--icon.del   { color: var(--clr-red); border-color: rgba(248,81,73,0.3); }
 .btn--icon.del:hover { background: var(--red-gl); border-color: var(--clr-red); }
 
@@ -823,7 +835,7 @@ html, body { height: 100%; background: var(--clr-bg); }
   transition: border-color 0.15s;
 }
 
-.history-item:hover { border-color: var(--border-2); }
+.history-item:hover { border-color: var(--accent-lt); border-style: dashed; }
 
 .history-item__meta { flex: 1; min-width: 0; }
 
@@ -1234,7 +1246,7 @@ code {
 }
 
 .webhook-payload-preview {
-  background: var(--clr-surface-2);
+  background: var(--clr-surface2);
   border: 1px solid var(--clr-border);
   border-radius: var(--r-sm);
   padding: 14px 16px;
@@ -1253,7 +1265,7 @@ code {
   border-radius: var(--r-sm);
   font-size: 13px;
   font-weight: 500;
-  background: var(--clr-surface-2);
+  background: var(--clr-surface2);
   border: 1px solid var(--clr-border);
   color: var(--clr-muted);
 }
@@ -1267,7 +1279,7 @@ code {
   height: 22px;
   border-radius: 50%;
   border: 1px solid var(--clr-border, var(--border-2));
-  background: var(--clr-surface-2, var(--surface));
+  background: var(--clr-surface2);
   color: var(--clr-muted, var(--text-2));
   font-size: 12px;
   font-weight: 700;
@@ -1362,91 +1374,6 @@ code {
 .tour-btn--skip { font-weight: 400; color: var(--clr-muted, #7d8590); }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   CONSISTENCY PASS — align options page with popup design language
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* ── Toggle: blue instead of green ──────────────────────────────────────── */
-.toggle input:checked ~ .toggle__track {
-  background: var(--clr-accent);
-  border-color: var(--clr-accent);
-  box-shadow: 0 0 0 3px var(--accent-gl);
-}
-.toggle-field input:checked ~ .toggle-field__track {
-  background: var(--clr-accent);
-  border-color: var(--clr-accent);
-  box-shadow: 0 0 0 3px var(--accent-gl);
-}
-
-/* ── Ghost button: more visible default + dashed hover ───────────────────── */
-.btn--ghost {
-  color: var(--clr-text);
-  border-color: var(--border-2);
-}
-.btn--ghost:hover {
-  background: var(--accent-gl);
-  color: var(--accent-lt);
-  border-color: var(--accent-lt);
-  border-style: dashed;
-}
-
-/* ── Nav links: dashed accent border on hover ────────────────────────────── */
-.nav-link {
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-.nav-link:hover {
-  background: var(--accent-gl);
-  color: var(--accent-lt);
-  border-color: var(--accent-lt);
-  border-style: dashed;
-}
-.nav-link.active {
-  border-style: solid;
-}
-
-/* ── Rule items: dashed border on hover ──────────────────────────────────── */
-.rule-item:hover {
-  border-color: var(--accent-lt);
-  border-style: dashed;
-}
-
-/* ── History list items: dashed border on hover ───────────────────────────── */
-.history-list__item:hover,
-.hist-item:hover {
-  border-color: var(--accent-lt);
-  border-style: dashed;
-}
-
-/* ── btn--more equivalent ────────────────────────────────────────────────── */
-.btn--more {
-  display: block;
-  width: 100%;
-  margin-top: 8px;
-  padding: 7px 0;
-  background: none;
-  border: 1px solid var(--clr-border);
-  border-radius: var(--radius-sm);
-  color: var(--accent-lt);
-  font-size: 11px;
-  font-family: inherit;
-  font-weight: 600;
-  cursor: pointer;
-  letter-spacing: 0.2px;
-  transition: all 0.15s;
-}
-.btn--more:hover {
-  background: var(--accent-gl);
-  border-color: var(--accent-lt);
-  border-style: dashed;
-}
-
-/* ── Icon buttons: dashed hover ──────────────────────────────────────────── */
-.btn--icon:hover {
-  border-style: dashed;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
    SHARED POPUP COMPONENTS — mode tabs, modifier buttons, col filter, etc.
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -1504,13 +1431,6 @@ code {
   display: flex;
   flex-direction: column;
   gap: 0;
-}
-
-/* ── Input row ──────────────────────────────────────────────────────────── */
-.input-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 /* ── Modifier buttons ───────────────────────────────────────────────────── */
