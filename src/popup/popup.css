@@ -989,6 +989,49 @@ body {
   color: var(--accent-lt);
 }
 
+/* ── Feedback button ─────────────────────────────────────────────────────── */
+.btn--feedback {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--accent);
+  background: var(--accent-gl);
+  color: var(--accent-lt);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.15s;
+  overflow: hidden;
+}
+.btn--feedback:hover {
+  background: rgba(51,136,255,0.22);
+  border-color: var(--accent-lt);
+  transform: scale(1.1);
+}
+
+/* Each expression rolls in, holds, then the next spins in */
+.face-expr {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: face-roll-in 7.5s cubic-bezier(0.34, 1.4, 0.64, 1) infinite;
+}
+.face-expr--1 { animation-delay:    0s; }
+.face-expr--2 { animation-delay:   -6s; }
+.face-expr--3 { animation-delay: -4.5s; }
+.face-expr--4 { animation-delay:   -3s; }
+.face-expr--5 { animation-delay: -1.5s; }
+
+@keyframes face-roll-in {
+  0%   { opacity: 0; transform: rotate(360deg) scale(0.2); }
+  12%  { opacity: 1; transform: rotate(0deg)   scale(1);   }
+  18%  { opacity: 1; transform: rotate(0deg)   scale(1);   }
+  20%  { opacity: 0; transform: rotate(0deg)   scale(1);   }
+  100% { opacity: 0; transform: rotate(0deg)   scale(1);   }
+}
+
 /* ── Rule card ───────────────────────────────────────────────────────────── */
 .rule-card {
   background: #252b41;

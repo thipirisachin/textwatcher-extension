@@ -116,6 +116,45 @@ html, body { height: 100%; background: var(--clr-bg); }
   font-weight: 600;
 }
 
+.sidebar__feedback {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 12px 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(52, 211, 153, 0.25);
+  background: rgba(52, 211, 153, 0.07);
+  color: #6ee7b7;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.sidebar__feedback:hover {
+  background: rgba(52, 211, 153, 0.15);
+  border-color: rgba(52, 211, 153, 0.5);
+  color: #a7f3d0;
+}
+.sidebar__feedback .face-expr {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: face-roll-in 7.5s cubic-bezier(0.34, 1.4, 0.64, 1) infinite;
+}
+.sidebar__feedback .face-expr--1 { animation-delay:    0s; }
+.sidebar__feedback .face-expr--2 { animation-delay:   -6s; }
+.sidebar__feedback .face-expr--3 { animation-delay: -4.5s; }
+.sidebar__feedback .face-expr--4 { animation-delay:   -3s; }
+.sidebar__feedback .face-expr--5 { animation-delay: -1.5s; }
+@keyframes face-roll-in {
+  0%   { opacity: 0; transform: rotate(360deg) scale(0.2); }
+  12%  { opacity: 1; transform: rotate(0deg)   scale(1);   }
+  22%  { opacity: 1; transform: rotate(0deg)   scale(1);   }
+  25%  { opacity: 0; transform: rotate(0deg)   scale(1);   }
+  100% { opacity: 0; transform: rotate(0deg)   scale(1);   }
+}
 .sidebar__status {
   padding: 12px 16px;
   border-top: 1px solid var(--clr-border);

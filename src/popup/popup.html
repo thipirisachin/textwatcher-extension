@@ -24,6 +24,42 @@
       <span class="header__title">TextWatcher</span>
     </div>
     <div style="display:flex;gap:6px;align-items:center;">
+      <button class="btn--feedback" id="feedbackBtn" type="button" title="Send feedback">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- 😍 heart eyes -->
+          <g class="face-expr face-expr--1">
+            <path d="M6.5,6 C6.25,4.5 4.5,4.5 4.5,6 C4.5,7.5 6.5,9 6.5,9 C6.5,9 8.5,7.5 8.5,6 C8.5,4.5 6.75,4.5 6.5,6Z" fill="currentColor"/>
+            <path d="M13.5,6 C13.25,4.5 11.5,4.5 11.5,6 C11.5,7.5 13.5,9 13.5,9 C13.5,9 15.5,7.5 15.5,6 C15.5,4.5 13.75,4.5 13.5,6Z" fill="currentColor"/>
+            <path d="M4 13.5 Q10 19 16 13.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+          </g>
+          <!-- 😀 big grin -->
+          <g class="face-expr face-expr--2">
+            <circle cx="6.5" cy="8" r="2.2" fill="currentColor"/>
+            <circle cx="13.5" cy="8" r="2.2" fill="currentColor"/>
+            <path d="M3 13 Q10 19.5 17 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+          </g>
+          <!-- 🤔 thinking — raised brow, tilted mouth -->
+          <g class="face-expr face-expr--3">
+            <path d="M3.5,5.5 Q6.5,3 9,5.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+            <path d="M11,5.5 L16,6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            <circle cx="6.5" cy="9" r="1.9" fill="currentColor"/>
+            <circle cx="13.5" cy="9" r="1.9" fill="currentColor"/>
+            <path d="M5.5,14.5 Q9,16 14,13.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/>
+          </g>
+          <!-- 😐 neutral -->
+          <g class="face-expr face-expr--4">
+            <circle cx="6.5" cy="8" r="2.2" fill="currentColor"/>
+            <circle cx="13.5" cy="8" r="2.2" fill="currentColor"/>
+            <path d="M5 14 L15 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </g>
+          <!-- 😉 wink -->
+          <g class="face-expr face-expr--5">
+            <circle cx="6.5" cy="8" r="2.2" fill="currentColor"/>
+            <path d="M11,7 Q13.5,11 16,7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+            <path d="M4 13.5 Q10 19 16 13.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+          </g>
+        </svg>
+      </button>
       <button class="btn--help" id="tourBtn" type="button" title="Show tour">?</button>
       <label class="toggle" title="Enable / Disable monitoring" aria-label="Enable or disable monitoring">
         <input type="checkbox" id="masterToggle" />

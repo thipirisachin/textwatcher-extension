@@ -1012,6 +1012,7 @@ function bindEvents() {
 
   // Tour button
   qs('#tourBtn')?.addEventListener('click', () => startTour(TOUR_STEPS));
+  qs('#feedbackBtn')?.addEventListener('click', () => chrome.tabs.create({ url: 'https://forms.gle/31Cs4ppZJKaADp65A' }));
 }
 
 // ─── Storage Change Listener ──────────────────────────────────────────────────
