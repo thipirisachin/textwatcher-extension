@@ -104,7 +104,6 @@ async function renderWelcomeBanner() {
   const onboarded = await getOnboarded();
   if (!onboarded) {
     qs('#welcomeBanner').classList.remove('hidden');
-    showSection('setup');
     qs('#dismissWelcomeBtn').addEventListener('click', async () => {
       await setOnboarded();
       qs('#welcomeBanner').classList.add('hidden');
@@ -1337,4 +1336,9 @@ function showError(el, msg) { el.textContent = msg; el.classList.remove('hidden'
 function hideError(el)      { el.textContent = '';  el.classList.add('hidden'); }
 
 // ─── Start ────────────────────────────────────────────────────────────────────
-init();
+// Resolve onboarded state before init so the correct section is active on first
+// paint — avoids the flash of the default section before setup switches in.
+getOnboarded().then((onboarded) => {
+  if (!onboarded) showSection('setup');
+  init();
+});

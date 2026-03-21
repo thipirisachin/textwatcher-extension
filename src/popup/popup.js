@@ -666,7 +666,7 @@ function updateAlertNamePlaceholder() {
     document.querySelectorAll('#colFilterList .col-filter-input')
   ).map((inp) => inp.value.trim()).filter(Boolean);
   el.placeholder = parts.length > 0
-    ? `Row: ${parts.join(' / ')}`
+    ? parts.join(' / ')
     : 'Notification title (optional)';
 }
 
@@ -675,7 +675,7 @@ function buildAutoLabel() {
   const parts = Array.from(
     document.querySelectorAll('#colFilterList .col-filter-input')
   ).map((inp) => inp.value.trim()).filter(Boolean);
-  return parts.length > 0 ? `Row: ${parts.join(' / ')}` : '';
+  return parts.length > 0 ? parts.join(' / ') : '';
 }
 
 // ─── Match Hint ───────────────────────────────────────────────────────────────
@@ -772,7 +772,7 @@ async function handleAddKeyword() {
   });
 
   if (!added) {
-    showToast('A rule with this pattern already exists.');
+    showToast('A rule with this pattern already exists.', 'error');
     return;
   }
 
@@ -850,7 +850,7 @@ async function handleAddUrl() {
   const added = await addUrl({ pattern, matchType, label: label || pattern, enabled: true });
 
   if (!added) {
-    showToast('This URL pattern already exists.');
+    showToast('This URL pattern already exists.', 'error');
     return;
   }
 
@@ -1122,11 +1122,12 @@ async function clearFormState() {
 }
 
 let toastTimer = null;
-function showToast(msg) {
+function showToast(msg, type = 'success') {
   const toast = qs('#popupToast');
   if (!toast) return;
   toast.textContent = msg;
-  toast.classList.remove('hidden');
+  toast.classList.remove('hidden', 'toast--success', 'toast--error');
+  toast.classList.add(type === 'error' ? 'toast--error' : 'toast--success');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toast.classList.add('hidden'), 2500);
 }

@@ -594,7 +594,7 @@ function runScan() {
         let firstMatch = null;
         for (const rowText of rowTexts) {
           if (matchesKeyword(rowText, keyword.text, keyword.matchType)) {
-            if (!firstMatch) firstMatch = rowText; // keep for snippet
+            if (!firstMatch) firstMatch = rowText;
             matchCount++;
           }
         }
@@ -708,11 +708,11 @@ function maybeAlert(keyword, event, pageText) {
   alertedThisLoad.set(keyword.id, alerted);
 
   // Build context snippet.
-  // Appear:    extract from current pageText (keyword is present now).
-  // Disappear: extract from lastMatchText — the cached text from the last
-  //            time the keyword was seen, before it left the page.
+  // Row mode: skip snippet — the notification title already contains the matched
+  // filter values (the rule label). URL + time in the body is sufficient.
+  // Text mode: extract a snippet around the match position.
   let snippet = null;
-  if (settings.showSnippet) {
+  if (settings.showSnippet && !keyword.rowSelector) {
     const textForSnippet = event === ALERT_EVENT.APPEARS
       ? pageText
       : (lastMatchText.get(keyword.id) ?? null);

@@ -1046,6 +1046,16 @@ body {
   animation: toast-in 0.2s ease;
 }
 .toast.hidden { display: none; }
+.toast--success {
+  background: rgba(14, 40, 32, 0.97);
+  border-color: rgba(52, 211, 153, 0.35);
+  color: #6ee7b7;
+}
+.toast--error {
+  background: rgba(40, 10, 10, 0.97);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+}
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: none; }
