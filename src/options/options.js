@@ -58,6 +58,21 @@ qsa('.nav-link').forEach((link) => {
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 async function init() {
+  // Resolve the correct landing section BEFORE any heavy renders to avoid flash.
+  // getOnboarded() is a fast in-memory storage read — doing it first means
+  // showSection() fires before the browser has painted anything else.
+  const onboarded = await getOnboarded();
+  if (!onboarded) {
+    showSection('setup');
+    qs('#welcomeBanner').classList.remove('hidden');
+    qs('#dismissWelcomeBtn')?.addEventListener('click', async () => {
+      await setOnboarded();
+      qs('#welcomeBanner').classList.add('hidden');
+    });
+  } else {
+    showSection('keywords');
+  }
+
   await Promise.all([
     renderKeywords(),
     renderUrls(),
@@ -65,7 +80,6 @@ async function init() {
     renderHistory(),
     renderAlertHistory(),
     renderSidebarStatus(),
-    renderWelcomeBanner(),
     renderWebhookSettings(),
     renderUrlBindingAddForm(),
   ]);
@@ -100,17 +114,6 @@ async function init() {
 
 // ─── Welcome Banner ───────────────────────────────────────────────────────────────
 
-async function renderWelcomeBanner() {
-  const onboarded = await getOnboarded();
-  if (!onboarded) {
-    qs('#welcomeBanner').classList.remove('hidden');
-    qs('#dismissWelcomeBtn').addEventListener('click', async () => {
-      await setOnboarded();
-      qs('#welcomeBanner').classList.add('hidden');
-    });
-  }
-}
-
 // ─── Sidebar Status ───────────────────────────────────────────────────────────
 
 async function renderSidebarStatus() {
@@ -138,7 +141,7 @@ function bindSetupEvents() {
 
     if (perm === 'denied') {
       // Browser-level block is detectable and definitive.
-      showToast('Notifications are blocked in Browser settings.');
+      showToast('Notifications are blocked in Browser settings.', 'error');
       qs('#notifPermBanner').classList.remove('perm-banner--ok');
       qs('#notifPermBanner').textContent = '';
       qs('#notifPermBanner').insertAdjacentHTML('afterbegin',
@@ -159,7 +162,7 @@ function bindSetupEvents() {
     }, () => {
       if (chrome.runtime.lastError) {
         // Extension-level failure (rare — e.g. notifications manifest permission missing).
-        showToast('Notification could not be sent — check extension permissions.');
+        showToast('Notification could not be sent — check extension permissions.', 'error');
         qs('#notifPermBanner').classList.remove('perm-banner--ok');
         qs('#notifPermBanner').textContent = '';
         qs('#notifPermBanner').insertAdjacentHTML('afterbegin',
@@ -178,7 +181,7 @@ function bindSetupEvents() {
       qs('#notifPermBanner').textContent = '';
       qs('#notifPermBanner').insertAdjacentHTML('afterbegin',
         '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
-        ` Notification sent by Browser.${osHint}`
+        ` Sent to browser — if nothing appeared, check OS notification settings and make sure ${navigator.userAgent.includes('Edg') ? 'Microsoft Edge' : 'Google Chrome'} notifications are allowed.`
       );
       qs('#notifPermBanner').classList.remove('hidden');
     });
@@ -902,7 +905,44 @@ async function handleAddUrl() {
 
 // ─── Notifications ────────────────────────────────────────────────────────────
 
+function checkNotifPermission() {
+  const banner = qs('#notifSectionBanner');
+  if (!banner) return;
+
+  const perm = Notification.permission;
+
+  if (perm === 'granted') {
+    banner.classList.add('hidden');
+    return;
+  }
+
+  const warningIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:6px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+  banner.classList.remove('perm-banner--ok', 'hidden');
+
+  if (perm === 'default') {
+    banner.innerHTML = warningIcon +
+      'Notifications are not yet allowed. ' +
+      '<a href="#" id="grantNotifLink" style="color:inherit;font-weight:600;text-decoration:underline">Allow notifications \u2192</a>';
+    qs('#grantNotifLink')?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await Notification.requestPermission();
+      checkNotifPermission();
+    });
+  } else {
+    banner.innerHTML = warningIcon +
+      'Notifications are blocked in browser settings. ' +
+      '<a href="#" id="openNotifSettings" style="color:inherit;font-weight:600;text-decoration:underline">Open settings \u2192</a>';
+    qs('#openNotifSettings')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      chrome.tabs.create({ url: 'chrome://settings/content/notifications' });
+    });
+  }
+
+  banner.classList.remove('hidden');
+}
+
 async function renderNotifSettings() {
+  checkNotifPermission();
   const s = await getSettings();
 
   qs('#showUrl').checked          = s.showUrl          !== false;
@@ -1322,9 +1362,10 @@ function bindWebhookEvents() {
 // ─── Toast ────────────────────────────────────────────────────────────────────
 
 let toastTimer;
-function showToast(msg) {
+function showToast(msg, type = 'success') {
   const el = qs('#toast');
   el.textContent = msg;
+  el.className = `toast toast--${type}`;
   el.classList.remove('hidden');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.add('hidden'), 2500);

@@ -75,6 +75,9 @@
     <button class="tab-ctx-bar__cta hidden" id="tabCtxAddBtn">+ Add URL</button>
   </div>
 
+  <!-- ── Monitor Wrap — overlay covers both sections when page isn't monitorable ── -->
+  <div id="monitorWrap" class="monitor-wrap" data-detect-state="ok">
+
   <!-- ── Add Rule ───────────────────────────────────────────── -->
   <section class="section" id="addRuleSection">
 
@@ -95,7 +98,7 @@
 
       <!-- ── MODE A: Text Mode ─────────────────────────── -->
       <div id="textModePanel" style="display:none">
-        <div class="text-input-wrap" id="textInputWrap" data-detect-state="ok">
+        <div class="text-input-wrap" id="textInputWrap">
           <div class="input-row" style="gap:5px;">
             <div class="input-wrap" style="flex:1;" id="quickKeywordWrap">
               <input
@@ -113,9 +116,6 @@
               <button class="modifier-btn" id="modRegexBtn" data-mod="regex" type="button" title="Regular expression">.*</button>
             </div>
           </div>
-          <div class="col-detect-overlay" id="textDetectOverlay">
-            <span id="textDetectMsg"></span>
-          </div>
         </div>
         <p class="match-hint" id="matchHint">Matches text anywhere on the page, any case</p>
         <p class="match-preview" id="textMatchPreview" aria-live="polite" style="display:none"></p>
@@ -124,16 +124,13 @@
 
       <!-- ── MODE B: Table Mode ─────────────────────── -->
       <div id="rowModePanel">
-        <div class="col-filter-wrap" id="colFilterWrap" data-detect-state="detecting">
+        <div class="col-filter-wrap" id="colFilterWrap">
           <div class="col-filter-grid" id="colFilterList">
             <!-- Rendered dynamically by renderColFilters() -->
           </div>
           <button class="btn btn--ghost btn--sm btn--add-col" id="addColBtn" type="button" disabled>
             + Add column
           </button>
-          <div class="col-detect-overlay" id="colDetectOverlay">
-            <span id="colDetectMsg"></span>
-          </div>
         </div>
       </div>
 
@@ -176,7 +173,14 @@
 
   </section>
 
-  <!-- ── Quick Add URL ──────────────────────────────────────── -->
+  <!-- Single overlay covers Save Rule section above -->
+  <div class="col-detect-overlay" id="detectOverlay">
+    <span id="detectMsg"></span>
+  </div>
+
+  </div><!-- /#monitorWrap -->
+
+  <!-- ── Quick Add URL — always accessible, outside overlay wrap ── -->
   <section class="section">
     <h2 class="section__title">Quick Add URL</h2>
     <div class="rule-card">

@@ -936,6 +936,16 @@ code {
   z-index: 1000;
   animation: slideIn 0.2s ease;
 }
+.toast--success {
+  background: rgba(63,185,80,0.12);
+  border-color: rgba(63,185,80,0.4);
+  color: #3fb950;
+}
+.toast--error {
+  background: rgba(248,81,73,0.12);
+  border-color: rgba(248,81,73,0.4);
+  color: #f85149;
+}
 
 .toast.hidden { display: none; }
 
@@ -1165,19 +1175,17 @@ code {
 
 /* ── Permission Denied Banner ─────────────────────────────────────────── */
 .perm-banner {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  display: block;
   margin: 0 0 16px;
-  padding: 12px 14px;
+  padding: 10px 14px;
   border-radius: var(--r-sm);
   background: var(--red-gl);
   border: 1px solid rgba(248, 81, 73, 0.4);
   color: var(--clr-text);
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.6;
 }
-.perm-banner svg { flex-shrink: 0; margin-top: 2px; color: var(--clr-red); }
+.perm-banner svg { display: inline; vertical-align: middle; margin-right: 6px; color: var(--clr-red); }
 .perm-banner--ok {
   background: rgba(63, 185, 80, 0.1);
   border-color: rgba(63, 185, 80, 0.35);

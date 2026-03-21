@@ -114,6 +114,17 @@ export function qsa(selector, root = document) {
 // ─── Storage Change Listener Helper ──────────────────────────────────────────
 
 /**
+ * Returns true for URLs that browser extensions cannot monitor —
+ * browser internals, local files, data URIs, and other Chromium-based browser schemes.
+ * @param {string} url
+ * @returns {boolean}
+ */
+export function isRestrictedUrl(url) {
+  if (!url) return true;
+  return /^(chrome|chrome-extension|chrome-untrusted|chrome-search|chrome-devtools|devtools|edge|brave|opera|vivaldi|arc|moz-extension|about|file|data|blob|view-source|javascript):/.test(url);
+}
+
+/**
  * Watch specific storage keys and call handler when they change.
  * Cleans up automatically if you call the returned unsubscribe fn.
  *

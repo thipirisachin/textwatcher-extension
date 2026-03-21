@@ -14,7 +14,7 @@ import { MSG, NOTIF_FREQUENCY, ALERT_EVENT, STORAGE_KEY, WEBHOOK_FORMAT, MATCH_T
 import { getKeywords, getUrls, getSettings, getEnabled, addAlertEvent,
          getOnboarded, getWebhookSettings } from '../shared/storage.js';
 import { matchesUrl } from '../shared/matcher.js';
-import { truncate, MATCH_TYPE_LABEL } from '../shared/utils.js';
+import { truncate, MATCH_TYPE_LABEL, isRestrictedUrl } from '../shared/utils.js';
 
 // ─── Cooldown Tracker ─────────────────────────────────────────────────────────
 // Key: `${tabId}:${keywordId}:${event}`, Value: timestamp of last alert
@@ -178,7 +178,7 @@ chrome.runtime.onStartup.addListener(async () => {
 // When a tab finishes loading, inject content script if URL matches
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status !== 'complete') return;
-  if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('about:')) return;
+  if (isRestrictedUrl(tab.url)) return;
 
   const enabled = await getEnabled();
   if (!enabled) return;
@@ -717,8 +717,7 @@ async function injectIntoMatchingTabs() {
 
   const matchingTabs = tabs.filter(
     (tab) => tab.url &&
-      !tab.url.startsWith('chrome://') &&
-      !tab.url.startsWith('about:') &&
+      !isRestrictedUrl(tab.url) &&
       activeUrls.some((u) => matchesUrl(tab.url, u.pattern, u.matchType))
   );
 
@@ -758,7 +757,7 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
     // have just changed, making previously-matched tabs no longer matched.
     const allTabs = await chrome.tabs.query({});
     const broadcastable = allTabs.filter(
-      (t) => t.id && t.url && !t.url.startsWith('chrome://') && !t.url.startsWith('about:')
+      (t) => t.id && !isRestrictedUrl(t.url)
     );
     await Promise.all(
       broadcastable.map((t) => safelySendToTab(t.id, { type: MSG.RELOAD_RULES, keywords: [], urls: [], settings }))
@@ -777,8 +776,7 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
 
   const monitoredTabs = tabs.filter(
     (t) => t.id && t.url &&
-      !t.url.startsWith('chrome://') &&
-      !t.url.startsWith('about:') &&
+      !isRestrictedUrl(t.url) &&
       activeUrls.some((u) => matchesUrl(t.url, u.pattern, u.matchType))
   );
 

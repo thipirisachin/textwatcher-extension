@@ -12,7 +12,7 @@ import {
 } from '../shared/storage.js';
 import { STORAGE_KEY, MATCH_TYPE, URL_SCOPE_ALL, MSG } from '../shared/constants.js';
 import { validateRegex, matchesUrl } from '../shared/matcher.js';
-import { qs, truncate, escapeHtml, onStorageChange, debounce } from '../shared/utils.js';
+import { qs, truncate, escapeHtml, onStorageChange, debounce, isRestrictedUrl } from '../shared/utils.js';
 import { startTour, maybeAutoStartTour } from './tour.js';
 
 
@@ -38,6 +38,7 @@ const tabCtxBar    = qs('#tabCtxBar');
 const tabCtxDot    = qs('#tabCtxDot');
 const tabCtxText   = qs('#tabCtxText');
 const tabCtxAddBtn = qs('#tabCtxAddBtn');
+const monitorWrap  = qs('#monitorWrap');
 
 // ── URL binding bar (new location — outside Advanced)
 const urlBindingBar = qs('#urlBindingBar');
@@ -134,6 +135,21 @@ async function renderAll() {
 
 async function renderUrlBindingBar() {
   if (!urlBindingBar) return;
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tabUrl = tab?.url ?? '';
+
+  const urlSectionDisabled = isRestrictedUrl(tabUrl);
+  [quickUrl, quickUrlLabel, addUrlBtn, useCurrentUrlBtn].forEach(el => {
+    if (el) el.disabled = urlSectionDisabled;
+  });
+  document.querySelectorAll('.url-match-btns .modifier-btn').forEach(btn => {
+    btn.disabled = urlSectionDisabled;
+  });
+  if (urlSectionDisabled) {
+    urlBindingBar.innerHTML = '';
+    return;
+  }
+
   const urls = await getUrls();
   const active = urls.filter((u) => u.enabled);
   if (active.length === 0) {
@@ -206,7 +222,7 @@ async function renderTabContext() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const tabUrl = tab?.url ?? '';
 
-  if (!tabUrl || /^(chrome|about|edge|moz-extension|chrome-extension):/.test(tabUrl)) {
+  if (isRestrictedUrl(tabUrl)) {
     tabCtxBar.style.display = 'none';
     return;
   }
@@ -334,21 +350,26 @@ async function autoDetectRows() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) return;
 
-  const colFilterWrap = qs('#colFilterWrap');
   const addColBtn     = qs('#addColBtn');
   const colFilterList = qs('#colFilterList');
 
   // Check URL rules locally first — the content script may still be injected
   // even after a URL rule is removed, so we can't rely on message failure alone.
   const tabUrl = tab.url ?? '';
-  if (tabUrl && !/^(chrome|about|edge|moz-extension|chrome-extension):/.test(tabUrl)) {
+  const isRestricted = isRestrictedUrl(tabUrl);
+
+  if (isRestricted) {
+    if (monitorWrap) { monitorWrap.dataset.detectState = 'no-table'; showDetectOverlay("This page can't be monitored"); }
+    if (addColBtn) addColBtn.disabled = true;
+    if (colFilterList) colFilterList.innerHTML = '';
+    return;
+  }
+
+  if (tabUrl) {
     const urls     = await getUrls();
     const monitored = urls.filter((u) => u.enabled).some((u) => matchesUrl(tabUrl, u.pattern, u.matchType));
     if (!monitored) {
-      if (colFilterWrap) {
-        colFilterWrap.dataset.detectState = 'no-rule';
-        showColFilterOverlay(colFilterWrap, "This page isn't monitored — add a URL rule first");
-      }
+      if (monitorWrap) { monitorWrap.dataset.detectState = 'no-rule'; showDetectOverlay("This page isn't monitored — add a URL rule first"); }
       if (addColBtn) addColBtn.disabled = true;
       if (colFilterList) colFilterList.innerHTML = '';
       return;
@@ -356,7 +377,7 @@ async function autoDetectRows() {
   }
 
   // Set detecting state
-  if (colFilterWrap) colFilterWrap.dataset.detectState = 'detecting';
+  if (monitorWrap) monitorWrap.dataset.detectState = 'detecting';
   if (addColBtn) addColBtn.disabled = true;
   if (colFilterList) colFilterList.innerHTML = '';
 
@@ -366,20 +387,12 @@ async function autoDetectRows() {
   });
 
   if (res === null) {
-    // No rule — page isn't monitored
-    if (colFilterWrap) {
-      colFilterWrap.dataset.detectState = 'no-rule';
-      showColFilterOverlay(colFilterWrap, "This page isn't monitored — add a URL rule first");
-    }
+    if (monitorWrap) { monitorWrap.dataset.detectState = 'no-rule'; showDetectOverlay("This page isn't monitored — add a URL rule first"); }
     return;
   }
 
   if (res?.error) {
-    // No table found on this page
-    if (colFilterWrap) {
-      colFilterWrap.dataset.detectState = 'no-table';
-      showColFilterOverlay(colFilterWrap, 'No table found on this page');
-    }
+    if (monitorWrap) { monitorWrap.dataset.detectState = 'no-table'; showDetectOverlay('No table found on this page'); }
     return;
   }
 
@@ -387,7 +400,7 @@ async function autoDetectRows() {
     detectedRowSelector = res.selector;
     detectedColumns = res.columns || [];
     renderColFilters(detectedColumns);
-    if (colFilterWrap) colFilterWrap.dataset.detectState = 'ok';
+    if (monitorWrap) monitorWrap.dataset.detectState = 'ok';
     if (addColBtn) addColBtn.disabled = false;
 
     // Re-apply any saved column filter values (by column name)
@@ -409,8 +422,8 @@ async function autoDetectRows() {
   }
 }
 
-function showColFilterOverlay(wrap, msg) {
-  const msgEl = wrap.querySelector('#colDetectMsg');
+function showDetectOverlay(msg) {
+  const msgEl = qs('#detectMsg');
   if (msgEl) msgEl.textContent = msg;
 }
 
@@ -418,23 +431,22 @@ function showColFilterOverlay(wrap, msg) {
 // Mirrors how col-detect-overlay works for table mode: blocks the input
 // with an overlay when the page has no matching URL rule.
 async function checkPageMonitoredStatus() {
-  const textInputWrap = qs('#textInputWrap');
-  if (!textInputWrap || currentMode !== 'text') return;
+  if (currentMode !== 'text') return;
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const tabUrl = tab?.url ?? '';
-  if (!tabUrl || /^(chrome|about|edge|moz-extension|chrome-extension):/.test(tabUrl)) {
-    textInputWrap.dataset.detectState = 'ok';
+  if (isRestrictedUrl(tabUrl)) {
+    monitorWrap.dataset.detectState = 'no-rule';
+    showDetectOverlay("This page can't be monitored");
     return;
   }
   const urls = await getUrls();
   const monitored = urls.filter((u) => u.enabled).some((u) => matchesUrl(tabUrl, u.pattern, u.matchType));
   if (!monitored) {
-    textInputWrap.dataset.detectState = 'no-rule';
-    const msgEl = qs('#textDetectMsg');
-    if (msgEl) msgEl.textContent = "This page isn't monitored — add a URL rule first";
+    monitorWrap.dataset.detectState = 'no-rule';
+    showDetectOverlay("This page isn't monitored — add a URL rule first");
     qs('#quickKeyword')?.blur();
   } else {
-    textInputWrap.dataset.detectState = 'ok';
+    monitorWrap.dataset.detectState = 'ok';
   }
 }
 
@@ -856,6 +868,7 @@ async function handleAddUrl() {
 
   quickUrl.value      = '';
   quickUrlLabel.value = '';
+  await saveFormState();
   showToast('URL added');
   await renderCounts();
   await renderUrlBindingBar();
@@ -867,17 +880,13 @@ async function handleAddUrl() {
   // re-run detection now that a URL rule exists. The service worker needs
   // a moment to inject the content script via storage.onChanged, so we
   // set the overlay to "detecting" immediately and retry after 400 ms.
-  const colFilterWrap = qs('#colFilterWrap');
-  if (colFilterWrap?.dataset.detectState === 'no-rule') {
-    colFilterWrap.dataset.detectState = 'detecting';
-    const msgEl = colFilterWrap.querySelector('#colDetectMsg');
-    if (msgEl) msgEl.textContent = 'Detecting…';
+  if (monitorWrap?.dataset.detectState === 'no-rule') {
+    monitorWrap.dataset.detectState = 'detecting';
+    showDetectOverlay('Detecting…');
     setTimeout(async () => {
       await autoDetectRows();
-      // If still no content script after injection window, the added URL
-      // may not match this tab — show a clearer message than "add a URL rule".
-      if (colFilterWrap.dataset.detectState === 'no-rule') {
-        showColFilterOverlay(colFilterWrap, "URL added — reload this tab to start monitoring");
+      if (monitorWrap.dataset.detectState === 'no-rule') {
+        showDetectOverlay("URL added — reload this tab to start monitoring");
       }
     }, 400);
   }
@@ -977,6 +986,7 @@ function bindEvents() {
       updateUrlMatchHint();
       updateUrlInputPlaceholder();
       quickUrl.closest('.input-wrap')?.classList.add('has-value');
+      if (quickUrlLabel.value) quickUrlLabel.closest('.input-wrap')?.classList.add('has-value');
       debouncedSaveFormState();
     }
   });
@@ -991,6 +1001,7 @@ function bindEvents() {
       updateUrlMatchHint();
       updateUrlInputPlaceholder();
       quickUrl.closest('.input-wrap')?.classList.add('has-value');
+      if (quickUrlLabel.value) quickUrlLabel.closest('.input-wrap')?.classList.add('has-value');
       quickUrl.focus();
       quickUrl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       debouncedSaveFormState();
