@@ -54,6 +54,9 @@ let detectedRowSelector = null;
 // Column names detected from the active page table
 let detectedColumns = [];
 
+// Full cell values for all detected rows — used to power hierarchical dropdowns
+let tableRows = [];
+
 // ─── Tour Steps ───────────────────────────────────────────────────────────────
 
 const TOUR_STEPS = [
@@ -399,22 +402,20 @@ async function autoDetectRows() {
   if (res?.selector) {
     detectedRowSelector = res.selector;
     detectedColumns = res.columns || [];
+    tableRows       = res.rows    || [];
     renderColFilters(detectedColumns);
     if (monitorWrap) monitorWrap.dataset.detectState = 'ok';
-    if (addColBtn) addColBtn.disabled = false;
+    if (addColBtn) addColBtn.hidden = false;
 
-    // Re-apply any saved column filter values (by column name)
+    // Re-apply saved column filter values, then recalculate all dropdowns at once
     const { [FORM_STATE_KEY]: saved } = await chrome.storage.session.get(FORM_STATE_KEY);
     if (saved?.colFilters?.length) {
-      const list = qs('#colFilterList');
-      saved.colFilters.forEach(({ col, value }) => {
-        if (!value) return;
-        const input = list?.querySelector(`.col-filter-input[data-col="${CSS.escape(col)}"]`);
-        if (input) {
-          input.value = value;
-          input.closest('.col-filter-cell')?.classList.add('has-value');
-        }
-      });
+      for (const { col, value } of saved.colFilters) {
+        if (!value) continue;
+        const picker = qs(`.col-filter-picker[data-col="${CSS.escape(col)}"]`);
+        if (picker) _cfSetValue(picker, value);
+      }
+      handleColumnSelect();
       updateAlertNamePlaceholder();
     }
 
@@ -450,59 +451,162 @@ async function checkPageMonitoredStatus() {
   }
 }
 
-// ─── Column Filter Rendering ─────────────────────────────────────────────────
+// ─── Column Filter — Combobox with portal dropdown ───────────────────────────
+
+// Single dropdown portal appended to body — escapes all overflow:hidden ancestors
+const _cfPortal = document.createElement('div');
+_cfPortal.className = 'col-filter-dropdown';
+document.body.appendChild(_cfPortal);
+let _cfActivePicker = null;
+
+function _cfOpen(picker) {
+  _cfActivePicker = picker;
+  const input = picker.querySelector('.col-filter-input');
+  const rect  = input.getBoundingClientRect();
+  _cfPortal.style.left  = rect.left  + 'px';
+  _cfPortal.style.top   = rect.bottom + 2 + 'px';
+  _cfPortal.style.width = rect.width  + 'px';
+  _cfRender(picker, input.value);
+  _cfPortal.classList.add('col-filter-dropdown--open');
+}
+
+function _cfClose() {
+  _cfPortal.classList.remove('col-filter-dropdown--open');
+  _cfActivePicker = null;
+}
+
+function _cfRender(picker, filterText) {
+  const colIndex  = +picker.dataset.colIndex;
+  const confirmed = picker.dataset.value;
+  const all       = getUniqueValuesForColumn(colIndex);
+  const shown     = filterText
+    ? all.filter(v => v.toLowerCase().includes(filterText.toLowerCase()))
+    : all;
+
+  const clearHtml = confirmed
+    ? `<div class="col-filter-option col-filter-option--clear" data-value="">✕ Clear</div>` : '';
+  _cfPortal.innerHTML = clearHtml +
+    (shown.length
+      ? shown.map(v => `<div class="col-filter-option${v === confirmed ? ' col-filter-option--selected' : ''}"
+          data-value="${escapeHtml(v)}">${escapeHtml(v)}</div>`).join('')
+      : `<div class="col-filter-option col-filter-option--empty">No matches</div>`);
+
+  _cfPortal.querySelectorAll('.col-filter-option[data-value]').forEach(opt => {
+    opt.addEventListener('mousedown', e => {
+      e.preventDefault();
+      _cfSetValue(_cfActivePicker, opt.dataset.value);
+      _cfClose();
+      handleColumnSelect();
+      debouncedPreview();
+      updateAlertNamePlaceholder();
+      debouncedSaveFormState();
+    });
+  });
+}
+
+function _cfSetValue(picker, value) {
+  if (!picker) return;
+  const input = picker.querySelector('.col-filter-input');
+  picker.dataset.value = value;
+  if (input) input.value = value;
+  picker.closest('.col-filter-cell')?.classList.toggle('has-value', !!value);
+}
+
+function getUniqueValuesForColumn(colIndex) {
+  const allPickers = Array.from(document.querySelectorAll('.col-filter-picker'));
+  const filtered = tableRows.filter(row =>
+    allPickers.every(p => {
+      const i = +p.dataset.colIndex;
+      if (i === colIndex) return true;
+      const val = p.dataset.value;
+      if (!val) return true;
+      return row[i] === val;
+    })
+  );
+  // Fall back to all rows if filters produce nothing (free-typed non-matching text)
+  const base = filtered.length > 0 ? filtered : tableRows;
+  return [...new Set(base.map(r => r[colIndex]).filter(Boolean))].sort();
+}
 
 function renderColFilters(columns) {
   const list = qs('#colFilterList');
   if (!list) return;
   list.innerHTML = '';
-  const initial = columns.length > 0 ? columns.slice(0, 3) : ['Column 1', 'Column 2', 'Column 3'];
-  initial.forEach((col) => appendColFilter(col));
+  const cols = columns.length > 0 ? columns : ['Column 1', 'Column 2', 'Column 3'];
+  cols.slice(0, 3).forEach((col, i) => appendColFilter(col, i));
   updateAddColBtn();
   updateAlertNamePlaceholder();
 }
 
-function appendColFilter(colName, insertBefore = null) {
+function appendColFilter(colName, colIndex, insertBefore = null) {
   const list = qs('#colFilterList');
   const cell = document.createElement('div');
   cell.className = 'col-filter-cell';
   cell.innerHTML = `
-    <input type="text" class="input col-filter-input" placeholder="${escapeHtml(colName)}" maxlength="200" data-col="${escapeHtml(colName)}" />
+    <div class="col-filter-picker" data-col="${escapeHtml(colName)}" data-col-index="${colIndex}" data-value="">
+      <input class="input col-filter-input" type="text"
+             placeholder="${escapeHtml(colName)}" autocomplete="off" spellcheck="false">
+    </div>
     <button class="col-filter-cell-remove" type="button" aria-label="Remove column" title="Remove column">×</button>`;
 
-  const input  = cell.querySelector('.col-filter-input');
+  const picker    = cell.querySelector('.col-filter-picker');
+  const input     = cell.querySelector('.col-filter-input');
   const removeBtn = cell.querySelector('.col-filter-cell-remove');
 
+  input.addEventListener('focus', () => _cfOpen(picker));
+
   input.addEventListener('input', () => {
-    cell.classList.toggle('has-value', input.value.length > 0);
+    picker.dataset.value = input.value.trim();
+    picker.closest('.col-filter-cell')?.classList.toggle('has-value', !!input.value.trim());
+    if (_cfActivePicker === picker) _cfRender(picker, input.value);
+    handleColumnSelect();
     debouncedPreview();
     updateAlertNamePlaceholder();
     debouncedSaveFormState();
   });
 
+  input.addEventListener('blur', () => {
+    setTimeout(() => { if (_cfActivePicker === picker) _cfClose(); }, 120);
+  });
+
   removeBtn.addEventListener('click', () => {
-    const rows = list.querySelectorAll('.col-filter-cell');
-    if (rows.length <= 1) return; // keep minimum 1
+    if (list.querySelectorAll('.col-filter-cell').length <= 1) return;
+    if (_cfActivePicker === picker) _cfClose();
     cell.remove();
     updateAddColBtn();
+    handleColumnSelect();
     debouncedPreview();
     updateAlertNamePlaceholder();
   });
 
-  list.insertBefore(cell, insertBefore ?? null);
-  // Trigger entry animation
+  list.insertBefore(cell, insertBefore);
   requestAnimationFrame(() => cell.classList.add('col-filter-cell--entering'));
+}
+
+function handleColumnSelect() {
+  Array.from(document.querySelectorAll('.col-filter-picker')).forEach(picker => {
+    const colIndex = +picker.dataset.colIndex;
+    const unique   = getUniqueValuesForColumn(colIndex);
+    // Don't clear the picker the user is actively typing in
+    if (picker !== _cfActivePicker && picker.dataset.value && !unique.includes(picker.dataset.value)) {
+      _cfSetValue(picker, '');
+    }
+    if (_cfActivePicker === picker) {
+      const input = picker.querySelector('.col-filter-input');
+      _cfRender(picker, input?.value ?? '');
+    }
+  });
 }
 
 function updateAddColBtn() {
   const btn = qs('#addColBtn');
   if (!btn) return;
-  const current = qs('#colFilterList')?.querySelectorAll('.col-filter-cell').length ?? 0;
-  const max = detectedColumns.length || 3;
-  btn.disabled = current >= max;
+  const shown = qs('#colFilterList')?.querySelectorAll('.col-filter-cell').length ?? 0;
+  const max   = detectedColumns.length || 3;
+  btn.disabled = shown >= max;
+  btn.hidden   = false;
 }
 
-// ─── Live Row Match Preview ───────────────────────────────────────────────────
 
 function getMatchType() {
   const caseOn  = qs('#modCaseBtn')?.classList.contains('active')  ?? false;
@@ -528,9 +632,11 @@ function setUrlMatchType(type) {
 
 function getRowPattern() {
   const parts = Array.from(
-    document.querySelectorAll('#colFilterList .col-filter-input')
-  ).map((el) => el.value.trim()).filter(Boolean);
-  return parts.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*');
+    document.querySelectorAll('#colFilterList .col-filter-picker')
+  ).map((el) => el.dataset.value.trim()).filter(Boolean);
+  return parts
+    .map((p) => `(?:^|\\s)${p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=\\s|$)`)
+    .join('[\\s\\S]*');
 }
 
 const debouncedPreview = debounce(async () => {
@@ -644,10 +750,10 @@ const debouncedPreview = debounce(async () => {
       preview.textContent = `⚠ Invalid selector: ${response.error}`;
     } else if (response.count === 1) {
       preview.className   = 'match-preview ok';
-      preview.textContent = '1 unique match — rule will fire for this row only';
+      preview.textContent = '1 unique match - rule will fire for this row only';
     } else if (response.count > 1) {
       preview.className   = 'match-preview warn';
-      preview.textContent = `⚠ ${response.count} rows match — add more column values to narrow it down`;
+      preview.textContent = `⚠ ${response.count} rows match - add more column values to narrow it down`;
     } else {
       preview.className   = 'match-preview none';
       preview.textContent = `No rows match (${response.total} row${response.total !== 1 ? 's' : ''} checked)`;
@@ -675,8 +781,8 @@ function updateAlertNamePlaceholder() {
   const el = qs('#alertName');
   if (!el || currentMode !== 'row') return;
   const parts = Array.from(
-    document.querySelectorAll('#colFilterList .col-filter-input')
-  ).map((inp) => inp.value.trim()).filter(Boolean);
+    document.querySelectorAll('#colFilterList .col-filter-picker')
+  ).map((inp) => inp.dataset.value.trim()).filter(Boolean);
   el.placeholder = parts.length > 0
     ? parts.join(' / ')
     : 'Notification title (optional)';
@@ -685,8 +791,8 @@ function updateAlertNamePlaceholder() {
 function buildAutoLabel() {
   if (currentMode !== 'row') return '';
   const parts = Array.from(
-    document.querySelectorAll('#colFilterList .col-filter-input')
-  ).map((inp) => inp.value.trim()).filter(Boolean);
+    document.querySelectorAll('#colFilterList .col-filter-picker')
+  ).map((inp) => inp.dataset.value.trim()).filter(Boolean);
   return parts.length > 0 ? parts.join(' / ') : '';
 }
 
@@ -790,9 +896,7 @@ async function handleAddKeyword() {
 
   // Reset form
   if (currentMode === 'row') {
-    document.querySelectorAll('#colFilterList .col-filter-input').forEach((el) => {
-      el.value = '';
-    });
+    document.querySelectorAll('#colFilterList .col-filter-picker').forEach(p => _cfSetValue(p, ''));
     detectedRowSelector = null;
     autoDetectRows();
   } else {
@@ -923,24 +1027,25 @@ function bindEvents() {
   quickKeyword?.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleAddKeyword(); });
   quickKeyword?.addEventListener('input',   () => { debouncedPreview(); debouncedSaveFormState(); });
 
-  // #addColBtn click: append next unused column
+  // #addColBtn: append next unshown column in correct index order
   qs('#addColBtn')?.addEventListener('click', () => {
     const list = qs('#colFilterList');
     if (!list) return;
-    const shownCols = Array.from(list.querySelectorAll('.col-filter-input')).map((el) => el.dataset.col);
-    // Find the lowest-index missing column to preserve original order
-    const nextCol = detectedColumns.find((c) => !shownCols.includes(c))
-      ?? `Column ${shownCols.length + 1}`;
-    const nextIdx = detectedColumns.indexOf(nextCol);
-    // Insert before the first shown cell whose column has a higher index
+    const shownIndices = new Set(
+      Array.from(list.querySelectorAll('.col-filter-picker')).map(s => +s.dataset.colIndex)
+    );
+    const nextIndex = detectedColumns.findIndex((_, i) => !shownIndices.has(i));
+    if (nextIndex === -1) return;
+    // Insert before the first shown cell whose column index is higher
     const cells = Array.from(list.querySelectorAll('.col-filter-cell'));
-    const insertBefore = cells.find((cell) => {
-      const col = cell.querySelector('.col-filter-input')?.dataset.col;
-      return detectedColumns.indexOf(col) > nextIdx;
+    const insertBefore = cells.find(cell => {
+      const i = +cell.querySelector('.col-filter-picker')?.dataset.colIndex;
+      return i > nextIndex;
     }) ?? null;
-    appendColFilter(nextCol, insertBefore);
+    appendColFilter(detectedColumns[nextIndex], nextIndex, insertBefore);
     updateAddColBtn();
   });
+
   // Match modifier buttons (text mode): Aa / ab / .*
   // .* is exclusive (regex overrides); Aa and ab are independent toggles.
   qs('.modifier-btns')?.addEventListener('click', (e) => {
@@ -1066,8 +1171,8 @@ const debouncedSaveFormState = debounce(saveFormState, 400);
 
 async function saveFormState() {
   const colFilters = Array.from(
-    document.querySelectorAll('#colFilterList .col-filter-input')
-  ).map((el) => ({ col: el.dataset.col, value: el.value }));
+    document.querySelectorAll('#colFilterList .col-filter-picker')
+  ).map((el) => ({ col: el.dataset.col, value: el.dataset.value }));
 
   const state = {
     mode:           currentMode,

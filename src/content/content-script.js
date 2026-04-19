@@ -103,8 +103,8 @@ const MAX_REGEX_PATTERN_LENGTH = 300;
 function safeRegexTest(pattern, target) {
   if (pattern.length > MAX_REGEX_PATTERN_LENGTH) return false;
   try {
-    // 'is': i=case-insensitive, s=dotAll so '.' crosses '\n' text-node boundaries
-    return new RegExp(pattern, 'is').test(target);
+    // 'ims': i=case-insensitive, m=multiline so ^ and $ work per-line, s=dotAll
+    return new RegExp(pattern, 'ims').test(target);
   } catch (_) {
     return false;
   }
@@ -392,7 +392,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           .filter(el => el.offsetParent !== null && el.style.visibility !== 'hidden');
         if (els.length > 0) {
           const columns = extractColumnHeaders(document, sel, els[0]);
-          sendResponse({ selector: sel, count: els.length, columns });
+          sendResponse({ selector: sel, count: els.length, columns, rows: extractTableRows(els) });
           return true;
         }
       } catch (_) { continue; }
@@ -452,6 +452,31 @@ function extractColumnHeaders(doc, sel, firstRow) {
   // Fall back: use cell count from first row, label by index
   const count = cells.length || 3;
   return Array.from({ length: count }, (_, i) => `Col ${i + 1}`);
+}
+
+/**
+ * Extract cell text values for each detected row.
+ * Returns a 2D array: rows[rowIndex][colIndex] = cell text.
+ * Capped at 200 rows to keep the message payload small.
+ *
+ * @param {Element[]} els Visible row elements
+ * @returns {string[][]}
+ */
+function extractTableRows(els) {
+  return els.slice(0, 200).map(row => {
+    let cells;
+    // Standard HTML table cells
+    cells = Array.from(row.querySelectorAll(':scope > td, :scope > th'));
+    // ARIA grid / treegrid cells
+    if (!cells.length) cells = Array.from(row.querySelectorAll(':scope > [role="cell"], :scope > [role="gridcell"]'));
+    // Custom div tables with data-columnid (e.g. ap-tablecell)
+    if (!cells.length) cells = Array.from(row.querySelectorAll(':scope > [data-columnid]'));
+    // Class-name heuristic: direct children whose class contains "cell"
+    if (!cells.length) cells = Array.from(row.children).filter(c => /cell/i.test(c.className));
+    // Last resort: all direct children
+    if (!cells.length) cells = Array.from(row.children);
+    return cells.map(c => c.textContent.trim());
+  });
 }
 
 let observer = null;

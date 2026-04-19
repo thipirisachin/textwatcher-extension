@@ -132,6 +132,10 @@
             + Add column
           </button>
         </div>
+        <!-- Overlay scoped to row mode panel only — mode tabs stay clickable -->
+        <div class="col-detect-overlay" id="detectOverlay">
+          <span id="detectMsg"></span>
+        </div>
       </div>
 
       <!-- ── Shared: alert name ─────────────────────────────── -->
@@ -172,11 +176,6 @@
     <p class="error-msg hidden" id="keywordError" role="alert"></p>
 
   </section>
-
-  <!-- Single overlay covers Save Rule section above -->
-  <div class="col-detect-overlay" id="detectOverlay">
-    <span id="detectMsg"></span>
-  </div>
 
   </div><!-- /#monitorWrap -->
 

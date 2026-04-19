@@ -1152,39 +1152,61 @@ body {
 }
 .col-filter-cell {
   position: relative;
+  min-width: 0;
 }
-.col-filter-cell .input {
-  width: 100%;
-  padding-right: 20px;
-  box-sizing: border-box;
+.col-filter-picker { width: 100%; }
+.col-filter-input  { width: 100%; box-sizing: border-box; }
+.col-filter-dropdown {
+  display: none;
+  position: fixed;
+  z-index: 9999;
+  background: var(--surface);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--r-sm);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.55);
+  max-height: 180px;
+  overflow-y: auto;
 }
+.col-filter-dropdown--open { display: block; }
+.col-filter-option {
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: none;
+}
+.col-filter-option:hover          { background: var(--accent-gl); color: var(--accent-lt); }
+.col-filter-option--selected      { color: var(--clr-accent); }
+.col-filter-option--clear         { color: var(--text-3); font-size: 11px; border-bottom: 1px solid var(--clr-border); }
+.col-filter-option--empty         { color: var(--text-3); font-size: 11px; font-style: italic; cursor: default; }
+.col-filter-option--empty:hover   { background: none; color: var(--text-3); }
 .col-filter-cell-remove {
   position: absolute;
-  top: 50%;
-  right: 4px;
-  transform: translateY(-50%);
+  top: -6px;
+  right: -6px;
+  z-index: 10;
   width: 16px;
   height: 16px;
   padding: 0;
-  border: none;
-  background: none;
+  border: 1px solid var(--clr-border);
+  border-radius: 50%;
+  background: var(--surface);
   color: var(--text-3);
-  font-size: 14px;
+  font-size: 11px;
   line-height: 1;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0;
-  transition: opacity 0.15s, color 0.15s;
+  opacity: 0.45;
+  transition: opacity 0.15s, color 0.15s, border-color 0.15s;
 }
 .col-filter-cell:hover .col-filter-cell-remove,
-.col-filter-cell.has-value .col-filter-cell-remove {
-  opacity: 1;
-}
-.col-filter-cell-remove:hover {
-  color: var(--danger, #ff6b6b);
-}
+.col-filter-cell.has-value .col-filter-cell-remove { opacity: 1; }
+.col-filter-cell-remove:hover { color: var(--danger, #ff6b6b); border-color: var(--danger, #ff6b6b); }
 
 /* ── Add column button ──────────────────────────────────────────────────── */
 .btn--add-col {
@@ -1214,6 +1236,7 @@ body {
   pointer-events: none;
   z-index: 2;
 }
+#rowModePanel { position: relative; }
 [data-detect-state='detecting'] .col-detect-overlay,
 [data-detect-state='no-table']  .col-detect-overlay,
 [data-detect-state='no-rule']   .col-detect-overlay {

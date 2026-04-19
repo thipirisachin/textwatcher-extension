@@ -69,8 +69,8 @@ export function findMatchPositions(haystack, needle, matchType) {
 
   if (matchType === MATCH_TYPE.REGEX) {
     try {
-      // 'gis': g=all matches, i=case-insensitive, s=dotAll so '.' crosses text-node boundaries
-      const rx = new RegExp(needle, 'gis');
+      // 'gims': g=all matches, i=case-insensitive, m=multiline, s=dotAll
+      const rx = new RegExp(needle, 'gims');
       let m;
       while ((m = rx.exec(haystack)) !== null) {
         positions.push({ index: m.index, length: m[0].length });
@@ -224,8 +224,8 @@ const MAX_REGEX_PATTERN_LENGTH = 300;
 export function safeRegexTest(pattern, target) {
   if (pattern.length > MAX_REGEX_PATTERN_LENGTH) return false;
   try {
-    // 'is': i=case-insensitive, s=dotAll so '.' crosses '\n' text-node boundaries
-    const rx = new RegExp(pattern, 'is');
+    // 'ims': i=case-insensitive, m=multiline so ^ and $ work per-line, s=dotAll
+    const rx = new RegExp(pattern, 'ims');
     return rx.test(target);
   } catch (_) {
     return false;
