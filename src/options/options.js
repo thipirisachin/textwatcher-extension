@@ -76,7 +76,7 @@ async function init() {
   await Promise.all([
     renderKeywords(),
     renderUrls(),
-    renderNotifSettings(),
+    renderNotifSettings(), 
     renderHistory(),
     renderAlertHistory(),
     renderSidebarStatus(),
@@ -326,6 +326,26 @@ async function renderUrlBindingAddForm() {
   container.innerHTML = html;
 }
 
+// Extract human-readable column values from a table-rule regex pattern.
+// Pattern looks like: (?:^|\s)Val1(?=\s|$)[\s\S]*(?:^|\s)Val2(?=\s|$)
+function decodeTableRuleText(pattern) {
+  const matches = [...pattern.matchAll(/\(\?:\^\|\\s\)([\s\S]*?)\(\?=\\s\|\$\)/g)];
+  if (!matches.length) return pattern;
+  return matches.map(m => m[1].replace(/\\(.)/g, '$1')).join(' → ');
+}
+
+function decodeTableRuleValues(pattern) {
+  const matches = [...pattern.matchAll(/\(\?:\^\|\\s\)([\s\S]*?)\(\?=\\s\|\$\)/g)];
+  return matches.map(m => m[1].replace(/\\(.)/g, '$1'));
+}
+
+function buildTableRulePattern(values) {
+  return values
+    .filter(Boolean)
+    .map(v => `(?:^|\\s)${v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=\\s|$)`)
+    .join('[\\s\\S]*');
+}
+
 async function renderKeywords(filter = '') {
   const [keywords, urls] = await Promise.all([getKeywords(), getUrls()]);
   const list  = qs('#kwList');
@@ -348,12 +368,19 @@ async function renderKeywords(filter = '') {
     li.dataset.id = kw.id;
 
     const matchLabel = MATCH_TYPE_LABEL[kw.matchType] || kw.matchType;
+    const isTableRule = !!(kw.rowSelector);
+    const displayText = isTableRule
+      ? (kw.label || decodeTableRuleText(kw.text))
+      : (kw.label || kw.text);
+    const displayTag  = isTableRule
+      ? `<span class="rule-item__tag rule-item__tag--table">Table rule</span>`
+      : `<span class="rule-item__tag rule-item__tag--match">${escapeHtml(matchLabel)}</span>`;
 
     li.innerHTML = `
       <div class="rule-item__main${!kw.enabled ? ' rule-item--disabled' : ''}">
-        <div class="rule-item__text">${escapeHtml(kw.text)}</div>
+        <div class="rule-item__text">${escapeHtml(displayText)}</div>
         <div class="rule-item__meta">
-          <span class="rule-item__tag rule-item__tag--match">${escapeHtml(matchLabel)}</span>
+          ${displayTag}
           ${kw.scopeSelector ? `<span class="rule-item__tag rule-item__tag--scope" title="Scope: ${escapeHtml(kw.scopeSelector)}">${SVG_SCOPE} ${escapeHtml(truncate(kw.scopeSelector, 30))}</span>` : ''}
           ${buildUrlScopeTags(kw, urls)}
           ${kw.alertAppear    ? '<span class="rule-item__tag rule-item__tag--appear">↑ appears</span>' : ''}
@@ -375,10 +402,7 @@ async function renderKeywords(filter = '') {
 
 // ─── Options Keyword Form State ───────────────────────────────────────────────
 
-let kwCurrentMode = 'row';
-
 function kwSetMode(mode) {
-  kwCurrentMode = mode;
   const rowBtn   = qs('#kwModeRowBtn');
   const textBtn  = qs('#kwModeTextBtn');
   const rowPanel = qs('#kwRowModePanel');
@@ -417,38 +441,9 @@ function kwUpdateMatchHint() {
   else                     hint.textContent = 'Matches text anywhere on the page, any case';
 }
 
-function kwAppendColFilter(colName) {
-  const list = qs('#kwColFilterList');
-  if (!list) return;
-  const cell = document.createElement('div');
-  cell.className = 'col-filter-cell';
-  cell.innerHTML = `
-    <input type="text" class="input col-filter-input" data-col="${escapeHtml(colName)}" placeholder="${escapeHtml(colName)}" />
-    <button class="col-filter-cell-remove" type="button" aria-label="Remove column filter" title="Remove">×</button>
-  `;
-  cell.querySelector('.col-filter-cell-remove').addEventListener('click', () => {
-    cell.remove();
-    kwUpdateAddColBtn();
-  });
-  list.appendChild(cell);
-  kwUpdateAddColBtn();
-}
-
-function kwUpdateAddColBtn() {
-  // No column limit in options (no detected columns) — keep button always enabled
-  const btn = qs('#kwAddColBtn');
-  if (btn) btn.disabled = false;
-}
-
-function kwGetRowPattern() {
-  const inputs = qs('#kwColFilterList')?.querySelectorAll('.col-filter-input') ?? [];
-  const vals = Array.from(inputs).map((i) => i.value.trim()).filter(Boolean);
-  return vals.join('.*');
-}
-
 function kwResetForm() {
-  // Mode back to row
-  kwSetMode('row');
+  // Mode back to text
+  kwSetMode('text');
   // Clear text input
   const kwText = qs('#kwText');
   if (kwText) kwText.value = '';
@@ -457,11 +452,6 @@ function kwResetForm() {
   qs('#kwModExactBtn')?.classList.remove('active');
   qs('#kwModRegexBtn')?.classList.remove('active');
   kwUpdateMatchHint();
-  // Clear col filter inputs
-  const list = qs('#kwColFilterList');
-  if (list) list.innerHTML = '';
-  // Re-seed 3 default columns
-  ['Column 1', 'Column 2', 'Column 3'].forEach(kwAppendColFilter);
   // Clear label
   const kwLabel = qs('#kwLabel');
   if (kwLabel) kwLabel.value = '';
@@ -506,18 +496,6 @@ function bindKeywordEvents() {
       kwUpdateMatchHint();
     });
   });
-
-  // Add column button
-  qs('#kwAddColBtn')?.addEventListener('click', () => {
-    const list = qs('#kwColFilterList');
-    const count = list?.querySelectorAll('.col-filter-cell').length ?? 0;
-    kwAppendColFilter(`Column ${count + 1}`);
-  });
-
-  // Seed 3 default column inputs on init
-  if (qs('#kwColFilterList') && qs('#kwColFilterList').children.length === 0) {
-    ['Column 1', 'Column 2', 'Column 3'].forEach(kwAppendColFilter);
-  }
 
   // Add keyword
   qs('#addKwBtn').addEventListener('click', handleAddKeyword);
@@ -575,13 +553,28 @@ function bindKeywordEvents() {
         .map(([val, lbl]) => `<option value="${val}"${kw.matchType === val ? ' selected' : ''}>${escapeHtml(lbl)}</option>`)
         .join('');
 
-      li.insertAdjacentHTML('beforeend', `
-        <form class="rule-item__edit" data-edit-id="${id}" novalidate>
-          <div class="rule-item__edit-row">
+      const isTableRule = !!(kw.rowSelector);
+      const editBodyHtml = isTableRule
+        ? (() => {
+            const vals = decodeTableRuleValues(kw.text);
+            const rows = (vals.length ? vals : ['']).map(v =>
+              `<div class="col-filter-edit-row">
+                <input class="input col-filter-edit-input" value="${escapeHtml(v)}" placeholder="Column value…" maxlength="200" />
+                <button class="col-filter-edit-remove" type="button" data-action="remove-col-filter" aria-label="Remove">×</button>
+              </div>`
+            ).join('');
+            return `<div class="col-filter-edit-grid" data-table-edit="true">${rows}</div>
+              <button class="btn btn--ghost btn--sm" type="button" data-action="add-col-filter" style="margin-top:4px;">+ Add column</button>`;
+          })()
+        : `<div class="rule-item__edit-row">
             <input class="input" name="text" value="${escapeHtml(kw.text)}" maxlength="500" placeholder="Keyword…" />
             <select class="select" name="matchType">${matchOptions}</select>
-          </div>
-          <input class="input" name="scope" value="${escapeHtml(kw.scopeSelector || '')}" placeholder="Scope: CSS selector (optional)" maxlength="500" />
+          </div>`;
+
+      li.insertAdjacentHTML('beforeend', `
+        <form class="rule-item__edit" data-edit-id="${id}" novalidate>
+          ${editBodyHtml}
+          <input class="input" name="scope" value="${escapeHtml(kw.scopeSelector || '')}" placeholder="Scope: CSS selector (optional)" maxlength="500" style="margin-top:6px;" />
           <div class="url-binding-edit" data-binding-for="${id}">
             ${await buildUrlBindingChecklist(kw.urlScope, urls)}
           </div>
@@ -596,20 +589,49 @@ function bindKeywordEvents() {
           </div>
         </form>
       `);
-      li.querySelector('input[name="text"]').select();
+      if (!isTableRule) li.querySelector('input[name="text"]').select();
+    }
+
+    if (action === 'add-col-filter') {
+      const grid = e.target.closest('form.rule-item__edit')?.querySelector('.col-filter-edit-grid');
+      if (!grid) return;
+      const row = document.createElement('div');
+      row.className = 'col-filter-edit-row';
+      row.innerHTML = `<input class="input col-filter-edit-input" value="" placeholder="Column value…" maxlength="200" />
+        <button class="col-filter-edit-remove" type="button" data-action="remove-col-filter" aria-label="Remove">×</button>`;
+      grid.appendChild(row);
+      row.querySelector('input').focus();
+    }
+
+    if (action === 'remove-col-filter') {
+      const row  = e.target.closest('.col-filter-edit-row');
+      const grid = row?.closest('.col-filter-edit-grid');
+      if (!grid) return;
+      if (grid.querySelectorAll('.col-filter-edit-row').length > 1) row.remove();
+      else row.querySelector('input').value = '';
     }
 
     if (action === 'save-edit') {
-      const form      = e.target.closest('form.rule-item__edit');
-      const editId    = form?.dataset.editId;
-      const text      = form?.querySelector('[name="text"]')?.value.trim();
-      const matchType = form?.querySelector('[name="matchType"]')?.value;
-      const errEl     = form?.querySelector('[data-role="edit-error"]');
+      const form    = e.target.closest('form.rule-item__edit');
+      const editId  = form?.dataset.editId;
+      const errEl   = form?.querySelector('[data-role="edit-error"]');
+      const grid    = form?.querySelector('.col-filter-edit-grid[data-table-edit]');
 
-      if (!text) { showError(errEl, 'Keyword cannot be empty.'); return; }
-      if (matchType === MATCH_TYPE.REGEX) {
-        const { valid, error } = validateRegex(text);
-        if (!valid) { showError(errEl, `Invalid regex: ${error}`); return; }
+      let text, matchType;
+      if (grid) {
+        const vals = Array.from(grid.querySelectorAll('.col-filter-edit-input'))
+          .map(i => i.value.trim()).filter(Boolean);
+        if (!vals.length) { showError(errEl, 'Please enter at least one column value.'); return; }
+        text      = buildTableRulePattern(vals);
+        matchType = MATCH_TYPE.REGEX;
+      } else {
+        text      = form?.querySelector('[name="text"]')?.value.trim();
+        matchType = form?.querySelector('[name="matchType"]')?.value;
+        if (!text) { showError(errEl, 'Keyword cannot be empty.'); return; }
+        if (matchType === MATCH_TYPE.REGEX) {
+          const { valid, error } = validateRegex(text);
+          if (!valid) { showError(errEl, `Invalid regex: ${error}`); return; }
+        }
       }
 
       await updateKeyword(editId, {
@@ -642,21 +664,12 @@ async function handleAddKeyword() {
   const errEl = qs('#kwError');
   hideError(errEl);
 
-  let text;
-  let matchType;
-
-  if (kwCurrentMode === 'row') {
-    text = kwGetRowPattern();
-    matchType = MATCH_TYPE.REGEX;
-    if (!text) { showError(errEl, 'Please enter at least one column value.'); return; }
-  } else {
-    text      = qs('#kwText').value.trim();
-    matchType = kwGetMatchType();
-    if (!text) { showError(errEl, 'Please enter a keyword.'); return; }
-    if (matchType === MATCH_TYPE.REGEX) {
-      const { valid, error } = validateRegex(text);
-      if (!valid) { showError(errEl, `Invalid regex: ${error}`); return; }
-    }
+  const text      = qs('#kwText').value.trim();
+  const matchType = kwGetMatchType();
+  if (!text) { showError(errEl, 'Please enter a keyword.'); return; }
+  if (matchType === MATCH_TYPE.REGEX) {
+    const { valid, error } = validateRegex(text);
+    if (!valid) { showError(errEl, `Invalid regex: ${error}`); return; }
   }
 
   const label = qs('#kwLabel')?.value.trim() || '';

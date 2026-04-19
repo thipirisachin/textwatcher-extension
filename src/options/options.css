@@ -577,6 +577,7 @@ html, body { height: 100%; background: var(--clr-bg); }
 .rule-item__tag--appear    { color: var(--clr-green); }
 .rule-item__tag--disappear { color: var(--clr-yellow); }
 .rule-item__tag--match     { color: var(--accent-lt); }
+.rule-item__tag--table     { color: var(--clr-accent); }
 .rule-item__tag--scope     { color: var(--teal); font-family: monospace; }
 .rule-item__tag--url-bound { color: var(--accent); }
 
@@ -670,6 +671,40 @@ html, body { height: 100%; background: var(--clr-bg); }
   width: 100%;
   margin: 0 0 2px;
 }
+
+/* Redirect notice shown in place of table-mode creation/edit inputs */
+.kw-table-redirect {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  background: var(--clr-surface2);
+  border: 1px solid var(--clr-border);
+  border-radius: var(--r-sm);
+  color: var(--clr-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.kw-table-redirect svg { flex-shrink: 0; margin-top: 2px; }
+.kw-table-redirect strong { display: block; color: var(--clr-text); margin-bottom: 2px; }
+.kw-table-redirect p { margin: 0; }
+.kw-table-redirect--edit { margin-bottom: 6px; }
+
+/* Column value inputs inside the edit form for table-mode keywords */
+.col-filter-edit-grid { display: flex; flex-direction: column; gap: 4px; }
+.col-filter-edit-row  { display: flex; gap: 6px; align-items: center; }
+.col-filter-edit-row .input { flex: 1; min-width: 0; }
+.col-filter-edit-remove {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--clr-muted);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 4px;
+}
+.col-filter-edit-remove:hover { color: var(--clr-text); }
 
 .rule-item__edit-actions {
   display: flex;

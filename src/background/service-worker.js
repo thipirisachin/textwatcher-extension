@@ -16,9 +16,43 @@ import { getKeywords, getUrls, getSettings, getEnabled, addAlertEvent,
 import { matchesUrl } from '../shared/matcher.js';
 import { truncate, MATCH_TYPE_LABEL, isRestrictedUrl } from '../shared/utils.js';
 
-// ─── Cooldown Tracker ─────────────────────────────────────────────────────────
+// ─── Monitored Tab Tracker ────────────────────────────────────────────────────
+// Tracks only tabs whose URL matches an active URL rule.
+// Key: tabId  Value: { url: string, label: string }
+// Persisted to chrome.storage.session so the map survives MV3 service worker
+// restarts within a browser session. Clears on browser close (intentional —
+// stale tab IDs from a previous session must never trigger close notifications).
+const monitoredTabs = new Map();
+
+function monitoredTabLabel(url, urls) {
+  const rule = urls.find((u) => u.enabled && matchesUrl(url, u.pattern, u.matchType));
+  return rule?.label || url;
+}
+
+async function loadMonitoredTabsState() {
+  try {
+    const { tw_monitored_tabs: saved } = await chrome.storage.session.get('tw_monitored_tabs');
+    if (saved && typeof saved === 'object') {
+      for (const [key, val] of Object.entries(saved)) {
+        monitoredTabs.set(Number(key), val);
+      }
+    }
+  } catch (_) {}
+}
+
+function persistMonitoredTabsState() {
+  const obj = {};
+  for (const [tabId, data] of monitoredTabs) obj[tabId] = data;
+  chrome.storage.session.set({ tw_monitored_tabs: obj }).catch(() => {});
+}
+
+
 // Key: `${tabId}:${keywordId}:${event}`, Value: timestamp of last alert
 const cooldownMap = new Map();
+
+// Tracks URLs for closed-tab notifications so the Reopen button can open them.
+// Keyed by notification ID — entries removed when button clicked or notification dismissed.
+const reopenUrls = new Map();
 
 /**
  * Restore cooldown timestamps from session storage so that the cooldown
@@ -155,7 +189,7 @@ async function deleteTabMatchCount(tabId) {
 // ─── Startup ──────────────────────────────────────────────────────────────────
 
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
-  await loadCooldownState();
+  await Promise.all([loadCooldownState(), loadMonitoredTabsState()]);
   await updateBadge();
   await injectIntoMatchingTabs();
 
@@ -168,7 +202,7 @@ chrome.runtime.onInstalled.addListener(async ({ reason }) => {
 });
 
 chrome.runtime.onStartup.addListener(async () => {
-  await loadCooldownState();
+  await Promise.all([loadCooldownState(), loadMonitoredTabsState()]);
   await updateBadge();
   await injectIntoMatchingTabs();
 });
@@ -188,14 +222,36 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   const matched = activeUrls.some((u) => matchesUrl(tab.url, u.pattern, u.matchType));
 
   if (matched) {
+    monitoredTabs.set(tabId, { url: tab.url, label: monitoredTabLabel(tab.url, activeUrls) });
+    persistMonitoredTabsState();
     await injectContentScript(tabId);
     // Reset match count for this tab on new page load
     await setTabMatchCount(tabId, 0);
+  } else {
+    // Tab navigated away from a monitored URL — stop tracking it
+    monitoredTabs.delete(tabId);
+    persistMonitoredTabsState();
   }
 });
 
 // Clean up when tab is closed
 chrome.tabs.onRemoved.addListener(async (tabId) => {
+  // Fire "monitored page closed" notification if this was a tracked tab
+  const tracked = monitoredTabs.get(tabId);
+  if (tracked) {
+    const notifId = `tw:closed:${tabId}:${crypto.randomUUID()}`;
+    reopenUrls.set(notifId, tracked.url);
+    chrome.notifications.create(notifId, {
+      type:     'basic',
+      iconUrl:  chrome.runtime.getURL('src/icons/icon48.png'),
+      title:    'Monitored page closed',
+      message:  truncate(tracked.label, 100),
+      buttons:  [{ title: 'Reopen' }],
+      priority: 2,
+    });
+    monitoredTabs.delete(tabId);
+    persistMonitoredTabsState();
+  }
   // Cancel any pending batched notification — avoids a ghost notification
   // firing for a tab that no longer exists (the onClicked handler would
   // silently swallow the chrome.tabs.get error, but the notification would
@@ -413,6 +469,10 @@ chrome.notifications.onClicked.addListener(async (notificationId) => {
   if (!notificationId.startsWith('tw:')) return;
   const parts = notificationId.split(':');
   if (parts.length < 3) return;
+
+  // "tw:closed:tabId:uuid" — reopen the URL in a new tab
+  if (parts[1] === 'closed') return;
+
   const tabId = Number(parts[1]);
   if (!Number.isInteger(tabId) || tabId <= 0) return;
   try {
@@ -422,6 +482,20 @@ chrome.notifications.onClicked.addListener(async (notificationId) => {
   } catch (_) {
     // Tab was closed — nothing to do
   }
+});
+
+// "Reopen" button on the closed-tab notification
+chrome.notifications.onButtonClicked.addListener(async (notificationId, buttonIndex) => {
+  chrome.notifications.clear(notificationId);
+  if (!notificationId.startsWith('tw:closed:')) return;
+  if (buttonIndex !== 0) return;
+  const url = reopenUrls.get(notificationId);
+  reopenUrls.delete(notificationId);
+  if (url) chrome.tabs.create({ url, active: true });
+});
+
+chrome.notifications.onClosed.addListener((notificationId) => {
+  reopenUrls.delete(notificationId);
 });
 
 // ─── Webhook ──────────────────────────────────────────────────────────────────
@@ -774,14 +848,14 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
   const tabs = await chrome.tabs.query({});
   const activeUrls = urls.filter((u) => u.enabled);
 
-  const monitoredTabs = tabs.filter(
+  const matchingTabs = tabs.filter(
     (t) => t.id && t.url &&
       !isRestrictedUrl(t.url) &&
       activeUrls.some((u) => matchesUrl(t.url, u.pattern, u.matchType))
   );
 
   await Promise.all(
-    monitoredTabs.map((t) => safelySendToTab(t.id, { type: MSG.RELOAD_RULES, keywords, urls, settings }))
+    matchingTabs.map((t) => safelySendToTab(t.id, { type: MSG.RELOAD_RULES, keywords, urls, settings }))
   );
 });
 

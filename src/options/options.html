@@ -238,11 +238,11 @@
 
           <!-- Mode tabs -->
           <div class="mode-tabs" role="tablist" aria-label="Rule type">
-            <button class="mode-tab active" id="kwModeRowBtn" role="tab" aria-selected="true">
+            <button class="mode-tab" id="kwModeRowBtn" role="tab" aria-selected="false">
               Table Mode
               <span class="mode-tab__sub">Track a row in a table</span>
             </button>
-            <button class="mode-tab" id="kwModeTextBtn" role="tab" aria-selected="false">
+            <button class="mode-tab active" id="kwModeTextBtn" role="tab" aria-selected="true">
               Text Mode
               <span class="mode-tab__sub">Any keyword on the page</span>
             </button>
@@ -252,7 +252,7 @@
           <div class="rule-card">
 
             <!-- Text Mode panel -->
-            <div id="kwTextModePanel" style="display:none">
+            <div id="kwTextModePanel">
               <div class="input-row" style="gap:5px;">
                 <div class="input-wrap" style="flex:1;" id="kwKeywordWrap">
                   <input type="text" id="kwText" class="input" placeholder="Keyword or phrase…" maxlength="500" />
@@ -267,10 +267,15 @@
               <p class="match-hint" id="kwMatchHint">Matches text anywhere on the page, any case</p>
             </div>
 
-            <!-- Table Mode panel -->
-            <div id="kwRowModePanel">
-              <div class="col-filter-grid" id="kwColFilterList"></div>
-              <button class="btn btn--ghost btn--sm btn--add-col" id="kwAddColBtn" type="button">+ Add column</button>
+            <!-- Table Mode panel — creation happens in the popup where live table data is available -->
+            <div id="kwRowModePanel" style="display:none">
+              <div class="kw-table-redirect">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+                <div>
+                  <strong>Table rules are created from the popup.</strong>
+                  <p>Open the extension popup on the page you want to monitor, switch to Table Mode, pick your column values and save the rule.</p>
+                </div>
+              </div>
             </div>
 
             <!-- Shared: notification title -->
