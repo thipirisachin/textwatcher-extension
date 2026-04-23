@@ -174,8 +174,8 @@ body {
 .tab-ctx-bar--unwatched .tab-ctx-bar__text { color: var(--text-2); }
 
 .tab-ctx-bar__cta {
-  background: none;
-  border: 1px solid var(--border-2);
+  background: var(--accent-gl);
+  border: 1px solid var(--accent);
   border-radius: var(--r-xs);
   color: var(--accent-lt);
   font-size: 11px;
@@ -184,12 +184,13 @@ body {
   padding: 2px 9px;
   cursor: pointer;
   flex-shrink: 0;
-  transition: all 0.15s;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .tab-ctx-bar__cta:hover {
-  background: var(--accent-gl);
-  border-color: var(--accent-lt);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }
 
 /* ── Text-mode modifier buttons (Aa / ab / .*) ───────────────────────────── */

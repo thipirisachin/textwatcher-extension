@@ -4,16 +4,15 @@
  * Sections: Keywords, URLs, Notifications, Badge & Icon, History
  */
 
-import { MATCH_TYPE, URL_MATCH_TYPE, NOTIF_FREQUENCY, STORAGE_KEY, MSG, WEBHOOK_FORMAT, URL_SCOPE_ALL } from '../shared/constants.js';
+import { MATCH_TYPE, URL_MATCH_TYPE, NOTIF_FREQUENCY, STORAGE_KEY, MSG, WEBHOOK_FORMAT, URL_SCOPE_ALL, WEBHOOK_SCOPE_ALL } from '../shared/constants.js';
 import {
   getEnabled, setEnabled,
   getKeywords, saveKeywords, addKeyword, updateKeyword, removeKeyword,
   getUrls, saveUrls, addUrl, updateUrl, removeUrl,
   getSettings, saveSettings,
-  getHistory, saveHistorySnapshot, restoreHistoryEntry, removeHistoryEntry,
   getAlertHistory, clearAlertHistory, removeAlertEvent,
   getOnboarded, setOnboarded,
-  getWebhookSettings, saveWebhookSettings,
+  getWebhooks, saveWebhooks, addWebhook, updateWebhook, removeWebhook,
 } from '../shared/storage.js';
 import { validateRegex, matchesUrl } from '../shared/matcher.js';
 import { qs, qsa, timeAgo, truncate, escapeHtml, MATCH_TYPE_LABEL, URL_MATCH_TYPE_LABEL, onStorageChange } from '../shared/utils.js';
@@ -26,7 +25,7 @@ const SVG_EDIT  = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" s
 
 // ─── Routing ──────────────────────────────────────────────────────────────────
 
-const sections = ['setup', 'keywords', 'urls', 'notifications', 'activity', 'history', 'webhooks', 'privacy'];
+const sections = ['setup', 'rules', 'settings', 'activity', 'privacy'];
 
 function showSection(id) {
   const current = document.querySelector('.panel:not(.hidden)');
@@ -58,44 +57,51 @@ qsa('.nav-link').forEach((link) => {
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 async function init() {
-  // Resolve the correct landing section BEFORE any heavy renders to avoid flash.
-  // getOnboarded() is a fast in-memory storage read — doing it first means
-  // showSection() fires before the browser has painted anything else.
-  const onboarded = await getOnboarded();
-  if (!onboarded) {
+  // Read onboarded state and any deep-link target in parallel so we can show
+  // the correct section on the very first paint — no flash to a wrong section.
+  const [onboarded, { tw_open_section: deepLink }] = await Promise.all([
+    getOnboarded(),
+    chrome.storage.local.get('tw_open_section'),
+  ]);
+
+  if (deepLink) {
+    chrome.storage.local.remove('tw_open_section');
+    showSection(deepLink);
+  } else if (!onboarded) {
     showSection('setup');
+  } else {
+    showSection('rules');
+  }
+
+  if (!onboarded) {
     qs('#welcomeBanner').classList.remove('hidden');
     qs('#dismissWelcomeBtn')?.addEventListener('click', async () => {
       await setOnboarded();
       qs('#welcomeBanner').classList.add('hidden');
     });
-  } else {
-    showSection('keywords');
   }
 
   await Promise.all([
     renderKeywords(),
     renderUrls(),
-    renderNotifSettings(), 
-    renderHistory(),
+    renderNotifSettings(),
     renderAlertHistory(),
     renderSidebarStatus(),
-    renderWebhookSettings(),
+    renderWebhookList(),
     renderUrlBindingAddForm(),
   ]);
   bindKeywordEvents();
   bindUrlEvents();
   bindNotifEvents();
-  bindHistoryEvents();
+  bindExportImport();
   bindActivityEvents();
   bindSetupEvents();
   bindGlobalToggle();
-  bindWebhookEvents();
+  bindWebhookListEvents();
   bindClearButtons();
   listenForChanges();
 
-  // Deep-link: if the popup stored a target section, navigate there and clear.
-  // Also listen for future writes (options page already open when popup fires).
+  // When the options page is already open, handle deep-links written by the popup.
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local' || !changes.tw_open_section) return;
     const target = changes.tw_open_section.newValue;
@@ -104,12 +110,6 @@ async function init() {
       showSection(target);
     }
   });
-
-  const { tw_open_section: target } = await chrome.storage.local.get('tw_open_section');
-  if (target) {
-    await chrome.storage.local.remove('tw_open_section');
-    showSection(target);
-  }
 }
 
 // ─── Welcome Banner ───────────────────────────────────────────────────────────────
@@ -181,7 +181,7 @@ function bindSetupEvents() {
       qs('#notifPermBanner').textContent = '';
       qs('#notifPermBanner').insertAdjacentHTML('afterbegin',
         '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
-        ` Sent to browser — if nothing appeared, check OS notification settings and make sure ${navigator.userAgent.includes('Edg') ? 'Microsoft Edge' : 'Google Chrome'} notifications are allowed.`
+        ` Sent to browser - if nothing appeared, check OS notification settings and make sure ${navigator.userAgent.includes('Edg') ? 'Microsoft Edge' : 'Google Chrome'} notifications are allowed.`
       );
       qs('#notifPermBanner').classList.remove('hidden');
     });
@@ -189,17 +189,17 @@ function bindSetupEvents() {
 
   qs('#setupGoKeywords').addEventListener('click', (e) => {
     e.preventDefault();
-    showSection('keywords');
+    showSection('rules');
   });
 
   qs('#setupGoUrls').addEventListener('click', (e) => {
     e.preventDefault();
-    showSection('urls');
+    showSection('rules');
   });
 
   qs('#setupGoWebhooks').addEventListener('click', (e) => {
     e.preventDefault();
-    showSection('webhooks');
+    showSection('settings');
   });
 
   qs('#setupDone').addEventListener('click', async (e) => {
@@ -208,7 +208,7 @@ function bindSetupEvents() {
     const toggle = qs('#globalToggle');
     if (toggle) toggle.checked = true;
     await renderSidebarStatus();
-    showSection('keywords');
+    showSection('rules');
     showToast('Monitoring enabled!');
   });
 
@@ -285,7 +285,7 @@ function buildUrlScopeTags(kw, urls) {
 async function buildUrlBindingChecklist(currentScope, urls) {
   const active = urls.filter((u) => u.enabled);
   if (active.length === 0) {
-    return `<p class="url-binding-hint">No URL rules yet — keyword will fire on all pages. <a class="link" href="#" data-nav="urls">Add URL rules</a> to restrict it.</p>`;
+    return `<p class="url-binding-hint">No URL rules yet - keyword will fire on all pages. <a class="link" href="#" data-nav="urls">Add URL rules</a> to restrict it.</p>`;
   }
   const isAll = !currentScope || currentScope === URL_SCOPE_ALL || !Array.isArray(currentScope);
   const selected = isAll ? [] : currentScope;
@@ -312,6 +312,47 @@ function readUrlBindingFromContainer(container) {
   if (!container) return URL_SCOPE_ALL;
   const checked = Array.from(container.querySelectorAll('input[name="urlScope"]:checked')).map((cb) => cb.value);
   return checked.length > 0 ? checked : URL_SCOPE_ALL;
+}
+
+/**
+ * Render small tags in keyword list showing which webhooks a keyword is bound to.
+ */
+function buildWebhookScopeTags(kw, webhooks) {
+  const scope = kw.webhookScope;
+  if (!scope || scope === WEBHOOK_SCOPE_ALL || !Array.isArray(scope) || scope.length === 0) return '';
+  return scope.map((id) => {
+    const wh = webhooks.find((w) => w.id === id);
+    if (!wh) return '';
+    return `<span class="rule-item__tag rule-item__tag--webhook-bound" title="Webhook: ${escapeHtml(wh.name || wh.url)}">\u{1F4E1} ${escapeHtml(wh.name || truncate(wh.url, 20))}</span>`;
+  }).join('');
+}
+
+/**
+ * Build a checklist of webhook configs for inside the keyword inline edit form.
+ */
+async function buildWebhookBindingChecklist(currentScope, webhooks) {
+  const active = webhooks.filter((w) => w.enabled && w.url);
+  if (active.length === 0) {
+    return `<p class="url-binding-hint">No webhooks yet — keyword will fire all webhooks. <a class="link" href="#" data-nav="settings">Add a webhook</a> to restrict it.</p>`;
+  }
+  const isAll = !currentScope || currentScope === WEBHOOK_SCOPE_ALL || !Array.isArray(currentScope);
+  const selected = isAll ? [] : currentScope;
+  const items = active.map((w) => {
+    const checked = selected.includes(w.id) ? 'checked' : '';
+    const label   = w.name || truncate(w.url, 32);
+    return `<label class="url-binding-bar__item">
+      <input type="checkbox" name="webhookScope" value="${escapeHtml(w.id)}" ${checked} />
+      <span title="${escapeHtml(w.url)}">${escapeHtml(label)}</span>
+    </label>`;
+  }).join('');
+  return `<p class="url-binding-hint">Bind to specific webhooks (leave all unchecked = all webhooks):</p>${items}`;
+}
+
+function readWebhookBindingFromForm(form) {
+  const container = form.querySelector('.webhook-binding-edit');
+  if (!container) return WEBHOOK_SCOPE_ALL;
+  const checked = Array.from(container.querySelectorAll('input[name="webhookScope"]:checked')).map((cb) => cb.value);
+  return checked.length > 0 ? checked : WEBHOOK_SCOPE_ALL;
 }
 
 /**
@@ -347,7 +388,7 @@ function buildTableRulePattern(values) {
 }
 
 async function renderKeywords(filter = '') {
-  const [keywords, urls] = await Promise.all([getKeywords(), getUrls()]);
+  const [keywords, urls, webhooks] = await Promise.all([getKeywords(), getUrls(), getWebhooks()]);
   const list  = qs('#kwList');
   const badge = qs('#kwBadge');
   badge.textContent = keywords.filter((k) => k.enabled).length;
@@ -357,7 +398,7 @@ async function renderKeywords(filter = '') {
     : keywords;
 
   if (filtered.length === 0) {
-    list.innerHTML = `<li class="rule-list__empty">${filter ? 'No matches.' : 'No keywords yet. Add one above.'}</li>`;
+    list.innerHTML = `<li class="rule-list__empty">${filter ? 'No matches.' : 'No keyword rules yet. Add one from the extension popup.'}</li>`;
     return;
   }
 
@@ -383,6 +424,7 @@ async function renderKeywords(filter = '') {
           ${displayTag}
           ${kw.scopeSelector ? `<span class="rule-item__tag rule-item__tag--scope" title="Scope: ${escapeHtml(kw.scopeSelector)}">${SVG_SCOPE} ${escapeHtml(truncate(kw.scopeSelector, 30))}</span>` : ''}
           ${buildUrlScopeTags(kw, urls)}
+          ${buildWebhookScopeTags(kw, webhooks)}
           ${kw.alertAppear    ? '<span class="rule-item__tag rule-item__tag--appear">↑ appears</span>' : ''}
           ${kw.alertDisappear ? '<span class="rule-item__tag rule-item__tag--disappear">↓ disappears</span>' : ''}
           ${!kw.enabled       ? '<span class="rule-item__tag">disabled</span>' : ''}
@@ -498,8 +540,8 @@ function bindKeywordEvents() {
   });
 
   // Add keyword
-  qs('#addKwBtn').addEventListener('click', handleAddKeyword);
-  qs('#kwText').addEventListener('keydown', (e) => {
+  qs('#addKwBtn')?.addEventListener('click', handleAddKeyword);
+  qs('#kwText')?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') handleAddKeyword();
   });
 
@@ -509,7 +551,7 @@ function bindKeywordEvents() {
   });
 
   // "Add URL rules" nav link inside the binding widget (add form)
-  qs('#kwUrlBinding').addEventListener('click', (e) => {
+  qs('#kwUrlBinding')?.addEventListener('click', (e) => {
     const a = e.target.closest('a[data-nav]');
     if (a) { e.preventDefault(); showSection(a.dataset.nav); }
   });
@@ -533,7 +575,7 @@ function bindKeywordEvents() {
     }
 
     if (action === 'edit') {
-      const [keywords, urls] = await Promise.all([getKeywords(), getUrls()]);
+      const [keywords, urls, webhooks] = await Promise.all([getKeywords(), getUrls(), getWebhooks()]);
       const kw = keywords.find((k) => k.id === id);
       if (!kw) return;
       let li = e.target.closest('li.rule-item');
@@ -577,6 +619,9 @@ function bindKeywordEvents() {
           <input class="input" name="scope" value="${escapeHtml(kw.scopeSelector || '')}" placeholder="Scope: CSS selector (optional)" maxlength="500" style="margin-top:6px;" />
           <div class="url-binding-edit" data-binding-for="${id}">
             ${await buildUrlBindingChecklist(kw.urlScope, urls)}
+          </div>
+          <div class="webhook-binding-edit" data-binding-for="${id}">
+            ${await buildWebhookBindingChecklist(kw.webhookScope, webhooks)}
           </div>
           <div class="rule-item__edit-checks">
             <label><input type="checkbox" name="alertAppear"    ${kw.alertAppear    ? 'checked' : ''} /> Alert appears</label>
@@ -639,6 +684,7 @@ function bindKeywordEvents() {
         matchType,
         scopeSelector:  form.querySelector('[name="scope"]')?.value.trim() || '',
         urlScope:       readUrlBindingFromForm(form),
+        webhookScope:   readWebhookBindingFromForm(form),
         alertAppear:    form.querySelector('[name="alertAppear"]')?.checked ?? true,
         alertDisappear: form.querySelector('[name="alertDisappear"]')?.checked ?? true,
       });
@@ -699,19 +745,23 @@ async function handleAddKeyword() {
 
 // ─── URLs ─────────────────────────────────────────────────────────────────────
 
-async function renderUrls() {
+async function renderUrls(filter = '') {
   const urls  = await getUrls();
   const list  = qs('#urlList');
   const badge = qs('#urlBadge');
   badge.textContent = urls.filter((u) => u.enabled).length;
 
-  if (urls.length === 0) {
-    list.innerHTML = '<li class="rule-list__empty">No URL rules yet. Add one above.</li>';
+  const filtered = filter
+    ? urls.filter((u) => (u.label || u.pattern).toLowerCase().includes(filter.toLowerCase()))
+    : urls;
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<li class="rule-list__empty">${filter ? 'No matches.' : 'No URL rules yet. Add one from the extension popup.'}</li>`;
     return;
   }
 
   list.innerHTML = '';
-  urls.forEach((url) => {
+  filtered.forEach((url) => {
     const li = document.createElement('li');
     li.className = 'rule-item';
     li.dataset.id = url.id;
@@ -757,9 +807,14 @@ function bindUrlEvents() {
     if (urlHint) urlHint.innerHTML = HINTS[btn.dataset.match] || '';
   });
 
+  // Search/filter
+  qs('#urlSearch')?.addEventListener('input', (e) => {
+    renderUrls(e.target.value);
+  });
+
   // Add URL
-  qs('#addUrlBtn').addEventListener('click', handleAddUrl);
-  qs('#urlPattern').addEventListener('keydown', (e) => {
+  qs('#addUrlBtn')?.addEventListener('click', handleAddUrl);
+  qs('#urlPattern')?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') handleAddUrl();
   });
 
@@ -1069,82 +1124,90 @@ function bindActivityEvents() {
     }
   });
 }
-// ─── History ──────────────────────────────────────────────────────────────────
 
-async function renderHistory() {
-  const history = await getHistory();
-  const list    = qs('#histList');
-  const badge   = qs('#histBadge');
-  badge.textContent = history.length;
 
-  if (history.length === 0) {
-    list.innerHTML = '<li class="history-list__empty">No saved setups yet.</li>';
-    return;
-  }
+// ─── Export / Import ──────────────────────────────────────────────────────────
 
-  list.innerHTML = '';
-  history.forEach((entry) => {
-    const li = document.createElement('li');
-    li.className = 'history-item';
-    li.dataset.id = entry.id;
-
-    const kwdSummary = entry.keywords.length > 0
-      ? entry.keywords.slice(0, 5).map((k) => `"${truncate(k.text, 25)}"`).join(', ')
-      : 'No keywords';
-
-    li.innerHTML = `
-      <div class="history-item__meta">
-        <div class="history-item__label">${escapeHtml(entry.label)}</div>
-        <div class="history-item__sub">
-          ${escapeHtml(kwdSummary)} · ${entry.urls.length} URL${entry.urls.length !== 1 ? 's' : ''} · ${timeAgo(entry.timestamp)}
-        </div>
-      </div>
-      <div class="history-item__actions">
-        <button class="btn--icon" data-action="restore" data-id="${entry.id}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg> Restore</button>
-        <button class="btn--icon del" data-action="delete" data-id="${entry.id}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-      </div>
-    `;
-    list.appendChild(li);
-  });
+async function doExport() {
+  const [keywords, urls, webhooks, settings] = await Promise.all([
+    getKeywords(), getUrls(), getWebhooks(), getSettings(),
+  ]);
+  const { version } = chrome.runtime.getManifest();
+  const payload = JSON.stringify({ version, keywords, urls, webhooks, settings }, null, 2);
+  const blob = new Blob([payload], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `textwatcher-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast(`Exported ${keywords.length} keyword${keywords.length !== 1 ? 's' : ''} · ${urls.length} URL${urls.length !== 1 ? 's' : ''} · ${webhooks.length} webhook${webhooks.length !== 1 ? 's' : ''}`);
 }
 
-function bindHistoryEvents() {
-  qs('#saveNowBtn').addEventListener('click', async () => {
-    const label = qs('#saveLabel').value.trim() || `Setup ${new Date().toLocaleString()}`;
-    const saved = await saveHistorySnapshot(label);
-    if (saved === null) {
-      const [kws, us] = await Promise.all([getKeywords(), getUrls()]);
-      showToast((kws.length === 0 && us.length === 0)
-        ? 'Nothing to save — add keywords or URLs first.'
-        : 'This setup is already saved.');
-      return;
-    }
-    qs('#saveLabel').value = '';
-    await renderHistory();
-    showToast('Setup saved!');
+function bindExportImport() {
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action="export"]');
+    if (btn) { doExport(); return; }
+    if (e.target.closest('[data-action="import"]')) qs('#importFileInput').click();
   });
 
-  qs('#histList').addEventListener('click', async (e) => {
-    const btn = e.target.closest('[data-action]');
-    if (!btn) return;
-    const { action, id } = btn.dataset;
+  qs('#importFileInput')?.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
 
-    if (action === 'restore') {
-      // Fetch entry first so we can show counts in the toast
-      const allHistory = await getHistory();
-      const entry = allHistory.find((h) => h.id === id);
-      await restoreHistoryEntry(id);
-      await Promise.all([renderKeywords(), renderUrls(), renderHistory(), renderSidebarStatus()]);
-      const kCount = entry?.keywords?.length ?? 0;
-      const uCount = entry?.urls?.length ?? 0;
-      showToast(`Restored: ${kCount} keyword${kCount !== 1 ? 's' : ''} · ${uCount} URL${uCount !== 1 ? 's' : ''}`);
-      showSection('keywords');
+    let parsed;
+    try {
+      parsed = JSON.parse(await file.text());
+    } catch (_) {
+      showToast('Invalid file - could not parse JSON.', 'error');
+      return;
     }
 
-    if (action === 'delete') {
-      await removeHistoryEntry(id);
-      await renderHistory();
+    const incoming = {
+      keywords: Array.isArray(parsed.keywords) ? parsed.keywords : [],
+      urls:     Array.isArray(parsed.urls)     ? parsed.urls     : [],
+      webhooks: Array.isArray(parsed.webhooks) ? parsed.webhooks : [],
+      settings: parsed.settings && typeof parsed.settings === 'object' ? parsed.settings : null,
+    };
+
+    if (!incoming.keywords.length && !incoming.urls.length && !incoming.webhooks.length && !incoming.settings) {
+      showToast('Nothing to import - file has no recognisable data.');
+      return;
     }
+
+    const [existingKws, existingUrls, existingWebhooks] = await Promise.all([
+      getKeywords(), getUrls(), getWebhooks(),
+    ]);
+
+    const existingKwTexts = new Set(existingKws.map((k) => k.text));
+    const existingUrlPats = new Set(existingUrls.map((u) => u.pattern));
+    const existingWhKeys  = new Set(existingWebhooks.map((w) => `${w.url}|${w.format}`));
+
+    const newKws      = incoming.keywords.filter((k) => k.text    && !existingKwTexts.has(k.text));
+    const newUrls     = incoming.urls.filter((u)     => u.pattern && !existingUrlPats.has(u.pattern));
+    const newWebhooks = incoming.webhooks.filter((w) => w.url     && !existingWhKeys.has(`${w.url}|${w.format}`));
+
+    const saves = [
+      saveKeywords([...existingKws, ...newKws]),
+      saveUrls([...existingUrls, ...newUrls]),
+      saveWebhooks([...existingWebhooks, ...newWebhooks]),
+    ];
+    if (incoming.settings) saves.push(saveSettings(incoming.settings));
+    await Promise.all(saves);
+
+    await Promise.all([renderKeywords(), renderUrls(), renderWebhookList(), renderSidebarStatus()]);
+    if (incoming.settings) renderNotifSettings();
+
+    const skipped = (incoming.keywords.length - newKws.length)
+      + (incoming.urls.length - newUrls.length)
+      + (incoming.webhooks.length - newWebhooks.length);
+    const parts = [];
+    if (newKws.length)      parts.push(`${newKws.length} keyword${newKws.length !== 1 ? 's' : ''}`);
+    if (newUrls.length)     parts.push(`${newUrls.length} URL${newUrls.length !== 1 ? 's' : ''}`);
+    if (newWebhooks.length) parts.push(`${newWebhooks.length} webhook${newWebhooks.length !== 1 ? 's' : ''}`);
+    if (incoming.settings)  parts.push('settings');
+    const msg = `Imported ${parts.join(' · ')}` + (skipped ? ` (${skipped} duplicate${skipped !== 1 ? 's' : ''} skipped)` : '');
+    showToast(msg);
   });
 }
 
@@ -1153,17 +1216,14 @@ function bindHistoryEvents() {
 function listenForChanges() {
   onStorageChange(
     [STORAGE_KEY.KEYWORDS, STORAGE_KEY.URLS, STORAGE_KEY.SETTINGS,
-     STORAGE_KEY.HISTORY, STORAGE_KEY.ALERT_HISTORY, STORAGE_KEY.ENABLED,
-     STORAGE_KEY.WEBHOOK],
+     STORAGE_KEY.ALERT_HISTORY, STORAGE_KEY.ENABLED,
+     STORAGE_KEY.WEBHOOKS],
     async (changes) => {
       if (STORAGE_KEY.KEYWORDS      in changes) await renderKeywords();
       if (STORAGE_KEY.URLS          in changes) { await renderUrls(); await renderUrlBindingAddForm(); }
       if (STORAGE_KEY.SETTINGS      in changes) { await renderNotifSettings(); }
-      if (STORAGE_KEY.HISTORY       in changes) await renderHistory();
       if (STORAGE_KEY.ALERT_HISTORY in changes) await renderAlertHistory();
-      // Only re-render webhook settings if there are no unsaved changes — avoid
-      // clobbering the form or re-disabling the save button while the user is editing.
-      if (STORAGE_KEY.WEBHOOK in changes && qs('#saveWebhookBtn').disabled) await renderWebhookSettings();
+      if (STORAGE_KEY.WEBHOOKS      in changes) await renderWebhookList();
       await renderSidebarStatus();
     }
   );
@@ -1184,6 +1244,16 @@ function localISOString(date) {
     + ':' + pad(date.getSeconds())
     + sign + pad(tzOffset / 60) + ':' + pad(tzOffset % 60);
 }
+
+// ─── Webhooks ─────────────────────────────────────────────────────────────────
+
+
+const FORMAT_LABELS = {
+  [WEBHOOK_FORMAT.TEAMS]:    'Teams',
+  [WEBHOOK_FORMAT.SLACK]:    'Slack',
+  [WEBHOOK_FORMAT.TELEGRAM]: 'Telegram',
+  [WEBHOOK_FORMAT.GENERIC]:  'Generic',
+};
 
 function buildPayloadPreviews() {
   const ts = localISOString(new Date());
@@ -1233,146 +1303,241 @@ function buildPayloadPreviews() {
   };
 }
 
-const TELEGRAM_URL_HINT = 'Set URL to <code>https://api.telegram.org/bot{YOUR_TOKEN}/sendMessage</code>. The Chat ID field below identifies the destination chat.';
-const DEFAULT_URL_HINT  = 'Must be <code>https://</code>. <code>http://localhost</code> is also allowed for local testing.';
+async function renderWebhookList() {
+  const webhooks = await getWebhooks();
+  const list = qs('#webhookList');
+  if (!list) return;
 
-// ─── Webhook UI helpers ───────────────────────────────────────────────────────
-function updateWebhookFormatUI(format) {
+  if (webhooks.length === 0) {
+    list.innerHTML = '<li class="rule-list__empty">No webhooks yet. Click <strong>Add Webhook</strong> to create one.</li>';
+    return;
+  }
+
+  list.innerHTML = '';
+  webhooks.forEach((wh) => {
+    const li = document.createElement('li');
+    li.className = 'rule-item';
+    li.dataset.id = wh.id;
+
+    const formatLabel = FORMAT_LABELS[wh.format] || wh.format;
+    const urlDisplay  = wh.url ? truncate(wh.url, 40) : '<em>no URL</em>';
+
+    li.innerHTML = `
+      <div class="rule-item__main${!wh.enabled ? ' rule-item--disabled' : ''}">
+        <div class="rule-item__text">${escapeHtml(wh.name || 'Unnamed')}</div>
+        <div class="rule-item__meta">
+          <span class="rule-item__tag rule-item__tag--match">${escapeHtml(formatLabel)}</span>
+          <span class="rule-item__tag">${urlDisplay}</span>
+          ${!wh.enabled ? '<span class="rule-item__tag">disabled</span>' : ''}
+        </div>
+      </div>
+      <div class="rule-item__actions">
+        <button class="btn--icon" data-action="toggle-wh" data-id="${wh.id}" title="${wh.enabled ? 'Disable' : 'Enable'}">${wh.enabled ? SVG_PAUSE : SVG_PLAY}</button>
+        <button class="btn--icon" data-action="edit-wh" data-id="${wh.id}" title="Edit">${SVG_EDIT}</button>
+        <button class="btn--icon" data-action="test-wh" data-id="${wh.id}" title="Send test payload"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+        <button class="btn--icon del" data-action="delete-wh" data-id="${wh.id}" title="Delete"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>`;
+    list.appendChild(li);
+  });
+}
+
+function buildWebhookEditForm(wh) {
+  const format   = wh?.format || WEBHOOK_FORMAT.TEAMS;
   const previews = buildPayloadPreviews();
-  qs('#webhookPayloadPreview').textContent = previews[format] || previews[WEBHOOK_FORMAT.GENERIC];
   const isTelegram = format === WEBHOOK_FORMAT.TELEGRAM;
-  qs('#webhookTelegramChatIdRow').style.display = isTelegram ? '' : 'none';
-  qs('#webhookUrlHint').innerHTML = isTelegram ? TELEGRAM_URL_HINT : DEFAULT_URL_HINT;
-  if (isTelegram && !qs('#webhookUrl').value) {
-    qs('#webhookUrl').placeholder = 'https://api.telegram.org/bot{TOKEN}/sendMessage';
-  } else if (!isTelegram) {
-    qs('#webhookUrl').placeholder = 'https://your-server.com/webhook';
+  const formatOptions = Object.values(WEBHOOK_FORMAT)
+    .map((f) => `<option value="${f}"${f === format ? ' selected' : ''}>${FORMAT_LABELS[f]}</option>`)
+    .join('');
+
+  return `<div class="rule-item__edit" data-edit-id="${wh?.id || ''}">
+    <div class="rule-item__edit-row">
+      <input class="input" name="whName" placeholder="Webhook name (e.g. Slack alerts)" value="${escapeHtml(wh?.name || '')}" maxlength="80" />
+      <label class="toggle" title="Enabled"><input type="checkbox" name="whEnabled" ${wh?.enabled !== false ? 'checked' : ''}/><span class="toggle__track"></span></label>
+    </div>
+    <div class="rule-item__edit-row">
+      <input class="input" name="whUrl" placeholder="${isTelegram ? 'https://api.telegram.org/bot{TOKEN}/sendMessage' : 'https://your-server.com/webhook'}" value="${escapeHtml(wh?.url || '')}" maxlength="500" autocomplete="off" spellcheck="false" />
+      <select class="select" name="whFormat">${formatOptions}</select>
+    </div>
+    <div class="rule-item__edit-row" name="whTelegramRow" style="${isTelegram ? '' : 'display:none'}">
+      <input class="input" name="whTelegramChatId" placeholder="-1001234567890 or @channelname" value="${escapeHtml(wh?.telegramChatId || '')}" maxlength="100" />
+    </div>
+    <div class="rule-item__edit-row webhook-secret-row">
+      <input type="password" class="input" name="whSecret" placeholder="${wh?.secret ? '••••••••• (saved — enter new value to change)' : 'Secret header (optional)'}" maxlength="200" autocomplete="new-password" />
+      <button type="button" class="btn btn--ghost webhook-secret-toggle" title="Show/hide secret"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    </div>
+    <p class="error-msg hidden" name="whUrlError"></p>
+    <div class="rule-item__edit-checks">
+      <label><input type="checkbox" name="whOnAppear" ${wh?.onAppear !== false ? 'checked' : ''}/> Send when keyword <strong>appears</strong></label>
+      <label><input type="checkbox" name="whOnDisappear" ${wh?.onDisappear !== false ? 'checked' : ''}/> Send when keyword <strong>disappears</strong></label>
+    </div>
+    <details class="payload-preview-details" style="margin-top:8px;">
+      <summary class="payload-preview-summary">Payload Preview</summary>
+      <pre class="webhook-payload-preview" name="whPreview">${escapeHtml(previews[format] || previews[WEBHOOK_FORMAT.GENERIC])}</pre>
+    </details>
+    <div class="rule-item__edit-actions">
+      <button class="btn btn--primary btn--sm" data-action="save-wh">Save</button>
+      <button class="btn btn--ghost btn--sm" data-action="cancel-wh">Cancel</button>
+      <span class="webhook-test-result hidden" name="whTestResult" style="margin-left:8px;"></span>
+    </div>
+  </div>`;
+}
+
+function validateWebhookUrl(url) {
+  if (!url) return 'URL is required.';
+  try {
+    const u = new URL(url);
+    const ok = u.protocol === 'https:' ||
+      (u.protocol === 'http:' && (u.hostname === 'localhost' || u.hostname === '127.0.0.1'));
+    return ok ? null : 'Must be https:// or http://localhost.';
+  } catch (_) {
+    return 'Invalid URL.';
   }
 }
 
-async function renderWebhookSettings() {
-  const cfg = await getWebhookSettings();
-  qs('#webhookEnabled').checked     = cfg.enabled;
-  qs('#webhookOnAppear').checked    = cfg.onAppear;
-  qs('#webhookOnDisappear').checked = cfg.onDisappear;
-  qs('#webhookFormat').value        = cfg.format || WEBHOOK_FORMAT.TEAMS;
-  qs('#webhookTelegramChatId').value = cfg.telegramChatId || '';
-  // Set URL before updateWebhookFormatUI so the Telegram placeholder check is accurate
-  qs('#webhookUrl').value = cfg.url;
-  updateWebhookFormatUI(cfg.format || WEBHOOK_FORMAT.TEAMS);
-
-  // Show masked placeholder if a secret is saved; never pre-fill the real value
-  const secretInput = qs('#webhookSecret');
-  secretInput.placeholder = cfg.secret
-    ? '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022 (saved — enter new value to change)'
-    : 'Leave empty for no authentication';
-  secretInput.value = '';
-
-  qs('#saveWebhookBtn').disabled = true;
-}
-
-function bindWebhookEvents() {
-  const saveBtn   = qs('#saveWebhookBtn');
-  const testBtn   = qs('#webhookTestBtn');
-  const testResult = qs('#webhookTestResult');
-
-  function markDirty() { saveBtn.disabled = false; }
-
-  const urlErrEl = qs('#webhookUrlError');
-
-  qs('#webhookEnabled').addEventListener('change', markDirty);
-  qs('#webhookUrl').addEventListener('input', () => { markDirty(); hideError(urlErrEl); });
-  qs('#webhookSecret').addEventListener('input', markDirty);
-  qs('#webhookFormat').addEventListener('change', () => {
-    markDirty();
-    updateWebhookFormatUI(qs('#webhookFormat').value);
-  });
-  qs('#webhookTelegramChatId').addEventListener('input', markDirty);
-  qs('#webhookOnAppear').addEventListener('change', markDirty);
-  qs('#webhookOnDisappear').addEventListener('change', markDirty);
-
-  // Show/hide secret toggle
-  qs('#webhookSecretToggle').addEventListener('click', () => {
-    const inp = qs('#webhookSecret');
-    const isHidden = inp.type === 'password';
-    inp.type = isHidden ? 'text' : 'password';
-    qs('#webhookSecretEye').innerHTML = isHidden
-      ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>'
-      : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+function bindWebhookListEvents() {
+  qs('#addWebhookBtn')?.addEventListener('click', () => {
+    const list = qs('#webhookList');
+    // If a new-webhook form is already open, close it
+    const existing = list.querySelector('.rule-item[data-new]');
+    if (existing) { existing.remove(); return; }
+    // Clear empty-state placeholder and inject a new-item row
+    if (list.querySelector('.rule-list__empty')) list.innerHTML = '';
+    const li = document.createElement('li');
+    li.className = 'rule-item';
+    li.dataset.new = '1';
+    li.innerHTML = buildWebhookEditForm(null);
+    list.prepend(li);
+    li.querySelector('[name="whName"]')?.focus();
+    bindEditFormInteractions(li);
   });
 
-  saveBtn.addEventListener('click', async () => {
-    const url    = qs('#webhookUrl').value.trim();
-    const secret = qs('#webhookSecret').value; // intentionally not trimmed
+  qs('#webhookList')?.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const { action, id } = btn.dataset;
+    const li = btn.closest('li.rule-item');
 
-    // Validate URL only if one is entered
-    if (url) {
-      try {
-        const u = new URL(url);
-        const isHttps    = u.protocol === 'https:';
-        const isLocalHttp = u.protocol === 'http:' &&
-          (u.hostname === 'localhost' || u.hostname === '127.0.0.1');
-        if (!isHttps && !isLocalHttp) throw new Error();
-      } catch (_) {
-        showError(urlErrEl, 'Invalid URL. Must be https:// or http://localhost.');
-        qs('#webhookUrl').focus();
+    if (action === 'toggle-wh') {
+      const webhooks = await getWebhooks();
+      const wh = webhooks.find((w) => w.id === id);
+      if (wh) await updateWebhook(id, { enabled: !wh.enabled });
+      await renderWebhookList();
+    }
+
+    if (action === 'edit-wh') {
+      if (li.querySelector('.rule-item__edit')) {
+        await renderWebhookList(); return;
+      }
+      const webhooks = await getWebhooks();
+      const wh = webhooks.find((w) => w.id === id);
+      if (!wh) return;
+      li.insertAdjacentHTML('beforeend', buildWebhookEditForm(wh));
+      bindEditFormInteractions(li);
+    }
+
+    if (action === 'cancel-wh') {
+      if (li.dataset.new) { li.remove(); return; }
+      await renderWebhookList();
+    }
+
+    if (action === 'save-wh') {
+      const form   = li.querySelector('.rule-item__edit');
+      const editId = form.dataset.editId;
+      const url    = form.querySelector('[name="whUrl"]').value.trim();
+      const urlErr = form.querySelector('[name="whUrlError"]');
+      const urlMsg = validateWebhookUrl(url);
+      if (urlMsg) {
+        showError(urlErr, urlMsg);
+        form.querySelector('[name="whUrl"]').focus();
         return;
       }
+      hideError(urlErr);
+
+      const secret = form.querySelector('[name="whSecret"]').value;
+      const patch  = {
+        name:           form.querySelector('[name="whName"]').value.trim() || 'Unnamed',
+        enabled:        form.querySelector('[name="whEnabled"]').checked,
+        url,
+        format:         form.querySelector('[name="whFormat"]').value,
+        telegramChatId: form.querySelector('[name="whTelegramChatId"]').value.trim(),
+        onAppear:       form.querySelector('[name="whOnAppear"]').checked,
+        onDisappear:    form.querySelector('[name="whOnDisappear"]').checked,
+      };
+      if (secret) patch.secret = secret;
+
+      if (editId) {
+        await updateWebhook(editId, patch);
+        showToast('Webhook saved!');
+      } else {
+        await addWebhook(patch);
+        showToast('Webhook added!');
+      }
+      await renderWebhookList();
     }
 
-    const patch = {
-      enabled:        qs('#webhookEnabled').checked,
-      url,
-      format:         qs('#webhookFormat').value,
-      telegramChatId: qs('#webhookTelegramChatId').value.trim(),
-      onAppear:       qs('#webhookOnAppear').checked,
-      onDisappear:    qs('#webhookOnDisappear').checked,
-    };
-    // Only overwrite the secret if the user typed a new one
-    if (secret) patch.secret = secret;
+    if (action === 'delete-wh') {
+      await removeWebhook(id);
+      await renderWebhookList();
+      showToast('Webhook deleted.');
+    }
 
-    hideError(urlErrEl);
-    await saveWebhookSettings(patch);
-    await renderWebhookSettings(); // re-render to show masked placeholder
-    showToast('Webhook settings saved!');
-    saveBtn.disabled = true;
+    if (action === 'test-wh') {
+      const resultEl = document.createElement('span');
+      resultEl.className = 'webhook-test-result';
+      resultEl.textContent = 'Sending…';
+      btn.after(resultEl);
 
-    // Hide any previous test result on save
-    testResult.classList.add('hidden');
+      let result;
+      try {
+        result = await chrome.runtime.sendMessage({ type: MSG.TEST_WEBHOOK, webhookId: id });
+      } catch (err) {
+        resultEl.className = 'webhook-test-result webhook-test-result--err';
+        resultEl.textContent = `Error: ${err.message}`;
+        return;
+      }
+      if (!result || !result.sent) {
+        resultEl.className = 'webhook-test-result webhook-test-result--err';
+        resultEl.textContent = result?.error ? `Failed: ${result.error}` : 'No response.';
+        return;
+      }
+      const ok = result.status >= 200 && result.status < 300;
+      resultEl.className = `webhook-test-result webhook-test-result--${ok ? 'ok' : 'warn'}`;
+      resultEl.textContent = ok ? `✓ ${result.status}` : `⚠ ${result.status}`;
+      setTimeout(() => resultEl.remove(), 4000);
+    }
+  });
+}
+
+function bindEditFormInteractions(li) {
+  // Format change: show/hide Telegram row + update payload preview
+  li.querySelector('[name="whFormat"]')?.addEventListener('change', (e) => {
+    const form       = li.querySelector('.rule-item__edit');
+    const format     = e.target.value;
+    const isTelegram = format === WEBHOOK_FORMAT.TELEGRAM;
+    const tgRow      = form.querySelector('[name="whTelegramRow"]');
+    if (tgRow) tgRow.style.display = isTelegram ? '' : 'none';
+    const urlInput = form.querySelector('[name="whUrl"]');
+    if (isTelegram && !urlInput.value) {
+      urlInput.placeholder = 'https://api.telegram.org/bot{TOKEN}/sendMessage';
+    } else if (!isTelegram) {
+      urlInput.placeholder = 'https://your-server.com/webhook';
+    }
+    const preview = form.querySelector('[name="whPreview"]');
+    if (preview) {
+      const previews = buildPayloadPreviews();
+      preview.textContent = previews[format] || previews[WEBHOOK_FORMAT.GENERIC];
+    }
   });
 
-  testBtn.addEventListener('click', async () => {
-    testResult.className = 'webhook-test-result';
-    testResult.textContent = 'Sending…';
-
-    let result;
-    try {
-      result = await chrome.runtime.sendMessage({ type: MSG.TEST_WEBHOOK });
-    } catch (err) {
-      testResult.className = 'webhook-test-result webhook-test-result--err';
-      testResult.textContent = `Extension error: ${err.message}`;
-      return;
-    }
-
-    if (!result) {
-      testResult.className = 'webhook-test-result webhook-test-result--err';
-      testResult.textContent = 'No response from service worker.';
-      return;
-    }
-
-    if (!result.sent) {
-      testResult.className = 'webhook-test-result webhook-test-result--err';
-      testResult.textContent = result.error
-        ? `Failed: ${result.error}`
-        : 'Webhook is disabled or no URL configured. Save settings first.';
-      return;
-    }
-
-    const ok = result.status >= 200 && result.status < 300;
-    testResult.className = `webhook-test-result webhook-test-result--${ok ? 'ok' : 'warn'}`;
-    testResult.textContent = ok
-      ? `Delivered — server responded ${result.status}`
-      : `⚠ Sent but server responded ${result.status} — check your endpoint`;
+  // Secret visibility toggle
+  li.querySelector('.webhook-secret-toggle')?.addEventListener('click', (e) => {
+    const btn = e.currentTarget;
+    const inp = li.querySelector('[name="whSecret"]');
+    const show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    btn.innerHTML = show
+      ? `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`
+      : `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
   });
 }
 
@@ -1394,9 +1559,4 @@ function showError(el, msg) { el.textContent = msg; el.classList.remove('hidden'
 function hideError(el)      { el.textContent = '';  el.classList.add('hidden'); }
 
 // ─── Start ────────────────────────────────────────────────────────────────────
-// Resolve onboarded state before init so the correct section is active on first
-// paint — avoids the flash of the default section before setup switches in.
-getOnboarded().then((onboarded) => {
-  if (!onboarded) showSection('setup');
-  init();
-});
+init();

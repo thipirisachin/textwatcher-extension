@@ -12,53 +12,63 @@
 
 import { MSG, NOTIF_FREQUENCY, ALERT_EVENT, STORAGE_KEY, WEBHOOK_FORMAT, MATCH_TYPE } from '../shared/constants.js';
 import { getKeywords, getUrls, getSettings, getEnabled, addAlertEvent,
-         getOnboarded, getWebhookSettings } from '../shared/storage.js';
+         getOnboarded, getWebhooks } from '../shared/storage.js';
 import { matchesUrl } from '../shared/matcher.js';
 import { truncate, MATCH_TYPE_LABEL, isRestrictedUrl } from '../shared/utils.js';
 
 // ─── Monitored Tab Tracker ────────────────────────────────────────────────────
-// Tracks only tabs whose URL matches an active URL rule.
-// Key: tabId  Value: { url: string, label: string }
-// Persisted to chrome.storage.session so the map survives MV3 service worker
-// restarts within a browser session. Clears on browser close (intentional —
+// Persisted entirely in chrome.storage.session — no in-memory Map.
+// This means every read/write survives MV3 service worker restarts within a
+// browser session (session storage clears on browser close, which is correct:
 // stale tab IDs from a previous session must never trigger close notifications).
-const monitoredTabs = new Map();
 
 function monitoredTabLabel(url, urls) {
   const rule = urls.find((u) => u.enabled && matchesUrl(url, u.pattern, u.matchType));
   return rule?.label || url;
 }
 
-async function loadMonitoredTabsState() {
-  try {
-    const { tw_monitored_tabs: saved } = await chrome.storage.session.get('tw_monitored_tabs');
-    if (saved && typeof saved === 'object') {
-      for (const [key, val] of Object.entries(saved)) {
-        monitoredTabs.set(Number(key), val);
-      }
-    }
-  } catch (_) {}
+async function getMonitoredTab(tabId) {
+  const { tw_monitored_tabs: tabs = {} } = await chrome.storage.session.get('tw_monitored_tabs');
+  return tabs[String(tabId)] || null;
 }
 
-function persistMonitoredTabsState() {
-  const obj = {};
-  for (const [tabId, data] of monitoredTabs) obj[tabId] = data;
-  chrome.storage.session.set({ tw_monitored_tabs: obj }).catch(() => {});
+async function setMonitoredTab(tabId, data) {
+  const { tw_monitored_tabs: tabs = {} } = await chrome.storage.session.get('tw_monitored_tabs');
+  tabs[String(tabId)] = data;
+  await chrome.storage.session.set({ tw_monitored_tabs: tabs });
 }
 
+async function deleteMonitoredTab(tabId) {
+  const { tw_monitored_tabs: tabs = {} } = await chrome.storage.session.get('tw_monitored_tabs');
+  delete tabs[String(tabId)];
+  await chrome.storage.session.set({ tw_monitored_tabs: tabs });
+}
 
-// Key: `${tabId}:${keywordId}:${event}`, Value: timestamp of last alert
-const cooldownMap = new Map();
+// ─── Reopen URL Store ─────────────────────────────────────────────────────────
+// Persisted in session storage so the Reopen button works even after a SW restart.
 
-// Tracks URLs for closed-tab notifications so the Reopen button can open them.
-// Keyed by notification ID — entries removed when button clicked or notification dismissed.
-const reopenUrls = new Map();
+async function setReopenUrl(notifId, url) {
+  const { tw_reopen_urls: map = {} } = await chrome.storage.session.get('tw_reopen_urls');
+  map[notifId] = url;
+  await chrome.storage.session.set({ tw_reopen_urls: map });
+}
+
+async function popReopenUrl(notifId) {
+  const { tw_reopen_urls: map = {} } = await chrome.storage.session.get('tw_reopen_urls');
+  const url = map[notifId] || null;
+  delete map[notifId];
+  await chrome.storage.session.set({ tw_reopen_urls: map });
+  return url;
+}
 
 /**
  * Restore cooldown timestamps from session storage so that the cooldown
  * frequency setting survives MV3 service worker restarts within a browser
  * session. chrome.storage.session clears on browser close.
  */
+// Key: `${tabId}:${keywordId}:${event}`, Value: timestamp of last alert
+const cooldownMap = new Map();
+
 async function loadCooldownState() {
   try {
     const { tw_cooldowns: saved } = await chrome.storage.session.get('tw_cooldowns');
@@ -157,7 +167,7 @@ async function flushBatch({ tabId, events, settings }) {
   chrome.notifications.create(notifId, {
     type:           'basic',
     iconUrl:        chrome.runtime.getURL('src/icons/icon48.png'),
-    title:          `TextWatcher — ${count} alerts`,
+    title:          `TextWatcher - ${count} alerts`,
     message:        lines.join('\n'),
     contextMessage: '',
     priority:       1,
@@ -189,7 +199,7 @@ async function deleteTabMatchCount(tabId) {
 // ─── Startup ──────────────────────────────────────────────────────────────────
 
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
-  await Promise.all([loadCooldownState(), loadMonitoredTabsState()]);
+  await loadCooldownState();
   await updateBadge();
   await injectIntoMatchingTabs();
 
@@ -202,7 +212,7 @@ chrome.runtime.onInstalled.addListener(async ({ reason }) => {
 });
 
 chrome.runtime.onStartup.addListener(async () => {
-  await Promise.all([loadCooldownState(), loadMonitoredTabsState()]);
+  await loadCooldownState();
   await updateBadge();
   await injectIntoMatchingTabs();
 });
@@ -222,25 +232,36 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   const matched = activeUrls.some((u) => matchesUrl(tab.url, u.pattern, u.matchType));
 
   if (matched) {
-    monitoredTabs.set(tabId, { url: tab.url, label: monitoredTabLabel(tab.url, activeUrls) });
-    persistMonitoredTabsState();
+    await setMonitoredTab(tabId, { url: tab.url, label: monitoredTabLabel(tab.url, activeUrls) });
     await injectContentScript(tabId);
     // Reset match count for this tab on new page load
     await setTabMatchCount(tabId, 0);
   } else {
-    // Tab navigated away from a monitored URL — stop tracking it
-    monitoredTabs.delete(tabId);
-    persistMonitoredTabsState();
+    // Tab navigated away — if it was monitored, notify the user
+    const prev = await getMonitoredTab(tabId);
+    if (prev) {
+      const notifId = `tw:navaway:${tabId}:${crypto.randomUUID()}`;
+      await setReopenUrl(notifId, prev.url);
+      chrome.notifications.create(notifId, {
+        type:     'basic',
+        iconUrl:  chrome.runtime.getURL('src/icons/icon48.png'),
+        title:    'Monitoring stopped',
+        message:  `Navigated away from ${truncate(prev.label, 80)}`,
+        buttons:  [{ title: 'Go back' }],
+        priority: 2,
+      });
+      await deleteMonitoredTab(tabId);
+    }
   }
 });
 
 // Clean up when tab is closed
 chrome.tabs.onRemoved.addListener(async (tabId) => {
   // Fire "monitored page closed" notification if this was a tracked tab
-  const tracked = monitoredTabs.get(tabId);
+  const tracked = await getMonitoredTab(tabId);
   if (tracked) {
     const notifId = `tw:closed:${tabId}:${crypto.randomUUID()}`;
-    reopenUrls.set(notifId, tracked.url);
+    await setReopenUrl(notifId, tracked.url);
     chrome.notifications.create(notifId, {
       type:     'basic',
       iconUrl:  chrome.runtime.getURL('src/icons/icon48.png'),
@@ -249,8 +270,7 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
       buttons:  [{ title: 'Reopen' }],
       priority: 2,
     });
-    monitoredTabs.delete(tabId);
-    persistMonitoredTabsState();
+    await deleteMonitoredTab(tabId);
   }
   // Cancel any pending batched notification — avoids a ghost notification
   // firing for a tab that no longer exists (the onClicked handler would
@@ -330,14 +350,25 @@ async function handleMessage(message, sender, sendResponse) {
 
     // Options page requesting a test webhook delivery
     case MSG.TEST_WEBHOOK: {
-      const result = await fireWebhook({
+      const { webhookId } = message;
+      let wh;
+      if (webhookId) {
+        const all = await getWebhooks();
+        wh = all.find((w) => w.id === webhookId);
+        if (!wh) { sendResponse({ sent: false, error: 'Webhook not found.' }); break; }
+      } else {
+        const all = await getWebhooks();
+        wh = all[0];
+        if (!wh) { sendResponse({ sent: false, error: 'No webhooks configured.' }); break; }
+      }
+      const result = await postWebhook(wh, {
         event:     'appears',
         keyword:   'TextWatcher Test',
         matchType: 'contains',
         url:       'https://textwatcher.test/demo',
         title:     'TextWatcher - Test Payload',
         snippet:   'This is a test payload sent from TextWatcher settings.',
-      }, { isTest: true });
+      });
       sendResponse(result);
       break;
     }
@@ -387,14 +418,14 @@ async function handleAlertMessage(tabId, event, message, settings) {
       tabId,
       timestamp: Date.now(),
     }),
-    fireWebhook({
+    fireWebhooks({
       event,
       keyword:   message.keyword,
       matchType: message.matchType,
       url:       message.url,
       title:     message.title,
       snippet:   isAppear ? message.snippet : null,
-    }),
+    }, message.webhookScope),
   ]);
 
   const delta   = isAppear ? 1 : -1;
@@ -484,18 +515,19 @@ chrome.notifications.onClicked.addListener(async (notificationId) => {
   }
 });
 
-// "Reopen" button on the closed-tab notification
+// "Reopen" / "Go back" button on closed-tab and nav-away notifications
 chrome.notifications.onButtonClicked.addListener(async (notificationId, buttonIndex) => {
   chrome.notifications.clear(notificationId);
-  if (!notificationId.startsWith('tw:closed:')) return;
+  if (!notificationId.startsWith('tw:closed:') && !notificationId.startsWith('tw:navaway:')) return;
   if (buttonIndex !== 0) return;
-  const url = reopenUrls.get(notificationId);
-  reopenUrls.delete(notificationId);
+  const url = await popReopenUrl(notificationId);
   if (url) chrome.tabs.create({ url, active: true });
 });
 
-chrome.notifications.onClosed.addListener((notificationId) => {
-  reopenUrls.delete(notificationId);
+chrome.notifications.onClosed.addListener(async (notificationId) => {
+  if (notificationId.startsWith('tw:closed:') || notificationId.startsWith('tw:navaway:')) {
+    await popReopenUrl(notificationId);
+  }
 });
 
 // ─── Webhook ──────────────────────────────────────────────────────────────────
@@ -592,7 +624,7 @@ export function buildWebhookPayload(cfg, payload) {
     case WEBHOOK_FORMAT.SLACK: {
       // Main line: bold keyword + verb + linked page title
       const slackLines = [
-        `*${escapeMarkdown(payload.keyword)}* ${eventLabel} — <${url}|${(title || url).replace(/[|<>]/g, ' ')}>`,
+        `*${escapeMarkdown(payload.keyword)}* ${eventLabel} - <${url}|${(title || url).replace(/[|<>]/g, ' ')}>`,
       ];
       // Snippet on next line as a blockquote — replace \n with ' · ' for table rows
       if (payload.snippet) {
@@ -646,48 +678,31 @@ export function buildWebhookPayload(cfg, payload) {
 }
 
 /**
- * POST an alert payload to the configured webhook URL.
- * Completely isolated — a failure here must never affect notifications.
- *
+ * POST an alert payload to a single webhook config.
+ * @param {object} wh - A single webhook object from getWebhooks()
  * @param {{ event, keyword, matchType, url, title, snippet }} payload
- * @param {{ isTest?: boolean }} [opts]
  * @returns {Promise<{ sent: boolean, status?: number, error?: string }>}
  */
-async function fireWebhook(payload, opts = {}) {
-  let cfg;
-  try {
-    cfg = await getWebhookSettings();
-  } catch (_) {
-    return { sent: false, error: 'Could not read webhook settings.' };
-  }
-
-  if (!cfg.enabled) return { sent: false };
-
-  const isAppear = payload.event === ALERT_EVENT.APPEARS;
-  if (!opts.isTest) {
-    if (isAppear  && !cfg.onAppear)    return { sent: false };
-    if (!isAppear && !cfg.onDisappear) return { sent: false };
-  }
-
-  if (!isAllowedWebhookUrl(cfg.url)) {
+async function postWebhook(wh, payload) {
+  if (!isAllowedWebhookUrl(wh.url)) {
     return { sent: false, error: 'Invalid or disallowed webhook URL.' };
   }
 
-  const body = buildWebhookPayload(cfg, { ...payload, timestamp: payload.timestamp || Date.now() });
+  const body = buildWebhookPayload(wh, { ...payload, timestamp: payload.timestamp || Date.now() });
 
   const headers = {
     'Content-Type': 'application/json',
     'User-Agent':   'TextWatcher-Extension/1.0',
   };
-  if (cfg.secret) {
-    headers['X-TextWatcher-Secret'] = cfg.secret;
+  if (wh.secret) {
+    headers['X-TextWatcher-Secret'] = wh.secret;
   }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
 
   try {
-    const res = await fetch(cfg.url, {
+    const res = await fetch(wh.url, {
       method:  'POST',
       headers,
       body,
@@ -702,6 +717,34 @@ async function fireWebhook(payload, opts = {}) {
       : (err.message || 'Network error');
     return { sent: false, error };
   }
+}
+
+/**
+ * Fire all webhooks that are in scope for this keyword alert.
+ * Failures are silent — never affect notifications.
+ *
+ * @param {{ event, keyword, matchType, url, title, snippet }} payload
+ * @param {string|string[]} webhookScope - 'all' or array of webhook IDs
+ */
+async function fireWebhooks(payload, webhookScope) {
+  let webhooks;
+  try {
+    webhooks = await getWebhooks();
+  } catch (_) {
+    return;
+  }
+
+  const isAppear = payload.event === ALERT_EVENT.APPEARS;
+
+  const toFire = webhooks.filter((wh) => {
+    if (!wh.enabled || !wh.url) return false;
+    if (isAppear  && !wh.onAppear)    return false;
+    if (!isAppear && !wh.onDisappear) return false;
+    if (!webhookScope || webhookScope === 'all' || !Array.isArray(webhookScope)) return true;
+    return webhookScope.includes(wh.id);
+  });
+
+  await Promise.all(toFire.map((wh) => postWebhook(wh, payload)));
 }
 
 /**

@@ -67,7 +67,7 @@ const TOUR_STEPS = [
   {
     // Table Mode only — visible only after detection succeeds
     target: '#colFilterWrap',
-    text: 'Table Mode: enter partial text from any column. The preview below shows how many rows match — aim for 1.',
+    text: 'Table Mode: enter partial text from any column. The preview below shows how many rows match - aim for 1.',
   },
   {
     // Text Mode only — skipped when #textModePanel is hidden
@@ -81,7 +81,7 @@ const TOUR_STEPS = [
   },
   {
     target: '#alertName',
-    text: 'Give it a name — this is what you\'ll see in the notification.',
+    text: 'Give it a name - this is what you\'ll see in the notification.',
   },
   {
     target: '#urlBindingBar',
@@ -105,7 +105,7 @@ const TOUR_STEPS = [
   },
   {
     target: '.footer',
-    text: 'Rule History: restore saved setups. Settings: manage all rules, alerts, and webhooks.',
+    text: 'Settings: manage all rules, alerts, and webhooks.',
   },
   {
     target: '.summary-grid',
@@ -158,7 +158,7 @@ async function renderUrlBindingBar() {
   if (active.length === 0) {
     urlBindingBar.innerHTML =
       '<p class="url-binding-bar__warn">' +
-      '⚠ No URL rules — won\'t monitor any page. ' +
+      '⚠ No URL rules - won\'t monitor any page. ' +
       '<a href="#" id="scrollToUrl" tabindex="0">Add one</a>' +
       '</p>';
     qs('#scrollToUrl')?.addEventListener('click', (e) => {
@@ -193,12 +193,18 @@ async function renderUrlBindingBar() {
     cb.addEventListener('change', () => updateAllPagesPill());
   });
 
-  // Set allPill active on initial render (nothing checked by default)
+  // Pre-check the URL rule(s) that match the current tab — default to current page, not all pages
+  const matchingIds = active.filter((u) => matchesUrl(tabUrl, u.pattern, u.matchType)).map((u) => u.id);
+  if (matchingIds.length > 0) {
+    urlBindingBar.querySelectorAll('input[name="quickUrlScope"]').forEach((cb) => {
+      if (matchingIds.includes(cb.value)) cb.checked = true;
+    });
+  }
   updateAllPagesPill();
 
   qs('#moreUrlsLink')?.addEventListener('click', (e) => {
     e.preventDefault();
-    openOptionsAt('urls');
+    openOptionsAt('rules');
   });
 }
 
@@ -372,7 +378,7 @@ async function autoDetectRows() {
     const urls     = await getUrls();
     const monitored = urls.filter((u) => u.enabled).some((u) => matchesUrl(tabUrl, u.pattern, u.matchType));
     if (!monitored) {
-      if (monitorWrap) { monitorWrap.dataset.detectState = 'no-rule'; showDetectOverlay("This page isn't monitored — add a URL rule first"); }
+      if (monitorWrap) { monitorWrap.dataset.detectState = 'no-rule'; showDetectOverlay("This page isn't monitored - add a URL rule first"); }
       if (addColBtn) addColBtn.disabled = true;
       if (colFilterList) colFilterList.innerHTML = '';
       return;
@@ -390,7 +396,7 @@ async function autoDetectRows() {
   });
 
   if (res === null) {
-    if (monitorWrap) { monitorWrap.dataset.detectState = 'no-rule'; showDetectOverlay("This page isn't monitored — add a URL rule first"); }
+    if (monitorWrap) { monitorWrap.dataset.detectState = 'no-rule'; showDetectOverlay("This page isn't monitored - add a URL rule first"); }
     return;
   }
 
@@ -444,7 +450,7 @@ async function checkPageMonitoredStatus() {
   const monitored = urls.filter((u) => u.enabled).some((u) => matchesUrl(tabUrl, u.pattern, u.matchType));
   if (!monitored) {
     monitorWrap.dataset.detectState = 'no-rule';
-    showDetectOverlay("This page isn't monitored — add a URL rule first");
+    showDetectOverlay("This page isn't monitored - add a URL rule first");
     qs('#quickKeyword')?.blur();
   } else {
     monitorWrap.dataset.detectState = 'ok';
@@ -687,7 +693,7 @@ const debouncedPreview = debounce(async () => {
 
       if (!response) {
         txtPreview.className   = 'match-preview off';
-        txtPreview.textContent = 'Not monitoring this page — add a URL rule first';
+        txtPreview.textContent = 'Not monitoring this page - add a URL rule first';
       } else if (response.found) {
         const count = response.matchCount ?? 1;
         txtPreview.className   = 'match-preview ok';
@@ -744,7 +750,7 @@ const debouncedPreview = debounce(async () => {
 
     if (!response) {
       preview.className   = 'match-preview off';
-      preview.textContent = 'Not monitoring this page — add a URL rule first';
+      preview.textContent = 'Not monitoring this page - add a URL rule first';
     } else if (response.error) {
       preview.className   = 'match-preview none';
       preview.textContent = `⚠ Invalid selector: ${response.error}`;
@@ -817,9 +823,9 @@ function updateUrlMatchHint() {
   const hint = qs('#urlMatchHint');
   if (!hint) return;
   const type = getUrlMatchType();
-  if (type === 'exact')       hint.textContent = 'Full URL must match exactly — e.g. https://example.com/page';
-  else if (type === 'domain') hint.textContent = 'Domain only — e.g. example.com';
-  else                        hint.textContent = 'Use * as wildcard — e.g. https://example.com/*';
+  if (type === 'exact')       hint.textContent = 'Full URL must match exactly - e.g. https://example.com/page';
+  else if (type === 'domain') hint.textContent = 'Domain only - e.g. example.com';
+  else                        hint.textContent = 'Use * as wildcard - e.g. https://example.com/*';
 }
 
 function updateUrlInputPlaceholder() {
@@ -849,7 +855,7 @@ async function handleAddKeyword() {
       return;
     }
     if (!rowSelector) {
-      showError(keywordError, 'No table detected on this page — add a URL rule and reload the tab first.');
+      showError(keywordError, 'No table detected on this page - add a URL rule and reload the tab first.');
       return;
     }
   } else {
@@ -925,7 +931,7 @@ async function handleAddKeyword() {
     ? `watching on ${boundCount} page${boundCount !== 1 ? 's' : ''}`
     : 'watching on all pages';
 
-  showToast(`Rule saved — ${pageNote}`);
+  showToast(`Rule saved - ${pageNote}`);
   clearFormState();
   await renderCounts();
 }
@@ -990,7 +996,7 @@ async function handleAddUrl() {
     setTimeout(async () => {
       await autoDetectRows();
       if (monitorWrap.dataset.detectState === 'no-rule') {
-        showDetectOverlay("URL added — reload this tab to start monitoring");
+        showDetectOverlay("URL added - reload this tab to start monitoring");
       }
     }, 400);
   }
@@ -1096,31 +1102,27 @@ function bindEvents() {
     }
   });
 
-  // Tab context bar — "+ Add URL" shortcut — exact match of the full page URL
+  // Tab context bar — "+ Add URL" — directly saves the current page as an exact-match URL rule
   tabCtxAddBtn.addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab?.url && !tab.url.startsWith('chrome') && !tab.url.startsWith('about')) {
-      quickUrl.value      = tab.url;
-      quickUrlLabel.value = tab.title || '';
-      setUrlMatchType('exact');
-      updateUrlMatchHint();
-      updateUrlInputPlaceholder();
-      quickUrl.closest('.input-wrap')?.classList.add('has-value');
-      if (quickUrlLabel.value) quickUrlLabel.closest('.input-wrap')?.classList.add('has-value');
-      quickUrl.focus();
-      quickUrl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      debouncedSaveFormState();
+    if (!tab?.url || tab.url.startsWith('chrome') || tab.url.startsWith('about')) return;
+
+    const added = await addUrl({ pattern: tab.url, matchType: 'exact', label: tab.title || '', enabled: true });
+    if (added) {
+      await Promise.all([renderCounts(), renderUrlBindingBar(), renderTabContext()]);
+      showToast('URL rule added!');
+    } else {
+      showToast('URL rule already exists.');
     }
   });
 
   // Summary card navigation
-  qs('#cardKeywords').addEventListener('click', () => openOptionsAt('keywords'));
-  qs('#cardUrls').addEventListener('click',     () => openOptionsAt('urls'));
+  qs('#cardKeywords').addEventListener('click', () => openOptionsAt('rules'));
+  qs('#cardUrls').addEventListener('click',     () => openOptionsAt('rules'));
   qs('#cardAlerts').addEventListener('click',   () => openOptionsAt('activity'));
 
   // Footer nav buttons
-  qs('#navSetups').addEventListener('click', () => openOptionsAt('history'));
-  openOptionsBtn.addEventListener('click', () => chrome.runtime.openOptionsPage());
+  openOptionsBtn.addEventListener('click', () => openOptionsAt('settings'));
 
   // Alert checkboxes — save state on change
   qs('#quickAlertAppear')?.addEventListener('change',    debouncedSaveFormState);

@@ -51,7 +51,8 @@ export const STORAGE_KEY = Object.freeze({
   ALERT_HISTORY:     'tw_alert_history', // Last 50 alert events (what fired)
   ENABLED:           'tw_enabled',       // Master on/off boolean
   ONBOARDED:         'tw_onboarded',     // true once first-install setup is done
-  WEBHOOK:           'tw_webhook',       // Webhook configuration object
+  WEBHOOK:           'tw_webhook',       // Legacy single webhook (migration source only)
+  WEBHOOKS:          'tw_webhooks',      // Array of webhook objects
 });
 
 // ─── Message Types (content <-> background) ──────────────────────────────────
@@ -89,6 +90,12 @@ export const DEFAULT_WEBHOOK = Object.freeze({
 //   'all'        → monitor on every matched URL (default, backwards-compatible)
 //   string[]     → array of URL rule IDs; only monitor on those specific URLs
 export const URL_SCOPE_ALL = 'all';
+
+// ─── Keyword Webhook Scope ────────────────────────────────────────────────────
+// webhookScope field on a keyword rule:
+//   'all'        → fire all enabled webhooks (default, backwards-compatible)
+//   string[]     → array of webhook IDs; only those webhooks fire for this keyword
+export const WEBHOOK_SCOPE_ALL = 'all';
 
 // ─── Limits ──────────────────────────────────────────────────────────────────
 export const LIMITS = Object.freeze({

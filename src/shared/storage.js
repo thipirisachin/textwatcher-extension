@@ -305,23 +305,52 @@ export async function removeAlertEvent(id) {
   await storageSet({ [STORAGE_KEY.ALERT_HISTORY]: list.filter((e) => e.id !== id) });
 }
 
-// ─── Webhook Settings ────────────────────────────────────────────────────────
+// ─── Webhooks ─────────────────────────────────────────────────────────────────
 
 /**
- * @returns {Promise<{enabled:boolean,url:string,secret:string,onAppear:boolean,onDisappear:boolean}>}
+ * Get all webhook configs. Auto-migrates legacy single `tw_webhook` on first call.
+ * @returns {Promise<Array<{id:string,name:string,enabled:boolean,url:string,secret:string,format:string,telegramChatId:string,onAppear:boolean,onDisappear:boolean}>>}
  */
-export async function getWebhookSettings() {
-  const { [STORAGE_KEY.WEBHOOK]: saved } = await storageGet(STORAGE_KEY.WEBHOOK);
-  return { ...DEFAULT_WEBHOOK, ...(saved || {}) };
+export async function getWebhooks() {
+  const { [STORAGE_KEY.WEBHOOKS]: list } = await storageGet(STORAGE_KEY.WEBHOOKS);
+  if (list) return list;
+
+  // Migration: if old single webhook exists, import it as first entry
+  const { [STORAGE_KEY.WEBHOOK]: legacy } = await storageGet(STORAGE_KEY.WEBHOOK);
+  if (legacy && (legacy.url || legacy.enabled)) {
+    const migrated = [{ ...DEFAULT_WEBHOOK, ...legacy, id: generateId(), name: 'Default' }];
+    await storageSet({ [STORAGE_KEY.WEBHOOKS]: migrated });
+    await chrome.storage.local.remove(STORAGE_KEY.WEBHOOK);
+    return migrated;
+  }
+
+  return [];
 }
 
-/**
- * Persist webhook settings. Merges with existing values.
- * @param {Partial<typeof DEFAULT_WEBHOOK>} partial
- */
-export async function saveWebhookSettings(partial) {
-  const current = await getWebhookSettings();
-  await storageSet({ [STORAGE_KEY.WEBHOOK]: { ...current, ...partial } });
+/** Overwrite the entire webhooks list. */
+export async function saveWebhooks(list) {
+  await storageSet({ [STORAGE_KEY.WEBHOOKS]: list });
+}
+
+/** Add a new webhook. Assigns a fresh ID. */
+export async function addWebhook(wh) {
+  const list = await getWebhooks();
+  list.push({ ...DEFAULT_WEBHOOK, ...wh, id: generateId() });
+  await saveWebhooks(list);
+}
+
+/** Patch an existing webhook by ID. */
+export async function updateWebhook(id, patch) {
+  const list = await getWebhooks();
+  const idx  = list.findIndex((w) => w.id === id);
+  if (idx !== -1) list[idx] = { ...list[idx], ...patch };
+  await saveWebhooks(list);
+}
+
+/** Remove a webhook by ID. */
+export async function removeWebhook(id) {
+  const list = await getWebhooks();
+  await saveWebhooks(list.filter((w) => w.id !== id));
 }
 
 // ─── Onboarding ───────────────────────────────────────────────────────────────
