@@ -103,6 +103,22 @@ const BATCH_WINDOW_MS   = 1000;
 const BATCH_MAX_WAIT_MS = 5000; // Hard ceiling — never delay a notification beyond this
 const pendingBatches    = new Map();
 
+// ─── Cross-Tab Dedup ──────────────────────────────────────────────────────────
+// Prevents duplicate notifications/webhooks when the same keyword event fires
+// from multiple tabs open to the same URL within a short window.
+// Key: `${keyword}:${url}:${event}`  Value: timestamp of last processed alert
+const DEDUP_WINDOW_MS = 1500;
+const dedupMap = new Map();
+
+function isDuplicate(keyword, url, event) {
+  const key  = `${keyword}\x00${url}\x00${event}`;
+  const last = dedupMap.get(key) || 0;
+  const now  = Date.now();
+  if (now - last < DEDUP_WINDOW_MS) return true;
+  dedupMap.set(key, now);
+  return false;
+}
+
 /**
  * Queue an alert event for batched notification.
  * Resets the 1-second window on each new event for the same tab,
@@ -257,20 +273,25 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 
 // Clean up when tab is closed
 chrome.tabs.onRemoved.addListener(async (tabId) => {
-  // Fire "monitored page closed" notification if this was a tracked tab
   const tracked = await getMonitoredTab(tabId);
   if (tracked) {
-    const notifId = `tw:closed:${tabId}:${crypto.randomUUID()}`;
-    await setReopenUrl(notifId, tracked.url);
-    chrome.notifications.create(notifId, {
-      type:     'basic',
-      iconUrl:  chrome.runtime.getURL('src/icons/icon48.png'),
-      title:    'Monitored page closed',
-      message:  truncate(tracked.label, 100),
-      buttons:  [{ title: 'Reopen' }],
-      priority: 2,
-    });
     await deleteMonitoredTab(tabId);
+    // Only notify if no other tab with the same URL is still being monitored.
+    // (User has the page open in another tab — no need to alert.)
+    const { tw_monitored_tabs: remaining = {} } = await chrome.storage.session.get('tw_monitored_tabs');
+    const sameUrlOpen = Object.values(remaining).some((t) => t.url === tracked.url);
+    if (!sameUrlOpen) {
+      const notifId = `tw:closed:${tabId}:${crypto.randomUUID()}`;
+      await setReopenUrl(notifId, tracked.url);
+      chrome.notifications.create(notifId, {
+        type:     'basic',
+        iconUrl:  chrome.runtime.getURL('src/icons/icon48.png'),
+        title:    'Monitored page closed',
+        message:  truncate(tracked.label, 100),
+        buttons:  [{ title: 'Reopen' }],
+        priority: 2,
+      });
+    }
   }
   // Cancel any pending batched notification — avoids a ghost notification
   // firing for a tab that no longer exists (the onClicked handler would
@@ -283,11 +304,6 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
   }
 
   await deleteTabMatchCount(tabId);
-  // Evict all cooldown entries for this tab to prevent unbounded Map growth
-  for (const key of cooldownMap.keys()) {
-    if (key.startsWith(`${tabId}:`)) cooldownMap.delete(key);
-  }
-  persistCooldownState();
 });
 
 // ─── Message Handler ──────────────────────────────────────────────────────────
@@ -385,7 +401,8 @@ async function handleMessage(message, sender, sendResponse) {
  * Queues a notification, logs the alert event, and updates match counts.
  */
 async function handleAlertMessage(tabId, event, message, settings) {
-  if (!shouldSendAlert(tabId, message.keywordId, event, settings)) return;
+  if (isDuplicate(message.keyword, message.url, event)) return;
+  if (!shouldSendAlert(message.url, message.keywordId, event, settings)) return;
 
   const isAppear = event === ALERT_EVENT.APPEARS;
 
@@ -756,14 +773,14 @@ async function fireWebhooks(payload, webhookScope) {
  * @param {object} settings
  * @returns {boolean}
  */
-export function shouldSendAlert(tabId, keywordId, event, settings) {
+export function shouldSendAlert(url, keywordId, event, settings) {
   const freq = settings.notifFrequency || NOTIF_FREQUENCY.ONCE_PER_PAGE;
 
   if (freq === NOTIF_FREQUENCY.EVERY_OCCURRENCE) return true;
 
   if (freq === NOTIF_FREQUENCY.COOLDOWN) {
-    const key  = `${tabId}:${keywordId}:${event}`;
-    const last  = cooldownMap.get(key) || 0;
+    const key    = `${url}\x00${keywordId}\x00${event}`;
+    const last   = cooldownMap.get(key) || 0;
     const limitMs = (settings.cooldownSeconds || 5) * 1000;
     if (Date.now() - last < limitMs) return false;
     cooldownMap.set(key, Date.now());
@@ -772,9 +789,6 @@ export function shouldSendAlert(tabId, keywordId, event, settings) {
   }
 
   // once_per_page: gate lives in the content script (maybeAlert), not here.
-  // Gating here too would break the case where the same keyword fires on
-  // two different tabs — each tab has its own content script state, so
-  // the per-page gate correctly allows both tabs to alert independently.
   return true;
 }
 

@@ -173,7 +173,7 @@ async function renderUrlBindingBar() {
     const label = truncate(u.label || u.pattern, 36);
     return `<label class="url-binding-bar__item">
       <input type="checkbox" name="quickUrlScope" value="${escapeHtml(u.id)}" />
-      <span>${escapeHtml(label)}</span>
+      <span title="${escapeHtml(u.label ? u.pattern : '')}">${escapeHtml(label)}</span>
     </label>`;
   }).join('') + `<a class="url-binding-bar__more" href="#" id="moreUrlsLink" tabindex="0">+ more</a>`;
 
@@ -256,9 +256,12 @@ async function renderTabContext() {
       if (!k.urlScope || k.urlScope === 'all') return true;
       return k.urlScope.some((uid) => matched.some((u) => u.id === uid));
     }).length;
+    const sessionData = await chrome.storage.session.get('tw_tab_counts');
+    const matchCount  = (sessionData.tw_tab_counts ?? {})[tab.id] ?? 0;
+    const matchLabel  = matchCount > 0 ? `${matchCount} matching now` : 'none matching yet';
     tabCtxBar.className    = 'tab-ctx-bar tab-ctx-bar--watched';
     tabCtxDot.className    = 'tab-ctx-bar__dot';
-    tabCtxText.textContent = `Watching this page · ${activeKw} active keyword${activeKw !== 1 ? 's' : ''}`;
+    tabCtxText.textContent = `Watching this page · ${activeKw} active · ${matchLabel}`;
     tabCtxAddBtn.classList.add('hidden');
   } else {
     tabCtxBar.className    = 'tab-ctx-bar tab-ctx-bar--unwatched';
@@ -494,7 +497,7 @@ function _cfRender(picker, filterText) {
   _cfPortal.innerHTML = clearHtml +
     (shown.length
       ? shown.map(v => `<div class="col-filter-option${v === confirmed ? ' col-filter-option--selected' : ''}"
-          data-value="${escapeHtml(v)}">${escapeHtml(v)}</div>`).join('')
+          data-value="${escapeHtml(v)}" title="${escapeHtml(v)}">${escapeHtml(v)}</div>`).join('')
       : `<div class="col-filter-option col-filter-option--empty">No matches</div>`);
 
   _cfPortal.querySelectorAll('.col-filter-option[data-value]').forEach(opt => {

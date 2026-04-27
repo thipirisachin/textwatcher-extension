@@ -419,7 +419,7 @@ async function renderKeywords(filter = '') {
 
     li.innerHTML = `
       <div class="rule-item__main${!kw.enabled ? ' rule-item--disabled' : ''}">
-        <div class="rule-item__text">${escapeHtml(displayText)}</div>
+        <div class="rule-item__text" title="${escapeHtml(displayText)}">${escapeHtml(displayText)}</div>
         <div class="rule-item__meta">
           ${displayTag}
           ${kw.scopeSelector ? `<span class="rule-item__tag rule-item__tag--scope" title="Scope: ${escapeHtml(kw.scopeSelector)}">${SVG_SCOPE} ${escapeHtml(truncate(kw.scopeSelector, 30))}</span>` : ''}
@@ -770,10 +770,10 @@ async function renderUrls(filter = '') {
 
     li.innerHTML = `
       <div class="rule-item__main${!url.enabled ? ' rule-item--disabled' : ''}">
-        <div class="rule-item__text">${escapeHtml(url.label || url.pattern)}</div>
+        <div class="rule-item__text" title="${escapeHtml(url.label ? url.pattern : '')}">${escapeHtml(url.label || url.pattern)}</div>
         <div class="rule-item__meta">
           <span class="rule-item__tag rule-item__tag--match">${escapeHtml(typeLabel)}</span>
-          <span class="rule-item__tag">${escapeHtml(truncate(url.pattern, 40))}</span>
+          <span class="rule-item__tag" title="${escapeHtml(url.pattern)}">${escapeHtml(truncate(url.pattern, 40))}</span>
           ${!url.enabled ? '<span class="rule-item__tag">disabled</span>' : ''}
         </div>
       </div>
@@ -1088,7 +1088,7 @@ async function renderAlertHistory() {
 
     li.innerHTML = `
       <div class="rule-item__main">
-        <div class="rule-item__text">“${escapeHtml(truncate(entry.keyword, 50))}” ${isAppear ? 'appeared' : 'disappeared'}</div>
+        <div class=”rule-item__text” title=”${escapeHtml(entry.keyword)}”>”${escapeHtml(truncate(entry.keyword, 50))}” ${isAppear ? 'appeared' : 'disappeared'}</div>
         <div class="rule-item__meta">
           <span class="rule-item__tag ${isAppear ? 'rule-item__tag--appear' : 'rule-item__tag--disappear'}">${isAppear ? '↑ appear' : '↓ disappear'}</span>
           <span class="rule-item__tag rule-item__tag--match">${escapeHtml(matchLabel)}</span>
@@ -1101,7 +1101,7 @@ async function renderAlertHistory() {
     if (entry.snippet) {
       li.querySelector('.rule-item__main').insertAdjacentHTML(
         'beforeend',
-        `<div class="rule-item__snippet">“${escapeHtml(truncate(entry.snippet, 100))}”</div>`
+        `<div class=”rule-item__snippet” title=”${escapeHtml(entry.snippet)}”>”${escapeHtml(truncate(entry.snippet, 100))}”</div>`
       );
     }
     list.appendChild(li);
@@ -1324,10 +1324,10 @@ async function renderWebhookList() {
 
     li.innerHTML = `
       <div class="rule-item__main${!wh.enabled ? ' rule-item--disabled' : ''}">
-        <div class="rule-item__text">${escapeHtml(wh.name || 'Unnamed')}</div>
+        <div class="rule-item__text" title="${escapeHtml(wh.name || '')}">${escapeHtml(wh.name || 'Unnamed')}</div>
         <div class="rule-item__meta">
           <span class="rule-item__tag rule-item__tag--match">${escapeHtml(formatLabel)}</span>
-          <span class="rule-item__tag">${urlDisplay}</span>
+          <span class="rule-item__tag" title="${escapeHtml(wh.url)}">${urlDisplay}</span>
           ${!wh.enabled ? '<span class="rule-item__tag">disabled</span>' : ''}
         </div>
       </div>
