@@ -256,8 +256,11 @@ async function renderTabContext() {
       if (!k.urlScope || k.urlScope === 'all') return true;
       return k.urlScope.some((uid) => matched.some((u) => u.id === uid));
     }).length;
-    const sessionData = await chrome.storage.session.get('tw_tab_counts');
-    const matchCount  = (sessionData.tw_tab_counts ?? {})[tab.id] ?? 0;
+    const csResp     = await new Promise((resolve) => {
+      chrome.tabs.sendMessage(tab.id, { type: MSG.GET_MATCH_COUNT },
+        (r) => resolve(chrome.runtime.lastError ? null : r));
+    });
+    const matchCount  = csResp?.count ?? 0;
     const matchLabel  = matchCount > 0 ? `${matchCount} matching now` : 'none matching yet';
     tabCtxBar.className    = 'tab-ctx-bar tab-ctx-bar--watched';
     tabCtxDot.className    = 'tab-ctx-bar__dot';
@@ -492,7 +495,7 @@ function _cfRender(picker, filterText) {
     ? all.filter(v => v.toLowerCase().includes(filterText.toLowerCase()))
     : all;
 
-  const clearHtml = confirmed
+  const clearHtml = (confirmed || filterText)
     ? `<div class="col-filter-option col-filter-option--clear" data-value="">✕ Clear</div>` : '';
   _cfPortal.innerHTML = clearHtml +
     (shown.length
@@ -503,12 +506,18 @@ function _cfRender(picker, filterText) {
   _cfPortal.querySelectorAll('.col-filter-option[data-value]').forEach(opt => {
     opt.addEventListener('mousedown', e => {
       e.preventDefault();
-      _cfSetValue(_cfActivePicker, opt.dataset.value);
-      _cfClose();
+      const val = opt.dataset.value;
+      _cfSetValue(_cfActivePicker, val);
       handleColumnSelect();
       debouncedPreview();
       updateAlertNamePlaceholder();
       debouncedSaveFormState();
+      if (val === '') {
+        // Clear — stay open, show all options immediately
+        _cfRender(_cfActivePicker, '');
+      } else {
+        _cfClose();
+      }
     });
   });
 }
@@ -517,7 +526,12 @@ function _cfSetValue(picker, value) {
   if (!picker) return;
   const input = picker.querySelector('.col-filter-input');
   picker.dataset.value = value;
-  if (input) input.value = value;
+  if (input) {
+    input.value = value;
+    input.title = value;
+    // place cursor at end so backspace edits char-by-char, not select-all-delete
+    if (value) requestAnimationFrame(() => input.setSelectionRange(value.length, value.length));
+  }
   picker.closest('.col-filter-cell')?.classList.toggle('has-value', !!value);
 }
 
@@ -563,6 +577,45 @@ function appendColFilter(colName, colIndex, insertBefore = null) {
   const removeBtn = cell.querySelector('.col-filter-cell-remove');
 
   input.addEventListener('focus', () => _cfOpen(picker));
+
+  // Reopen dropdown when clicking an already-focused input
+  input.addEventListener('click', () => _cfOpen(picker));
+
+  input.addEventListener('keydown', e => {
+    const isOpen = _cfPortal.classList.contains('col-filter-dropdown--open');
+    if (e.key === 'Escape') { _cfClose(); return; }
+    if (e.key === 'Tab')    { _cfClose(); return; }
+
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!isOpen) { _cfOpen(picker); return; }
+      const opts = Array.from(_cfPortal.querySelectorAll('.col-filter-option:not(.col-filter-option--empty)'));
+      if (!opts.length) return;
+      const cur    = _cfPortal.querySelector('.col-filter-option--focused');
+      const curIdx = cur ? opts.indexOf(cur) : -1;
+      const next   = e.key === 'ArrowDown'
+        ? (curIdx < opts.length - 1 ? curIdx + 1 : 0)
+        : (curIdx > 0 ? curIdx - 1 : opts.length - 1);
+      opts.forEach(o => o.classList.remove('col-filter-option--focused'));
+      opts[next].classList.add('col-filter-option--focused');
+      opts[next].scrollIntoView({ block: 'nearest' });
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const focused = _cfPortal.querySelector('.col-filter-option--focused');
+      if (focused && isOpen) {
+        const val = focused.dataset.value;
+        _cfSetValue(picker, val);
+        handleColumnSelect();
+        debouncedPreview();
+        updateAlertNamePlaceholder();
+        debouncedSaveFormState();
+        if (val === '') { _cfRender(picker, ''); } else { _cfClose(); }
+      }
+    }
+  });
 
   input.addEventListener('input', () => {
     picker.dataset.value = input.value.trim();

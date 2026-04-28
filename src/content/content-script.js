@@ -39,6 +39,7 @@ const MSG = Object.freeze({
   RELOAD_RULES:     'reload_rules',
   PREVIEW_MATCH:    'preview_match',    // Popup → content script: live row match count
   DETECT_ROWS:      'detect_rows',      // Popup → content script: auto-detect table row selector
+  GET_MATCH_COUNT:  'get_match_count',  // Popup → content script: how many keywords match right now
 });
 
 const MATCH_TYPE = Object.freeze({
@@ -334,6 +335,12 @@ function keywordMatchesCurrentUrl(keyword) {
 // addListener() would throw an uncaught TypeError crashing the whole IIFE.
 try {
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === MSG.GET_MATCH_COUNT) {
+    const count = [...lastPresence.values()].filter(v => v > 0).length;
+    sendResponse({ count });
+    return true;
+  }
+
   if (message?.type === MSG.PREVIEW_MATCH) {
     // Popup queries how many live rows match a given pattern + row selector.
     // When rowSelector is omitted, performs a full-page text match (text mode).

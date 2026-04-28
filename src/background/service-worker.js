@@ -464,8 +464,8 @@ async function handleAlertMessage(tabId, event, message, settings) {
 async function fireNotification({ tabId, event, keyword, matchType, url, pageTitle, snippet, settings }) {
   const isAppear = event === ALERT_EVENT.APPEARS;
   const notifId  = `tw:${tabId}:${crypto.randomUUID()}`;
-  const verb     = isAppear ? 'appeared' : 'disappeared';
-  const title    = `${truncate(keyword, 60)} ${verb}`;
+  const prefix   = isAppear ? '[APPEARED]' : '[DISAPPEARED]';
+  const title    = `${prefix} ${truncate(keyword, 55)}`;
 
   const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 

@@ -64,6 +64,7 @@ export const MSG = Object.freeze({
   TEST_WEBHOOK:      'test_webhook',     // Options page → SW: fire a test payload
   PREVIEW_MATCH:     'preview_match',    // Popup → content script: live row match count
   DETECT_ROWS:       'detect_rows',      // Popup → content script: auto-detect table row selector
+  GET_MATCH_COUNT:   'get_match_count',  // Popup → content script: how many keywords match right now
 });
 
 // ─── Webhook Payload Formats ──────────────────────────────────────────────────

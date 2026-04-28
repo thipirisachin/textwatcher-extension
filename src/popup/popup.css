@@ -1179,7 +1179,8 @@ body {
   text-overflow: ellipsis;
   user-select: none;
 }
-.col-filter-option:hover          { background: var(--accent-gl); color: var(--accent-lt); }
+.col-filter-option:hover,
+.col-filter-option--focused        { background: var(--accent-gl); color: var(--accent-lt); }
 .col-filter-option--selected      { color: var(--clr-accent); }
 .col-filter-option--clear         { color: var(--text-3); font-size: 11px; border-bottom: 1px solid var(--clr-border); }
 .col-filter-option--empty         { color: var(--text-3); font-size: 11px; font-style: italic; cursor: default; }
