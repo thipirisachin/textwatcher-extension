@@ -368,22 +368,38 @@ async function renderUrlBindingAddForm() {
 }
 
 // Extract human-readable column values from a table-rule regex pattern.
-// Pattern looks like: (?:^|\s)Val1(?=\s|$)[\s\S]*(?:^|\s)Val2(?=\s|$)
+// Handles both exact segments — (?:^|\s)Val(?=\s|$) — and contains segments (plain escaped text).
+function _decodeSegment(seg) {
+  const exact = seg.match(/^\(\?:\^\|\\s\)([\s\S]*?)\(\?=\\s\|\$\)$/);
+  return exact ? exact[1].replace(/\\(.)/g, '$1') : seg.replace(/\\(.)/g, '$1');
+}
+
+function _decodeSegmentWithMode(seg) {
+  const exact = seg.match(/^\(\?:\^\|\\s\)([\s\S]*?)\(\?=\\s\|\$\)$/);
+  if (exact) return { value: exact[1].replace(/\\(.)/g, '$1'), mode: 'exact' };
+  return { value: seg.replace(/\\(.)/g, '$1'), mode: 'contains' };
+}
+
+function decodeTableRuleSegments(pattern) {
+  return pattern.split('[\\s\\S]*').map(_decodeSegmentWithMode).filter(s => s.value);
+}
+
 function decodeTableRuleText(pattern) {
-  const matches = [...pattern.matchAll(/\(\?:\^\|\\s\)([\s\S]*?)\(\?=\\s\|\$\)/g)];
-  if (!matches.length) return pattern;
-  return matches.map(m => m[1].replace(/\\(.)/g, '$1')).join(' → ');
+  const parts = pattern.split('[\\s\\S]*').map(_decodeSegment).filter(Boolean);
+  return parts.length ? parts.join(' → ') : pattern;
 }
 
 function decodeTableRuleValues(pattern) {
-  const matches = [...pattern.matchAll(/\(\?:\^\|\\s\)([\s\S]*?)\(\?=\\s\|\$\)/g)];
-  return matches.map(m => m[1].replace(/\\(.)/g, '$1'));
+  return pattern.split('[\\s\\S]*').map(_decodeSegment).filter(Boolean);
 }
 
-function buildTableRulePattern(values) {
-  return values
-    .filter(Boolean)
-    .map(v => `(?:^|\\s)${v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=\\s|$)`)
+function buildTableRulePattern(segments) {
+  return segments
+    .filter(s => s.value)
+    .map(s => {
+      const escaped = s.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return s.mode === 'contains' ? escaped : `(?:^|\\s)${escaped}(?=\\s|$)`;
+    })
     .join('[\\s\\S]*');
 }
 
@@ -598,10 +614,13 @@ function bindKeywordEvents() {
       const isTableRule = !!(kw.rowSelector);
       const editBodyHtml = isTableRule
         ? (() => {
-            const vals = decodeTableRuleValues(kw.text);
-            const rows = (vals.length ? vals : ['']).map(v =>
-              `<div class="col-filter-edit-row">
-                <input class="input col-filter-edit-input" value="${escapeHtml(v)}" placeholder="Column value…" maxlength="200" />
+            const segs = decodeTableRuleSegments(kw.text);
+            const rows = (segs.length ? segs : [{ value: '', mode: 'exact' }]).map(s =>
+              `<div class="col-filter-edit-row" data-match-mode="${s.mode}">
+                <div class="col-filter-edit-wrap">
+                  <input class="input col-filter-edit-input" value="${escapeHtml(s.value)}" placeholder="Column value…" maxlength="200" />
+                  <button class="col-filter-mode-btn" type="button" data-action="toggle-col-mode" title="${s.mode === 'contains' ? 'Contains match - click for exact (=)' : 'Exact match - click for contains (~)'}" aria-label="Match mode: ${s.mode}">${s.mode === 'contains' ? '~' : '='}</button>
+                </div>
                 <button class="col-filter-edit-remove" type="button" data-action="remove-col-filter" aria-label="Remove">×</button>
               </div>`
             ).join('');
@@ -642,8 +661,12 @@ function bindKeywordEvents() {
       if (!grid) return;
       const row = document.createElement('div');
       row.className = 'col-filter-edit-row';
-      row.innerHTML = `<input class="input col-filter-edit-input" value="" placeholder="Column value…" maxlength="200" />
-        <button class="col-filter-edit-remove" type="button" data-action="remove-col-filter" aria-label="Remove">×</button>`;
+      row.dataset.matchMode = 'exact';
+      row.innerHTML = `<div class="col-filter-edit-wrap">
+        <input class="input col-filter-edit-input" value="" placeholder="Column value…" maxlength="200" />
+        <button class="col-filter-mode-btn" type="button" data-action="toggle-col-mode" title="Exact match - click for contains (~)" aria-label="Match mode: exact">=</button>
+      </div>
+      <button class="col-filter-edit-remove" type="button" data-action="remove-col-filter" aria-label="Remove">×</button>`;
       grid.appendChild(row);
       row.querySelector('input').focus();
     }
@@ -656,6 +679,15 @@ function bindKeywordEvents() {
       else row.querySelector('input').value = '';
     }
 
+    if (action === 'toggle-col-mode') {
+      const row  = e.target.closest('.col-filter-edit-row');
+      const btn  = e.target;
+      const next = (row.dataset.matchMode === 'contains') ? 'exact' : 'contains';
+      row.dataset.matchMode = next;
+      btn.textContent = next === 'contains' ? '~' : '=';
+      btn.title       = next === 'contains' ? 'Contains match - click for exact (=)' : 'Exact match - click for contains (~)';
+    }
+
     if (action === 'save-edit') {
       const form    = e.target.closest('form.rule-item__edit');
       const editId  = form?.dataset.editId;
@@ -664,10 +696,14 @@ function bindKeywordEvents() {
 
       let text, matchType;
       if (grid) {
-        const vals = Array.from(grid.querySelectorAll('.col-filter-edit-input'))
-          .map(i => i.value.trim()).filter(Boolean);
-        if (!vals.length) { showError(errEl, 'Please enter at least one column value.'); return; }
-        text      = buildTableRulePattern(vals);
+        const segments = Array.from(grid.querySelectorAll('.col-filter-edit-row'))
+          .map(row => ({
+            value: row.querySelector('.col-filter-edit-input')?.value.trim() || '',
+            mode:  row.dataset.matchMode || 'exact',
+          }))
+          .filter(s => s.value);
+        if (!segments.length) { showError(errEl, 'Please enter at least one column value.'); return; }
+        text      = buildTableRulePattern(segments);
         matchType = MATCH_TYPE.REGEX;
       } else {
         text      = form?.querySelector('[name="text"]')?.value.trim();

@@ -422,10 +422,17 @@ async function autoDetectRows() {
     // Re-apply saved column filter values, then recalculate all dropdowns at once
     const { [FORM_STATE_KEY]: saved } = await chrome.storage.session.get(FORM_STATE_KEY);
     if (saved?.colFilters?.length) {
-      for (const { col, value } of saved.colFilters) {
+      for (const { col, value, matchMode } of saved.colFilters) {
         if (!value) continue;
         const picker = qs(`.col-filter-picker[data-col="${CSS.escape(col)}"]`);
-        if (picker) _cfSetValue(picker, value);
+        if (picker) {
+          _cfSetValue(picker, value);
+          if (matchMode && matchMode !== 'exact') {
+            picker.dataset.matchMode = matchMode;
+            const btn = picker.querySelector('.col-filter-mode-btn');
+            if (btn) _cfUpdateModeBtn(btn, matchMode);
+          }
+        }
       }
       handleColumnSelect();
       updateAlertNamePlaceholder();
@@ -551,6 +558,13 @@ function getUniqueValuesForColumn(colIndex) {
   return [...new Set(base.map(r => r[colIndex]).filter(Boolean))].sort();
 }
 
+function _cfUpdateModeBtn(btn, mode) {
+  const contains = mode === 'contains';
+  btn.textContent = contains ? '~' : '=';
+  btn.title       = contains ? 'Contains match - click for exact (=)' : 'Exact match - click for contains (~)';
+  btn.setAttribute('aria-label', `Match mode: ${mode}`);
+}
+
 function renderColFilters(columns) {
   const list = qs('#colFilterList');
   if (!list) return;
@@ -566,15 +580,28 @@ function appendColFilter(colName, colIndex, insertBefore = null) {
   const cell = document.createElement('div');
   cell.className = 'col-filter-cell';
   cell.innerHTML = `
-    <div class="col-filter-picker" data-col="${escapeHtml(colName)}" data-col-index="${colIndex}" data-value="">
+    <div class="col-filter-picker" data-col="${escapeHtml(colName)}" data-col-index="${colIndex}" data-value="" data-match-mode="exact">
       <input class="input col-filter-input" type="text"
              placeholder="${escapeHtml(colName)}" autocomplete="off" spellcheck="false">
+      <button class="col-filter-mode-btn" type="button" title="Exact match - click for contains (~)" aria-label="Match mode: exact">=</button>
     </div>
     <button class="col-filter-cell-remove" type="button" aria-label="Remove column" title="Remove column">×</button>`;
 
   const picker    = cell.querySelector('.col-filter-picker');
   const input     = cell.querySelector('.col-filter-input');
+  const modeBtn   = cell.querySelector('.col-filter-mode-btn');
   const removeBtn = cell.querySelector('.col-filter-cell-remove');
+
+  modeBtn.addEventListener('mousedown', e => {
+    e.preventDefault(); // keep input focus
+    const next = (picker.dataset.matchMode === 'contains') ? 'exact' : 'contains';
+    picker.dataset.matchMode = next;
+    _cfUpdateModeBtn(modeBtn, next);
+    if (_cfActivePicker === picker) _cfRender(picker, input.value);
+    handleColumnSelect();
+    debouncedPreview();
+    debouncedSaveFormState();
+  });
 
   input.addEventListener('focus', () => _cfOpen(picker));
 
@@ -695,10 +722,15 @@ function setUrlMatchType(type) {
 function getRowPattern() {
   const parts = Array.from(
     document.querySelectorAll('#colFilterList .col-filter-picker')
-  ).map((el) => el.dataset.value.trim()).filter(Boolean);
-  return parts
-    .map((p) => `(?:^|\\s)${p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=\\s|$)`)
-    .join('[\\s\\S]*');
+  ).map((el) => {
+    const value = el.dataset.value.trim();
+    if (!value) return null;
+    const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return (el.dataset.matchMode === 'contains')
+      ? escaped
+      : `(?:^|\\s)${escaped}(?=\\s|$)`;
+  }).filter(Boolean);
+  return parts.join('[\\s\\S]*');
 }
 
 const debouncedPreview = debounce(async () => {
@@ -1230,7 +1262,7 @@ const debouncedSaveFormState = debounce(saveFormState, 400);
 async function saveFormState() {
   const colFilters = Array.from(
     document.querySelectorAll('#colFilterList .col-filter-picker')
-  ).map((el) => ({ col: el.dataset.col, value: el.dataset.value }));
+  ).map((el) => ({ col: el.dataset.col, value: el.dataset.value, matchMode: el.dataset.matchMode || 'exact' }));
 
   const state = {
     mode:           currentMode,
