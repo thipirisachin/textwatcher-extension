@@ -132,10 +132,6 @@
             + Add column
           </button>
         </div>
-        <!-- Overlay scoped to row mode panel only — mode tabs stay clickable -->
-        <div class="col-detect-overlay" id="detectOverlay">
-          <span id="detectMsg"></span>
-        </div>
       </div>
 
       <!-- ── Shared: alert name ─────────────────────────────── -->
@@ -168,6 +164,11 @@
       <!-- ── Shared: live match preview (row mode only) ──────── -->
       <p class="match-preview" id="matchPreview" aria-live="polite" style="display:none"></p>
       <div class="match-samples" id="matchSamples"></div>
+
+      <!-- Overlay covers full rule card for both text and table mode -->
+      <div class="col-detect-overlay" id="detectOverlay">
+        <span id="detectMsg"></span>
+      </div>
 
     </div><!-- /.rule-card -->
 

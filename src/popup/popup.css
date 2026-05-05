@@ -1260,7 +1260,7 @@ body {
   pointer-events: none;
   z-index: 2;
 }
-#rowModePanel { position: relative; }
+.rule-card { position: relative; }
 [data-detect-state='detecting'] .col-detect-overlay,
 [data-detect-state='no-table']  .col-detect-overlay,
 [data-detect-state='no-rule']   .col-detect-overlay {
