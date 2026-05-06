@@ -1070,9 +1070,10 @@ async function handleAddUrl() {
   showToast('URL added');
   await renderCounts();
   await renderUrlBindingBar();
+  await renderTabContext();
 
   // Re-check monitored status in text mode — overlay should clear after URL is added
-  if (currentMode === 'text') checkPageMonitoredStatus();
+  if (currentMode === 'text') await checkPageMonitoredStatus();
 
   // If the column filter area was showing the "not monitored" overlay,
   // re-run detection now that a URL rule exists. The service worker needs
