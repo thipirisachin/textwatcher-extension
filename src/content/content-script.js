@@ -364,18 +364,33 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         return true;
       }
       // Row mode: count matching rows
-      const rows = Array.from(document.querySelectorAll(rowSelector))
-        .filter(el => el.offsetParent !== null && el.style.visibility !== 'hidden');
+      let rows;
+      if (rowSelector === '.slick-row[data-row]') {
+        const seen = new Set();
+        rows = [];
+        for (const el of document.querySelectorAll('.slick-row[data-row]')) {
+          if (el.offsetParent === null || el.style.visibility === 'hidden') continue;
+          const r = el.dataset.row;
+          if (seen.has(r)) continue;
+          seen.add(r);
+          const cells = Array.from(document.querySelectorAll(`[data-row="${CSS.escape(r)}"] .slick-cell`));
+          cells.sort((a, b) => (+((a.className.match(/\bl(\d+)\b/) || [,'0'])[1])) - (+((b.className.match(/\bl(\d+)\b/) || [,'0'])[1])));
+          rows.push({ text: cells.map(c => c.textContent.trim()).join('\n') });
+        }
+      } else {
+        rows = Array.from(document.querySelectorAll(rowSelector))
+          .filter(el => el.offsetParent !== null && el.style.visibility !== 'hidden')
+          .map(el => ({ text: extractPageText([el]) }));
+      }
       const samples = [];
       let count = 0;
-      for (const row of rows) {
-        const rowText = extractPageText([row]);
+      for (const { text: rowText } of rows) {
         if (matchesKeyword(rowText, pattern, matchType)) {
           count++;
           if (samples.length < 3) samples.push(rowText.slice(0, 100));
         }
       }
-      sendResponse({ count, total: rows.length, samples, firstRowSample: count === 0 && rows.length > 0 ? extractPageText([rows[0]]).slice(0, 120) : null });
+      sendResponse({ count, total: rows.length, samples, firstRowSample: count === 0 && rows.length > 0 ? rows[0].text.slice(0, 120) : null });
     } catch (_) {
       sendResponse({ count: 0, total: 0, error: 'Invalid selector' });
     }
@@ -385,6 +400,31 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === MSG.DETECT_ROWS) {
     // Popup asks the content script to detect the best CSS selector for table rows.
     // Tries common patterns in priority order; returns the first that finds visible rows.
+
+    // SlickGrid: rows are split across frozen-left and scrolling-right panes — the same
+    // data-row value appears in both panes. Deduplicate by data-row, then merge cells
+    // from all panes sorted by column index (l0, l1, l2…). Works for both single-pane
+    // and frozen-column SlickGrid layouts.
+    const slickEls = Array.from(document.querySelectorAll('.slick-row[data-row]'))
+      .filter(el => el.offsetParent !== null && el.style.visibility !== 'hidden');
+    if (slickEls.length > 0) {
+      const seen = new Set();
+      const dataRows = [];
+      for (const el of slickEls) {
+        if (!seen.has(el.dataset.row)) { seen.add(el.dataset.row); dataRows.push(el.dataset.row); }
+      }
+      const columns = Array.from(document.querySelectorAll('.slick-header-column'))
+        .map(h => (h.querySelector('.slick-column-name')?.textContent || h.dataset.id || '').trim())
+        .filter(Boolean);
+      const rows = dataRows.slice(0, 200).map(r => {
+        const cells = Array.from(document.querySelectorAll(`[data-row="${CSS.escape(r)}"] .slick-cell`));
+        cells.sort((a, b) => (+((a.className.match(/\bl(\d+)\b/) || [,'0'])[1])) - (+((b.className.match(/\bl(\d+)\b/) || [,'0'])[1])));
+        return cells.map(c => c.textContent.trim());
+      });
+      sendResponse({ selector: '.slick-row[data-row]', count: dataRows.length, columns, rows });
+      return true;
+    }
+
     const CANDIDATES = [
       'tbody tr',
       '[data-rowid]',
@@ -599,9 +639,24 @@ function runScan() {
   const getRowTexts = (sel) => {
     if (rowTextCache.has(sel)) return rowTextCache.get(sel);
     try {
-      const texts = Array.from(document.querySelectorAll(sel))
-        .filter(el => el.offsetParent !== null && el.style.visibility !== 'hidden')
-        .map(el => extractPageText([el]));
+      let texts;
+      if (sel === '.slick-row[data-row]') {
+        const seen = new Set();
+        texts = [];
+        for (const el of document.querySelectorAll('.slick-row[data-row]')) {
+          if (el.offsetParent === null || el.style.visibility === 'hidden') continue;
+          const r = el.dataset.row;
+          if (seen.has(r)) continue;
+          seen.add(r);
+          const cells = Array.from(document.querySelectorAll(`[data-row="${CSS.escape(r)}"] .slick-cell`));
+          cells.sort((a, b) => (+((a.className.match(/\bl(\d+)\b/) || [,'0'])[1])) - (+((b.className.match(/\bl(\d+)\b/) || [,'0'])[1])));
+          texts.push(cells.map(c => c.textContent.trim()).join('\n'));
+        }
+      } else {
+        texts = Array.from(document.querySelectorAll(sel))
+          .filter(el => el.offsetParent !== null && el.style.visibility !== 'hidden')
+          .map(el => extractPageText([el]));
+      }
       rowTextCache.set(sel, texts);
       return texts;
     } catch (_) {

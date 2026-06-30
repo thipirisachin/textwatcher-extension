@@ -65,6 +65,10 @@ const TOUR_STEPS = [
     text: 'This tells you if TextWatcher is watching the current page. Green dot = monitored.',
   },
   {
+    target: '.mode-tabs',
+    text: 'Choose your rule type: Table Mode tracks a specific row in a table, Text Mode watches for any keyword on the page.',
+  },
+  {
     // Table Mode only — visible only after detection succeeds
     target: '#colFilterWrap',
     text: 'Table Mode: enter partial text from any column. The preview below shows how many rows match - aim for 1.',
